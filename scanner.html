@@ -169,10 +169,22 @@
             // Detect mobile devices
             const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
             if (isMobile && navigator.share) {
-                // Use native share on mobile
-                navigator.share({ text })
-                    .then(() => { reportOutput.textContent = 'Shared successfully.'; })
-                    .catch((error) => { reportOutput.textContent = 'Error sharing: ' + error; });
+                // Try to include an image of the current canvas when sharing
+                canvas.toBlob(blob => {
+                    if (blob) {
+                        const file = new File([blob], 'scan.png', { type: blob.type });
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            navigator.share({ text, files: [file] })
+                                .then(() => { reportOutput.textContent = 'Shared successfully.'; })
+                                .catch((error) => { reportOutput.textContent = 'Error sharing: ' + error; });
+                            return;
+                        }
+                    }
+                    // Fallback to text-only share
+                    navigator.share({ text })
+                        .then(() => { reportOutput.textContent = 'Shared successfully.'; })
+                        .catch((error) => { reportOutput.textContent = 'Error sharing: ' + error; });
+                });
             } else if (navigator.clipboard && navigator.clipboard.writeText) {
                 // Copy to clipboard on desktop
                 navigator.clipboard.writeText(text)
