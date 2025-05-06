@@ -1,6 +1,8 @@
 # TrueSight DAO DApp
 
-![TrueSight DAO Logo](https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png)
+<div align="center">
+  <img src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png" alt="TrueSight DAO Logo"/>
+</div>
 
 This repository contains decentralized application (DApp) tools for TrueSight DAO members. The initial initiative is the Agroverse cacao circles, providing web-based utilities to manage serialized cacao bags, scan QR codes, and share sale information seamlessly.
 
