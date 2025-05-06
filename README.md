@@ -24,17 +24,6 @@ The QR Code Scanner provides DAO members with the ability to:
 5. Once the `qr_code` parameter is detected, it appears on screen and enables **Report Sold**.
 6. Click **Report Sold** to share or copy the sale message.
 
-#### Features
-
-- Real-time video capture and QR decoding (using [jsQR](https://github.com/cozmo/jsQR)).
-- Digital zoom controls on supported cameras.
-- Mobile-friendly native sharing and desktop clipboard support.
-
-#### Requirements
-
-- Modern browser with `getUserMedia` support.
-- Camera device (rear-facing recommended).
-- Internet connection (for CDN assets) or local copy of `jsQR.min.js`.
 
 ## Future Modules
 
