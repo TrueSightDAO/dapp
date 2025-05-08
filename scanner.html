@@ -16,12 +16,31 @@
             border: 1px solid #ccc;
             margin-bottom: 10px;
         }
+        input[type="button"] {
+            padding: 10px 40px;
+            display: inline-block;
+        }
         #output {
             margin-top: 10px;
+            margin-bottom: 20px;
             padding: 10px;
-            border: 1px solid #ccc;
+            border: none;
             max-width: 400px;
             word-wrap: break-word;
+        }
+        /* align buttons side by side on desktop */
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        @media (max-width: 600px) {
+            .button-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
     </style>
 </head>
@@ -32,17 +51,30 @@
     <!-- Zoom control for digital zoom (when supported) -->
     <label id="zoom_label" hidden>Zoom: <span id="zoom_value">1</span>x</label>
     <input type="range" id="zoom_slider" hidden disabled min="1" max="1" step="0.1">
-    <input type="button" id="scan_button" value="Scan QR Code" disabled>
+
+    <div id="output">Scan the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO's Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!
+
+</div>    
+
+    <div class="button-row">
+        <input type="button" id="scan_button" value="Start Scanning" disabled>
+        <input type="button" id="report_button" value="Report Sold" disabled>
+    </div>
+
     <!-- Display extracted qr_code param -->
     <div id="qr_param_display" style="margin-top:10px; font-size:1.2em; font-weight:bold;"></div>
-    <!-- Report sold button and output -->
-    <input type="button" id="report_button" value="Report Sold" disabled style="margin-top:5px;">
+
     <div id="report_output" style="margin-top:10px;"></div>
-    <div id="output">Scan a QR code...</div>
 
     <!-- Include jsQR library via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script>
+        // Register Service Worker for offline support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { scope: './' })
+                .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+                .catch(err => console.warn('Service Worker registration failed:', err));
+        }
         // Get DOM elements
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
@@ -62,6 +94,7 @@
             reportButton.disabled = true;
             lastQrParam = null;
             scanning = true;
+            scan_button.value = 'Scanning...';
             output.textContent = 'Scanning...';
             scanQRCode();
         });
@@ -139,6 +172,7 @@
                 output.textContent = 'QR Code Data: ' + code.data;
                 // Stop scanning but keep video running
                 scanning = false;
+                scan_button.value = 'Scan another Qr Code';
                 // Extract qr_code param if present
                 try {
                     const urlObj = new URL(code.data);
