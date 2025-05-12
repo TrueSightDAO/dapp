@@ -92,7 +92,18 @@
         // Start camera and draw to canvas
         async function startCamera() {
             try {
-                const constraints = { video: { facingMode: 'user' } };
+
+                // Detect mobile devices to prefer the rear camera when available
+                const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);                
+                const constraints = {
+                    video: isMobile
+                        ? {
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                        : true
+                };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
                 video.onloadedmetadata = () => {
