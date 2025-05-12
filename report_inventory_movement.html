@@ -45,6 +45,8 @@
             word-wrap: break-word;
         }
     </style>
+    <!-- Select2 CSS for searchable dropdowns -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 </head>
 <body>
     <h1>Report Inventory Movement</h1>
@@ -76,6 +78,9 @@
     </div>
     <button id="reportButton" disabled>Report Inventory Movement</button>
     <div id="reportOutput"></div>
+    <!-- jQuery and Select2 for searchable selects -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>
         // Register Service Worker for offline support
@@ -117,12 +122,17 @@
                 const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?list=true');
                 const managers = await res.json();
                 const sel = document.getElementById('managerSelect');
-                sel.innerHTML = '<option value="">Select a manager</option>';
+                // Populate select and initialize Select2 for search
+                $(sel).empty().append(new Option('Select a manager', '', true, false));
                 managers.forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m.key;
-                    opt.textContent = m.name;
-                    sel.appendChild(opt);
+                    const opt = new Option(m.name, m.key, false, false);
+                    $(sel).append(opt);
+                });
+                // Apply Select2
+                $(sel).select2({
+                    placeholder: 'Select a manager',
+                    width: '100%',
+                    allowClear: true
                 });
             } catch (err) {
                 console.error('Error loading managers:', err);
@@ -135,12 +145,17 @@
                 const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?recipients=true');
                 const recs = await res.json();
                 const sel = document.getElementById('recipientSelect');
-                sel.innerHTML = '<option value="">Select a recipient</option>';
+                // Populate select and initialize Select2 for search
+                $(sel).empty().append(new Option('Select a recipient', '', true, false));
                 recs.forEach(r => {
-                    const opt = document.createElement('option');
-                    opt.value = r.key;
-                    opt.textContent = r.name;
-                    sel.appendChild(opt);
+                    const opt = new Option(r.name, r.key, false, false);
+                    $(sel).append(opt);
+                });
+                // Apply Select2
+                $(sel).select2({
+                    placeholder: 'Select a recipient',
+                    width: '100%',
+                    allowClear: true
                 });
             } catch (err) {
                 console.error('Error loading recipients:', err);
@@ -154,22 +169,22 @@
             const qtyInput = document.getElementById('quantityInput');
             document.getElementById('availableQuantity').textContent = '';
             qtyInput.value = '';
+            // Reset item select
+            try { $(itemSel).select2('destroy'); } catch (e) {}
             if (!managerKey) {
-                itemSel.innerHTML = '<option value="">Select a manager first</option>';
-                itemSel.disabled = true;
+                $(itemSel).empty().append(new Option('Select a manager first', '', true, false));
+                $(itemSel).prop('disabled', true)
+                           .select2({ placeholder: 'Select a manager first', width: '100%', allowClear: true });
                 qtyInput.disabled = true;
             } else {
                 try {
                     const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?manager=' + encodeURIComponent(managerKey));
                     assets = await res.json();
-                    itemSel.innerHTML = '<option value="">Select an item</option>';
-                    assets.forEach(a => {
-                        const opt = document.createElement('option');
-                        opt.value = a.currency;
-                        opt.textContent = a.currency;
-                        itemSel.appendChild(opt);
-                    });
-                    itemSel.disabled = false;
+                    // Populate items
+                    $(itemSel).empty().append(new Option('Select an item', '', true, false));
+                    assets.forEach(a => $(itemSel).append(new Option(a.currency, a.currency, false, false)));
+                    $(itemSel).prop('disabled', false)
+                               .select2({ placeholder: 'Select an item', width: '100%', allowClear: true });
                     qtyInput.disabled = true;
                 } catch (err) {
                     console.error('Error loading assets:', err);
