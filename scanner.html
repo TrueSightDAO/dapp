@@ -197,7 +197,7 @@
         // Handle report sold button click: copy text to clipboard on desktop, use native share on mobile
         reportButton.addEventListener('click', () => {
             if (!lastQrParam) return;
-            const text = `${lastQrParam} - this bag of cacao just sold by me for $25.`;
+            const text = `[QR CODE EVENT] ${lastQrParam} - this bag of cacao just sold by me for $25.`;
             // Clear previous output
             reportOutput.textContent = '';
             // Detect mobile devices

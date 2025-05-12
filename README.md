@@ -28,11 +28,25 @@ The QR Code Scanner provides DAO members with the ability to:
 5. Once the `qr_code` parameter is detected, it appears on screen and enables **Report Sold**.
 6. Click **Report Sold** to share or copy the sale message.
 
+### [Inventory Movement Reporter](./report_inventory_movement.html)
+Camera-based inventory movement reporting with dynamic selections:
+  - Select a warehouse manager from the API-driven dropdown
+  - Load and choose an inventory item under that manager, view available quantity
+  - Select a recipient from the contact list
+  - Enter the quantity to move
+  - Capture the current camera view and share a standardized report message
+
+#### Usage
+1. Open [Inventory Movement Reporter](./report_inventory_movement.html) in a modern browser with camera support.
+2. Grant camera access when prompted.
+3. Select a **Warehouse Manager** from the dropdown.
+4. Once loaded, choose an **Inventory Item** and view its available quantity.
+5. Select a **Recipient** from the contacts dropdown.
+6. Enter the **Quantity to Move**.
+7. Click **Report Inventory Movement** to share (mobile) or copy (desktop) the report text and attach the current camera snapshot.
 
 ## Future Modules
-
-- Inventory movement reporting
-- Contributions reporting for $TDG awards
+* Contributions reporting for $TDG awards
 
 ## License
 
