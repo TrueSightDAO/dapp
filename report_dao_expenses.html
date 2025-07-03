@@ -23,7 +23,7 @@
             margin-bottom: 5px;
             font-weight: bold;
         }
-        select, input[type="number"], input[type="file"], button {
+        select, input[type="number"], input[type="file"], input[type="text"], button {
             padding: 10px;
             font-size: 1em;
             width: 100%;
@@ -75,7 +75,11 @@
         <input type="number" id="quantityInput" min="1" disabled>
     </div>
     <div class="form-row">
-        <label for="attachmentInput">Attach Receipt:</label>
+        <label for="descriptionInput">Expense Description:</label>
+        <input type="text" id="descriptionInput" placeholder="Enter expense description">
+    </div>
+    <div class="form-row">
+        <label for="attachmentInput">Attachment:</label>
         <input type="file" id="attachmentInput" accept="image/*,application/pdf">
     </div>
     <button id="submitButton" disabled>Submit Expense Report</button>
@@ -166,8 +170,9 @@
             const memberSel = document.getElementById('memberSelect');
             const resourceSel = document.getElementById('resourceSelect');
             const qtyInput = document.getElementById('quantityInput');
+            const descriptionInput = document.getElementById('descriptionInput');
             const submitBtn = document.getElementById('submitButton');
-            submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0);
+            submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0 && descriptionInput.value);
         }
 
         // Handle form submission
@@ -177,10 +182,11 @@
             const resourceSel = document.getElementById('resourceSelect');
             const resourceName = resourceSel.value;
             const quantity = document.getElementById('quantityInput').value;
+            const description = document.getElementById('descriptionInput').value;
             const attachmentInput = document.getElementById('attachmentInput');
             const output = document.getElementById('outputMessage');
 
-            const text = `[DAO Inventory Expense Event]\n- DAO Member Name: ${memberName}\n- Inventory Type: ${resourceName}\n- Inventory Quantity: ${quantity}`;
+            const text = `[DAO Inventory Expense Event]\n- DAO Member Name: ${memberName}\n- Inventory Type: ${resourceName}\n- Inventory Quantity: ${quantity}\n- Expense Description: ${description}`;
             output.textContent = '';
 
             const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -213,6 +219,7 @@
             document.getElementById('memberSelect').addEventListener('change', onMemberChange);
             document.getElementById('resourceSelect').addEventListener('change', onResourceChange);
             document.getElementById('quantityInput').addEventListener('input', updateSubmitButtonState);
+            document.getElementById('descriptionInput').addEventListener('input', updateSubmitButtonState);
             document.getElementById('attachmentInput').addEventListener('change', updateSubmitButtonState);
             document.getElementById('submitButton').addEventListener('click', onSubmit);
         });
