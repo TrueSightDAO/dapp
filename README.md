@@ -11,7 +11,6 @@ This repository contains decentralized application (DApp) tools for TrueSight DA
 ### [Serialized Cacao Bag Scanner](./scanner.html)
 QR Code Scanner
 
-
 The QR Code Scanner provides DAO members with the ability to:
 
 - Scan the QR code on a cacao bag using the device camera.
@@ -27,6 +26,25 @@ The QR Code Scanner provides DAO members with the ability to:
 4. Click **Scan QR Code**.
 5. Once the `qr_code` parameter is detected, it appears on screen and enables **Report Sold**.
 6. Click **Report Sold** to share or copy the sale message.
+
+
+### [Inventory Expense Reporter](./report_dao_expenses.html)
+Form-based inventory expense reporting:
+  - Select a DAO member from the API-driven dropdown
+  - Choose an inventory resource and view its available quantity
+  - Enter the quantity expensed
+  - Attach an image or PDF file
+  - Submit to share (mobile, e.g., to Telegram or WhatsApp) or copy to clipboard (desktop)
+
+#### Usage
+1. Open [Inventory Expense Reporter](./report_dao_expenses.html) in a modern browser.
+2. Select a **DAO Member** from the dropdown.
+3. Choose an **Inventory Resource** and view its available quantity.
+4. Enter the **Quantity Expensed**.
+5. Optionally, attach an image or PDF file.
+6. Click **Submit Expense Report** to share (mobile) or copy (desktop) the standardized report text.
+
+
 
 ### [Inventory Movement Reporter](./report_inventory_movement.html)
 Camera-based inventory movement reporting with dynamic selections:

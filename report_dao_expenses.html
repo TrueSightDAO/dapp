@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAO Inventory Expense Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+        }
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 400px;
+        }
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input[type="number"], input[type="file"], button {
+            padding: 10px;
+            font-size: 1em;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #availableQuantity {
+            margin-top: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        #outputMessage {
+            margin-top: 15px;
+            max-width: 400px;
+            word-wrap: break-word;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>DAO Inventory Expense Report</h1>
+    <div class="form-row">
+        <label for="memberSelect">DAO Member:</label>
+        <select id="memberSelect">
+            <option value="">Loading members...</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="resourceSelect">Inventory Resource:</label>
+        <select id="resourceSelect" disabled>
+            <option value="">Select a member first</option>
+        </select>
+        <div id="availableQuantity"></div>
+    </div>
+    <div class="form-row">
+        <label for="quantityInput">Quantity Expensed:</label>
+        <input type="number" id="quantityInput" min="1" disabled>
+    </div>
+    <div class="form-row">
+        <label for="attachmentInput">Attach Receipt:</label>
+        <input type="file" id="attachmentInput" accept="image/*,application/pdf">
+    </div>
+    <button id="submitButton" disabled>Submit Expense Report</button>
+    <div id="outputMessage"></div>
+
+    <script>
+        // Register Service Worker for offline support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { scope: './' })
+                .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+                .catch(err => console.warn('Service Worker registration failed:', err));
+        }
+
+        let resources = [];
+
+        // Load DAO members
+        async function loadMembers() {
+            try {
+                const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?list=true');
+                const members = await res.json();
+                const sel = document.getElementById('memberSelect');
+                sel.innerHTML = '<option value="">Select a DAO member</option>';
+                members.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.key;
+                    opt.textContent = m.name;
+                    sel.appendChild(opt);
+                });
+            } catch (err) {
+                console.error('Error loading members:', err);
+                document.getElementById('outputMessage').textContent = 'Error loading members: ' + err.message;
+            }
+        }
+
+        // Load resources for selected member
+        async function onMemberChange() {
+            const memberKey = this.value;
+            const resourceSel = document.getElementById('resourceSelect');
+            const qtyInput = document.getElementById('quantityInput');
+            const availableQty = document.getElementById('availableQuantity');
+            availableQty.textContent = '';
+            qtyInput.value = '';
+            if (!memberKey) {
+                resourceSel.innerHTML = '<option value="">Select a member first</option>';
+                resourceSel.disabled = true;
+                qtyInput.disabled = true;
+            } else {
+                try {
+                    const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?manager=' + encodeURIComponent(memberKey));
+                    resources = await res.json();
+                    resourceSel.innerHTML = '<option value="">Select a resource</option>';
+                    resources.forEach(r => {
+                        const opt = document.createElement('option');
+                        opt.value = r.currency;
+                        opt.textContent = r.currency;
+                        resourceSel.appendChild(opt);
+                    });
+                    resourceSel.disabled = false;
+                    qtyInput.disabled = true;
+                } catch (err) {
+                    console.error('Error loading resources:', err);
+                    document.getElementById('outputMessage').textContent = 'Error loading resources: ' + err.message;
+                }
+            }
+            updateSubmitButtonState();
+        }
+
+        // Update available quantity and input constraints
+        function onResourceChange() {
+            const selected = this.value;
+            const availableQty = document.getElementById('availableQuantity');
+            const qtyInput = document.getElementById('quantityInput');
+            const resource = resources.find(r => r.currency === selected);
+            if (resource) {
+                availableQty.textContent = `Available Quantity: ${resource.amount}`;
+                qtyInput.max = resource.amount;
+                qtyInput.disabled = false;
+            } else {
+                availableQty.textContent = '';
+                qtyInput.value = '';
+                qtyInput.disabled = true;
+            }
+            updateSubmitButtonState();
+        }
+
+        // Enable/disable submit button based on form completion
+        function updateSubmitButtonState() {
+            const memberSel = document.getElementById('memberSelect');
+            const resourceSel = document.getElementById('resourceSelect');
+            const qtyInput = document.getElementById('quantityInput');
+            const submitBtn = document.getElementById('submitButton');
+            submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0);
+        }
+
+        // Handle form submission
+        async function onSubmit() {
+            const memberSel = document.getElementById('memberSelect');
+            const memberName = memberSel.options[memberSel.selectedIndex].text;
+            const resourceSel = document.getElementById('resourceSelect');
+            const resourceName = resourceSel.value;
+            const quantity = document.getElementById('quantityInput').value;
+            const attachmentInput = document.getElementById('attachmentInput');
+            const output = document.getElementById('outputMessage');
+
+            const text = `[DAO Inventory Expense Event]\n- DAO Member Name: ${memberName}\n- Inventory Type: ${resourceName}\n- Inventory Quantity: ${quantity}`;
+            output.textContent = '';
+
+            const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+            if (isMobile && navigator.share) {
+                const files = attachmentInput.files.length > 0 ? [attachmentInput.files[0]] : [];
+                const shareData = { text };
+                if (files.length > 0 && navigator.canShare({ files })) {
+                    shareData.files = files;
+                }
+                try {
+                    await navigator.share(shareData);
+                    output.textContent = 'Report shared successfully.';
+                } catch (err) {
+                    output.textContent = 'Error sharing report: ' + err.message;
+                }
+            } else {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    output.textContent = 'Report copied to clipboard.';
+                } catch (err) {
+                    output.textContent = 'Failed to copy report: ' + err.message;
+                }
+            }
+        }
+
+        // Initialize the module
+        window.addEventListener('load', () => {
+            loadMembers();
+            document.getElementById('memberSelect').addEventListener('change', onMemberChange);
+            document.getElementById('resourceSelect').addEventListener('change', onResourceChange);
+            document.getElementById('quantityInput').addEventListener('input', updateSubmitButtonState);
+            document.getElementById('attachmentInput').addEventListener('change', updateSubmitButtonState);
+            document.getElementById('submitButton').addEventListener('click', onSubmit);
+        });
+    </script>
+</body>
+</html>
