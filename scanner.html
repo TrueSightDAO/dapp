@@ -10,36 +10,117 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 20px;
+            margin: 2rem;
+            padding: 0;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
         }
         video, canvas {
             border: 1px solid #ccc;
-            margin-bottom: 10px;
+            margin-bottom: 1rem;
+            max-width: 100%;
+            height: auto;
         }
         input[type="button"] {
-            padding: 10px 40px;
-            display: inline-block;
+            padding: 0.8rem 2rem;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        input[type="button"]:active {
+            transform: scale(0.98);
+        }
+        #scan_button {
+            background-color: #28a745;
+            color: white;
+        }
+        #report_button {
+            background-color: #007bff;
+            color: white;
+        }
+        input[type="button"]:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
         #output {
-            margin-top: 10px;
-            margin-bottom: 20px;
-            padding: 10px;
+            margin: 1rem 0;
+            padding: 1rem;
             border: none;
-            max-width: 400px;
+            max-width: 90%;
+            font-size: 1rem;
+            line-height: 1.5;
+            text-align: center;
             word-wrap: break-word;
         }
-        /* align buttons side by side on desktop */
+        #qr_param_display {
+            margin: 1rem 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        #report_output {
+            margin: 1rem 0;
+            max-width: 90%;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #telegram_link {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
         .button-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 20px;
+            gap: 1rem;
             justify-content: center;
-            margin-bottom: 10px;
+            margin-bottom: 1rem;
+            width: 100%;
+            max-width: 600px;
+        }
+        #zoom_label {
+            font-size: 1rem;
+            margin: 0.5rem 0;
+        }
+        #zoom_slider {
+            width: 100%;
+            max-width: 300px;
+            height: 8px;
+            margin: 0.5rem 0;
         }
         @media (max-width: 600px) {
+            body {
+                margin: 1rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            video, canvas {
+                width: 100%;
+                max-width: 400px;
+            }
+            input[type="button"] {
+                padding: 1rem;
+                font-size: 1.1rem;
+                width: 100%;
+            }
             .button-row {
                 flex-direction: column;
                 align-items: stretch;
+            }
+            #output, #qr_param_display, #report_output {
+                font-size: 0.95rem;
+                max-width: 100%;
+            }
+            #zoom_slider {
+                height: 10px;
             }
         }
     </style>
@@ -52,9 +133,7 @@
     <label id="zoom_label" hidden>Zoom: <span id="zoom_value">1</span>x</label>
     <input type="range" id="zoom_slider" hidden disabled min="1" max="1" step="0.1">
 
-    <div id="output">Scan the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO's Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!
-
-</div>    
+    <div id="output">Scan the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO's Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!</div>    
 
     <div class="button-row">
         <input type="button" id="scan_button" value="Start Scanning" disabled>
@@ -62,9 +141,9 @@
     </div>
 
     <!-- Display extracted qr_code param -->
-    <div id="qr_param_display" style="margin-top:10px; font-size:1.2em; font-weight:bold;"></div>
+    <div id="qr_param_display"></div>
 
-    <div id="report_output" style="margin-top:10px;"></div>
+    <div id="report_output"></div>
 
     <!-- Include jsQR library via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
@@ -172,7 +251,7 @@
                 output.textContent = 'QR Code Data: ' + code.data;
                 // Stop scanning but keep video running
                 scanning = false;
-                scan_button.value = 'Scan another Qr Code';
+                scan_button.value = 'Scan another QR Code';
                 // Extract qr_code param if present
                 try {
                     const urlObj = new URL(code.data);
@@ -198,8 +277,10 @@
         reportButton.addEventListener('click', () => {
             if (!lastQrParam) return;
             const text = `[QR CODE EVENT] ${lastQrParam} - this bag of cacao just sold by me for $25.`;
+            const telegramLink = 'https://t.me/TrueSightDAO';
+            const telegramSuggestion = `Please paste or share this report in the TrueSightDAO Telegram channel: <a id="telegram_link" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
             // Clear previous output
-            reportOutput.textContent = '';
+            reportOutput.innerHTML = '';
             // Detect mobile devices
             const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
             if (isMobile && navigator.share) {
@@ -209,21 +290,21 @@
                         const file = new File([blob], 'scan.png', { type: blob.type });
                         if (navigator.canShare && navigator.canShare({ files: [file] })) {
                             navigator.share({ text, files: [file] })
-                                .then(() => { reportOutput.textContent = 'Shared successfully.'; })
-                                .catch((error) => { reportOutput.textContent = 'Error sharing: ' + error; });
+                                .then(() => { reportOutput.innerHTML = `Shared successfully. ${telegramSuggestion}`; })
+                                .catch((error) => { reportOutput.innerHTML = `Error sharing: ${error}. ${telegramSuggestion}`; });
                             return;
                         }
                     }
                     // Fallback to text-only share
                     navigator.share({ text })
-                        .then(() => { reportOutput.textContent = 'Shared successfully.'; })
-                        .catch((error) => { reportOutput.textContent = 'Error sharing: ' + error; });
+                        .then(() => { reportOutput.innerHTML = `Shared successfully. ${telegramSuggestion}`; })
+                        .catch((error) => { reportOutput.innerHTML = `Error sharing: ${error}. ${telegramSuggestion}`; });
                 });
             } else if (navigator.clipboard && navigator.clipboard.writeText) {
                 // Copy to clipboard on desktop
                 navigator.clipboard.writeText(text)
-                    .then(() => { reportOutput.textContent = 'Report text copied to clipboard.'; })
-                    .catch((err) => { reportOutput.textContent = 'Failed to copy text: ' + err; });
+                    .then(() => { reportOutput.innerHTML = `Report text copied to clipboard. ${telegramSuggestion}`; })
+                    .catch((err) => { reportOutput.innerHTML = `Failed to copy text: ${err}. ${telegramSuggestion}`; });
             } else {
                 // Fallback for older browsers
                 const textarea = document.createElement('textarea');
@@ -233,9 +314,9 @@
                 textarea.focus(); textarea.select();
                 try {
                     document.execCommand('copy');
-                    reportOutput.textContent = 'Report text copied to clipboard.';
+                    reportOutput.innerHTML = `Report text copied to clipboard. ${telegramSuggestion}`;
                 } catch (err) {
-                    reportOutput.textContent = 'Failed to copy text: ' + err;
+                    reportOutput.innerHTML = `Failed to copy text: ${err}. ${telegramSuggestion}`;
                 }
                 document.body.removeChild(textarea);
             }
