@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Manage Digital Signature</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; text-align: center; }
+    button { margin: 10px; padding: 10px 20px; cursor: pointer; font-size: 16px; }
+    .status { color: green; }
+    .prompt { color: blue; }
+    .error { color: red; }
+    #publicKey { margin: 20px 0; word-wrap: break-word; font-family: monospace; }
+    #shareOptions { display: none; margin-top: 10px; }
+    #shareOptions a, #shareOptions button { margin: 10px; }
+    #explanation { margin: 10px 0; font-style: italic; }
+    #cashOutLink { margin: 10px; display: none; }
+  </style>
+</head>
+<body>
+  <h2>Manage Your Digital Signature</h2>
+  <p id="explanation"></p>
+  <p id="keyStatus"></p>  
+  <div id="publicKey"></div>
+  <div id="buttons">
+    <button id="generateButton" onclick="generateKeys()">Create one</button>
+    <button id="shareButton" onclick="showShareOptions()" style="display: none;">Share it</button>
+    <button id="createNewButton" onclick="generateKeys()" style="display: none;">Create new</button>
+    <a id="cashOutLink" href="./withdraw_voting_rights.html">Cash out your voting rights</a>
+  </div>
+  <div id="shareOptions">
+    <a id="telegramShare" href="#" target="_blank">Share via Telegram</a>
+    <button onclick="copyToClipboard()">Copy for WhatsApp</button>
+  </div>
+
+  <script>
+    // Utility function for Base64 conversion
+    function arrayBufferToBase64(buffer) {
+      return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    }
+
+    // Check for existing keys on page load
+    window.onload = function() {
+      const publicKey = localStorage.getItem('publicKey');
+      const privateKey = localStorage.getItem('privateKey');
+      const keyStatus = document.getElementById('keyStatus');
+      const publicKeyDiv = document.getElementById('publicKey');
+      const explanation = document.getElementById('explanation');
+      const generateButton = document.getElementById('generateButton');
+      const shareButton = document.getElementById('shareButton');
+      const createNewButton = document.getElementById('createNewButton');
+      const cashOutLink = document.getElementById('cashOutLink');
+
+      if (publicKey && privateKey) {
+        // State 2: Keys exist
+        keyStatus.textContent = 'This is your digital signature.';
+        keyStatus.className = 'status';
+        explanation.textContent = 'Other community members can use your digital signature to verify that a request to withdraw your voting rights for cash is actually from you.';
+        publicKeyDiv.textContent = publicKey;
+        generateButton.style.display = 'none';
+        shareButton.style.display = 'inline-block';
+        createNewButton.style.display = 'inline-block';
+        cashOutLink.style.display = 'inline-block';
+      } else {
+        // State 1: No keys
+        keyStatus.textContent = 'Your digital signature is not created yet.';
+        keyStatus.className = 'prompt';
+        explanation.textContent = '';
+        publicKeyDiv.textContent = '';
+        generateButton.style.display = 'inline-block';
+        shareButton.style.display = 'none';
+        createNewButton.style.display = 'none';
+        cashOutLink.style.display = 'none';
+      }
+    };
+
+    // Generate RSA key pair
+    async function generateKeys() {
+      try {
+        const keyPair = await window.crypto.subtle.generateKey(
+          {
+            name: "RSASSA-PKCS1-v1_5",
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256"
+          },
+          true,
+          ["sign", "verify"]
+        );
+
+        const publicKey = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+        const privateKey = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+        
+        const publicKeyBase64 = arrayBufferToBase64(publicKey);
+        const privateKeyBase64 = arrayBufferToBase64(privateKey);
+
+        // Store keys in localStorage (accessible to other scripts on the same domain)
+        localStorage.setItem('publicKey', publicKeyBase64);
+        localStorage.setItem('privateKey', privateKeyBase64);
+
+        // Prompt user to save private key securely
+        alert('Your private key has been generated. Save it securely in a safe place (e.g., download or write it down). Do NOT share it, as it allows signing on your behalf:\n\n' + privateKeyBase64);
+
+        // Update UI to State 2
+        document.getElementById('keyStatus').textContent = 'This is your digital signature.';
+        document.getElementById('keyStatus').className = 'status';
+        document.getElementById('explanation').textContent = 'Other community members can use your digital signature to verify that a request to withdraw your voting rights for cash is actually from you.';
+        document.getElementById('publicKey').textContent = publicKeyBase64;
+        document.getElementById('generateButton').style.display = 'none';
+        document.getElementById('shareButton').style.display = 'inline-block';
+        document.getElementById('createNewButton').style.display = 'inline-block';
+        document.getElementById('cashOutLink').style.display = 'inline-block';
+      } catch (error) {
+        document.getElementById('keyStatus').textContent = 'Error generating keys: ' + error;
+        document.getElementById('keyStatus').className = 'error';
+      }
+    }
+
+    // Show share options
+    function showShareOptions() {
+      const shareOptions = document.getElementById('shareOptions');
+      shareOptions.style.display = shareOptions.style.display === 'none' ? 'block' : 'none';
+
+      const publicKey = localStorage.getItem('publicKey');
+      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nPUBLIC KEY: ${publicKey}`;
+      
+      // Telegram share link
+      const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareText)}`;
+      document.getElementById('telegramShare').href = telegramUrl;
+
+      // Web Share API (if available)
+      if (navigator.share) {
+        navigator.share({
+          text: shareText
+        }).catch(error => {
+          console.error('Web Share error:', error);
+        });
+      }
+    }
+
+    // Copy share text for WhatsApp
+    function copyToClipboard() {
+      const publicKey = localStorage.getItem('publicKey');
+      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nPUBLIC KEY: ${publicKey}`;
+      
+      navigator.clipboard.writeText(shareText).then(() => {
+        document.getElementById('keyStatus').textContent = 'Digital signature copied to clipboard! Paste it into WhatsApp.';
+        document.getElementById('keyStatus').className = 'status';
+      }).catch(error => {
+        document.getElementById('keyStatus').textContent = 'Error copying to clipboard: ' + error;
+        document.getElementById('keyStatus').className = 'error';
+      });
+    }
+  </script>
+</body>
+</html>
