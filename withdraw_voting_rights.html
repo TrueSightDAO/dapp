@@ -40,6 +40,9 @@
     .error {
       color: #dc3545;
     }
+    .warning {
+      color: #ffc107;
+    }
     .info {
       margin: 10px 0;
       font-weight: bold;
@@ -61,6 +64,10 @@
       box-sizing: border-box;
       border-radius: 5px;
       border: 1px solid #ccc;
+    }
+    input.invalid {
+      border-color: #dc3545;
+      background-color: #fff0f0;
     }
     button {
       margin: 10px auto;
@@ -120,6 +127,7 @@
 
   <script>
     const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzB_FUyrMJ6oi9TERS-Kw-XjRm3mTFAO2V5t5_fL7CkK9DK-aP5A3ckxVqJ3kQGrqfH/exec';
+    let maxVotingRights = 0;
 
     function arrayBufferToBase64(buffer) {
       return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -134,6 +142,69 @@
 
     function isMobileDevice() {
       return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    // Validate and correct input values
+    function validateInputs() {
+      const amountInput = document.getElementById('amount');
+      const priceInput = document.getElementById('price');
+      const actionStatus = document.getElementById('action-status');
+      let amount = parseFloat(amountInput.value);
+      let price = parseFloat(priceInput.value);
+      let hasError = false;
+
+      // Reset input styles
+      amountInput.classList.remove('invalid');
+      priceInput.classList.remove('invalid');
+      actionStatus.textContent = '';
+      actionStatus.className = '';
+
+      // Validate voting rights amount
+      if (isNaN(amount) {
+        amount = 0;
+        amountInput.value = '';
+        return false;
+      }
+
+      if (amount < 0) {
+        amount = 0;
+        amountInput.value = 0;
+        amountInput.classList.add('invalid');
+        actionStatus.textContent = 'Voting rights cannot be negative. Set to 0.';
+        actionStatus.className = 'error';
+        hasError = true;
+      }
+
+      if (amount > maxVotingRights) {
+        amount = maxVotingRights;
+        amountInput.value = maxVotingRights;
+        amountInput.classList.add('invalid');
+        actionStatus.textContent = `You only have ${maxVotingRights} voting rights. Adjusted to maximum available.`;
+        actionStatus.className = 'warning';
+        hasError = true;
+      }
+
+      // Validate price
+      if (isNaN(price)) {
+        price = 0;
+        priceInput.value = '';
+        return false;
+      }
+
+      if (price < 0) {
+        price = 0;
+        priceInput.value = 0;
+        priceInput.classList.add('invalid');
+        if (!hasError) {
+          actionStatus.textContent = 'Price cannot be negative. Set to 0.';
+          actionStatus.className = 'error';
+        } else {
+          actionStatus.textContent += ' Also, price cannot be negative. Set to 0.';
+        }
+        hasError = true;
+      }
+
+      return !hasError;
     }
 
     window.onload = async function () {
@@ -157,7 +228,8 @@
           return;
         }
 
-        document.getElementById('votingRights').textContent = data.voting_rights;
+        maxVotingRights = parseFloat(data.voting_rights);
+        document.getElementById('votingRights').textContent = maxVotingRights;
         document.getElementById('valuePerRight').textContent = Number(data.asset_per_circulated_voting_right).toFixed(5);
         document.getElementById('totalAssets').textContent = Number(data.total_assets).toFixed(5);
         document.getElementById('info').style.display = 'block';
@@ -165,6 +237,12 @@
         document.getElementById('welcome').style.display = 'block';
         document.getElementById('status').textContent = 'Signature verified successfully';
         document.getElementById('status').className = 'status';
+
+        // Add input validation listeners
+        document.getElementById('amount').addEventListener('change', validateInputs);
+        document.getElementById('amount').addEventListener('input', validateInputs);
+        document.getElementById('price').addEventListener('change', validateInputs);
+        document.getElementById('price').addEventListener('input', validateInputs);
       } catch (error) {
         document.getElementById('status').textContent = 'Error fetching data: ' + error;
         document.getElementById('status').className = 'error';
@@ -172,6 +250,11 @@
     };
 
     async function submitRequest() {
+      // Validate inputs before submission
+      if (!validateInputs()) {
+        return;
+      }
+
       const amount = document.getElementById('amount').value;
       const price = document.getElementById('price').value;
       const publicKey = localStorage.getItem('publicKey');
