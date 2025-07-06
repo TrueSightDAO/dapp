@@ -3,28 +3,133 @@
 <head>
   <title>Manage Digital Signature</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; text-align: center; }
-    button { margin: 10px; padding: 10px 20px; cursor: pointer; font-size: 16px; }
-    .status { color: green; }
-    .prompt { color: blue; }
-    .error { color: red; }
-    #publicKey { margin: 20px 0; word-wrap: break-word; font-family: monospace; }
-    #shareOptions { display: none; margin-top: 10px; }
-    #shareOptions a, #shareOptions button { margin: 10px; }
-    #explanation { margin: 10px 0; font-style: italic; }
-    #cashOutLink { margin: 10px; display: none; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+      text-align: center;
+      background-color: #f5f5f5;
+    }
+    h2 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    h3 {
+      color: #333;
+      margin: 10px 0;
+    }
+    button {
+      margin: 10px;
+      padding: 12px 24px;
+      cursor: pointer;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      transition: background-color 0.3s, transform 0.1s;
+    }
+    button:hover {
+      background-color: #0056b3;
+      transform: scale(1.05);
+    }
+    button.secondary {
+      background-color: #6c757d;
+    }
+    button.secondary:hover {
+      background-color: #5a6268;
+      transform: scale(1.05);
+    }
+    .status { color: #28a745; font-weight: bold; }
+    .prompt { color: #007bff; font-weight: bold; }
+    .error { color: #dc3545; font-weight: bold; }
+    .loading { color: #6c757d; font-style: italic; }
+    #publicKey {
+      margin: 20px 0;
+      word-wrap: break-word;
+      font-family: monospace;
+      background-color: #fff;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      min-height: 50px;
+    }
+    #registrationStatus {
+      margin: 10px 0;
+      color: #007bff;
+      font-weight: bold;
+    }
+    #shareOptions {
+      display: none;
+      margin-top: 10px;
+    }
+    #shareOptions a, #shareOptions button {
+      margin: 10px;
+    }
+    #explanation {
+      margin: 15px 0;
+      font-style: italic;
+      color: #555;
+      line-height: 1.5;
+    }
+    #actionLinks a {
+      margin: 10px;
+      display: block;
+      color: #007bff;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    #actionLinks a:hover {
+      text-decoration: underline;
+    }
+    #publicKeyLabel {
+      margin: 10px 0;
+      color: #333;
+    }
+    #secondaryActions {
+      margin-top: 10px;
+    }
+    hr {
+      margin: 20px 0;
+      border: 0;
+      border-top: 1px solid #ddd;
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @media (max-width: 600px) {
+      body { padding: 10px; }
+      button { width: 100%; margin: 5px 0; }
+      #actionLinks a { width: 100%; margin: 5px 0; }
+      #publicKey { font-size: 14px; }
+    }
   </style>
 </head>
 <body>
   <h2>Manage Your Digital Signature</h2>
-  <p id="explanation"></p>
-  <p id="keyStatus"></p>  
+  <p id="explanation" class="fade-in">Your digital signature is used in our DAO to verify your identity for sensitive actions, like cashing out your voting rights.</p>
+  <h3 id="publicKeyLabel" style="display: none;">Your Digital Signature</h3>
   <div id="publicKey"></div>
+    <p id="keyStatus" class="fade-in"></p>        
+  <p id="registrationStatus" class="fade-in"></p>
   <div id="buttons">
-    <button id="generateButton" onclick="generateKeys()">Create one</button>
-    <button id="shareButton" onclick="showShareOptions()" style="display: none;">Share it</button>
-    <button id="createNewButton" onclick="generateKeys()" style="display: none;">Create new</button>
-    <a id="cashOutLink" href="./withdraw_voting_rights.html">Cash out your voting rights</a>
+    <button id="generateButton" onclick="generateKeys()">Create Digital Signature</button>
+    <button id="shareButton" onclick="registerSignature()" style="display: none;">Register It with Our Community</button>
+    <button id="createNewButton" onclick="generateKeys()" style="display: none;">Create New Signature</button>
+  </div>
+  <h3 id="actionHeader" style="display: none;">Things You Can Do with Your Voting Rights</h3>
+  <div id="actionLinks">
+    <a id="cashOutLink" href="./withdraw_voting_rights.html" style="display: none;">Cash Out Voting Rights</a>
+    <a id="inventoryLink" href="./report_inventory_movement.html" style="display: none;">Manage DAO Inventory</a>
+  </div>
+  <div id="secondaryActions">
+    <hr id="separator" style="display: none;">
+    <button id="createNewButtonSecondary" onclick="generateKeys()" style="display: none;" class="secondary">Create New Signature</button>
   </div>
   <div id="shareOptions">
     <a id="telegramShare" href="#" target="_blank">Share via Telegram</a>
@@ -32,48 +137,149 @@
   </div>
 
   <script>
+    // API endpoint for checking registration
+    const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzB_FUyrMJ6oi9TERS-Kw-XjRm3mTFAO2V5t5_fL7CkK9DK-aP5A3ckxVqJ3kQGrqfH/exec';
+    // Telegram channel for sharing
+    const TELEGRAM_CHANNEL = 'https://t.me/TrueSightDAO/1';
+
     // Utility function for Base64 conversion
     function arrayBufferToBase64(buffer) {
       return btoa(String.fromCharCode(...new Uint8Array(buffer)));
     }
 
-    // Check for existing keys on page load
-    window.onload = function() {
+    // Detect if device is mobile
+    function isMobileDevice() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    // Handle registration sharing
+    function registerSignature() {
+      const publicKey = localStorage.getItem('publicKey');
+      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}`;
+      
+      if (isMobileDevice() && navigator.share) {
+        // Mobile: Trigger native share dialog
+        navigator.share({
+          text: shareText
+        }).catch(error => {
+          console.error('Web Share error:', error);
+          document.getElementById('keyStatus').textContent = 'Error sharing signature: ' + error;
+          document.getElementById('keyStatus').className = 'error fade-in';
+        });
+      } else {
+        // Desktop: Copy to clipboard and show prompt
+        navigator.clipboard.writeText(shareText).then(() => {
+          document.getElementById('keyStatus').textContent = 'Signature copied to clipboard! Paste it as is in our Telegram or WhatsApp channels to register.';
+          document.getElementById('keyStatus').className = 'status fade-in';
+          setTimeout(() => {
+            document.getElementById('keyStatus').textContent = '';
+            document.getElementById('keyStatus').className = 'fade-in';
+          }, 3000);
+        }).catch(error => {
+          document.getElementById('keyStatus').textContent = 'Error copying to clipboard: ' + error;
+          document.getElementById('keyStatus').className = 'error fade-in';
+        });
+      }
+    }
+
+    // Check for existing keys and registration status on page load
+    window.onload = async function() {
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
       const keyStatus = document.getElementById('keyStatus');
       const publicKeyDiv = document.getElementById('publicKey');
-      const explanation = document.getElementById('explanation');
+      const publicKeyLabel = document.getElementById('publicKeyLabel');
+      const registrationStatus = document.getElementById('registrationStatus');
       const generateButton = document.getElementById('generateButton');
       const shareButton = document.getElementById('shareButton');
       const createNewButton = document.getElementById('createNewButton');
+      const createNewButtonSecondary = document.getElementById('createNewButtonSecondary');
       const cashOutLink = document.getElementById('cashOutLink');
+      const inventoryLink = document.getElementById('inventoryLink');
+      const actionHeader = document.getElementById('actionHeader');
+      const separator = document.getElementById('separator');
 
-      if (publicKey && privateKey) {
-        // State 2: Keys exist
-        keyStatus.textContent = 'This is your digital signature.';
-        keyStatus.className = 'status';
-        explanation.textContent = 'Other community members can use your digital signature to verify that a request to withdraw your voting rights for cash is actually from you.';
-        publicKeyDiv.textContent = publicKey;
-        generateButton.style.display = 'none';
-        shareButton.style.display = 'inline-block';
-        createNewButton.style.display = 'inline-block';
-        cashOutLink.style.display = 'inline-block';
-      } else {
-        // State 1: No keys
+      if (!publicKey || !privateKey) {
+        // State 1: No keys detected
         keyStatus.textContent = 'Your digital signature is not created yet.';
-        keyStatus.className = 'prompt';
-        explanation.textContent = '';
+        keyStatus.className = 'prompt fade-in';
+        registrationStatus.textContent = '';
+        publicKeyLabel.style.display = 'none';
         publicKeyDiv.textContent = '';
         generateButton.style.display = 'inline-block';
+        generateButton.classList.remove('secondary');
         shareButton.style.display = 'none';
         createNewButton.style.display = 'none';
+        createNewButtonSecondary.style.display = 'none';
         cashOutLink.style.display = 'none';
+        inventoryLink.style.display = 'none';
+        actionHeader.style.display = 'none';
+        separator.style.display = 'none';
+      } else {
+        // State 2: Keys exist, check registration
+        publicKeyLabel.style.display = 'block';
+        publicKeyDiv.textContent = publicKey;
+        keyStatus.textContent = 'Verifying your digital signature...';
+        keyStatus.className = 'loading fade-in';
+        registrationStatus.textContent = '';
+        generateButton.style.display = 'none';
+        try {
+          const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
+          const data = await response.json();
+
+          if (data.error) {
+            // State 2a: Not registered
+            keyStatus.textContent = '';
+            registrationStatus.textContent = 'Your digital signature is not registered yet.';
+            registrationStatus.className = 'prompt fade-in';
+            shareButton.style.display = 'inline-block';
+            shareButton.classList.remove('secondary');
+            createNewButton.style.display = 'inline-block';
+            createNewButton.classList.add('secondary');
+            createNewButtonSecondary.style.display = 'none';
+            cashOutLink.style.display = 'none';
+            inventoryLink.style.display = 'none';
+            actionHeader.style.display = 'none';
+            separator.style.display = 'none';
+          } else {
+            // State 2b: Registered
+            keyStatus.textContent = `Welcome back ${data.contributor_name}!`;
+            keyStatus.className = 'status fade-in';
+            registrationStatus.textContent = `Voting Rights: ${data.voting_rights}, Asset per Voting Right: ${data.asset_per_circulated_voting_right.toFixed(5)}`;
+            registrationStatus.className = 'prompt fade-in';
+            shareButton.style.display = 'none';
+            createNewButton.style.display = 'none';
+            createNewButtonSecondary.style.display = 'inline-block';
+            cashOutLink.style.display = 'block';
+            inventoryLink.style.display = 'block';
+            actionHeader.style.display = 'block';
+            separator.style.display = 'block';
+          }
+        } catch (error) {
+          keyStatus.textContent = 'Error checking registration: ' + error.message;
+          keyStatus.className = 'error fade-in';
+          registrationStatus.textContent = '';
+          shareButton.style.display = 'inline-block';
+          shareButton.classList.remove('secondary');
+          createNewButton.style.display = 'inline-block';
+          createNewButton.classList.add('secondary');
+          createNewButtonSecondary.style.display = 'none';
+          cashOutLink.style.display = 'none';
+          inventoryLink.style.display = 'none';
+          actionHeader.style.display = 'none';
+          separator.style.display = 'none';
+        }
       }
     };
 
     // Generate RSA key pair
     async function generateKeys() {
+      const keyStatus = document.getElementById('keyStatus');
+      const registrationStatus = document.getElementById('registrationStatus');
+      keyStatus.textContent = 'Generating new digital signature...';
+      keyStatus.className = 'loading fade-in';
+      registrationStatus.textContent = '';
+
       try {
         const keyPair = await window.crypto.subtle.generateKey(
           {
@@ -92,63 +298,57 @@
         const publicKeyBase64 = arrayBufferToBase64(publicKey);
         const privateKeyBase64 = arrayBufferToBase64(privateKey);
 
-        // Store keys in localStorage (accessible to other scripts on the same domain)
+        // Store keys in localStorage
         localStorage.setItem('publicKey', publicKeyBase64);
         localStorage.setItem('privateKey', privateKeyBase64);
 
-        // Prompt user to save private key securely
-        alert('Your private key has been generated. Save it securely in a safe place (e.g., download or write it down). Do NOT share it, as it allows signing on your behalf:\n\n' + privateKeyBase64);
-
-        // Update UI to State 2
-        document.getElementById('keyStatus').textContent = 'This is your digital signature.';
-        document.getElementById('keyStatus').className = 'status';
-        document.getElementById('explanation').textContent = 'Other community members can use your digital signature to verify that a request to withdraw your voting rights for cash is actually from you.';
+        // Update UI to State 2a (not registered)
+        document.getElementById('publicKeyLabel').style.display = 'block';
         document.getElementById('publicKey').textContent = publicKeyBase64;
+        keyStatus.textContent = '';
+        registrationStatus.textContent = 'Your digital signature is not registered yet.';
+        registrationStatus.className = 'prompt fade-in';
         document.getElementById('generateButton').style.display = 'none';
         document.getElementById('shareButton').style.display = 'inline-block';
+        document.getElementById('shareButton').classList.remove('secondary');
         document.getElementById('createNewButton').style.display = 'inline-block';
-        document.getElementById('cashOutLink').style.display = 'inline-block';
+        document.getElementById('createNewButton').classList.add('secondary');
+        document.getElementById('createNewButtonSecondary').style.display = 'none';
+        document.getElementById('cashOutLink').style.display = 'none';
+        document.getElementById('inventoryLink').style.display = 'none';
+        document.getElementById('actionHeader').style.display = 'none';
+        document.getElementById('separator').style.display = 'none';
+
+        // Check registration status
+        keyStatus.textContent = 'Verifying new digital signature...';
+        keyStatus.className = 'loading fade-in';
+        try {
+          const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKeyBase64)}`);
+          const data = await response.json();
+          if (!data.error) {
+            keyStatus.textContent = '';
+            registrationStatus.textContent = `Voting Rights: ${data.voting_rights}, Asset per Voting Right: ${data.asset_per_circulated_voting_right.toFixed(5)}`;
+            registrationStatus.className = 'prompt fade-in';
+            document.getElementById('shareButton').style.display = 'none';
+            document.getElementById('createNewButton').style.display = 'none';
+            document.getElementById('createNewButtonSecondary').style.display = 'inline-block';
+            document.getElementById('cashOutLink').style.display = 'block';
+            document.getElementById('inventoryLink').style.display = 'block';
+            document.getElementById('actionHeader').style.display = 'block';
+            document.getElementById('separator').style.display = 'block';
+          }
+        } catch (error) {
+          keyStatus.textContent = 'Error checking registration: ' + error.message;
+          keyStatus.className = 'error fade-in';
+          registrationStatus.textContent = 'Your digital signature is not registered yet.';
+          registrationStatus.className = 'prompt fade-in';
+        }
       } catch (error) {
-        document.getElementById('keyStatus').textContent = 'Error generating keys: ' + error;
-        document.getElementById('keyStatus').className = 'error';
+        keyStatus.textContent = 'Error generating keys: ' + error;
+        keyStatus.className = 'error fade-in';
+        registrationStatus.textContent = '';
       }
-    }
-
-    // Show share options
-    function showShareOptions() {
-      const shareOptions = document.getElementById('shareOptions');
-      shareOptions.style.display = shareOptions.style.display === 'none' ? 'block' : 'none';
-
-      const publicKey = localStorage.getItem('publicKey');
-      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nPUBLIC KEY: ${publicKey}`;
-      
-      // Telegram share link
-      const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareText)}`;
-      document.getElementById('telegramShare').href = telegramUrl;
-
-      // Web Share API (if available)
-      if (navigator.share) {
-        navigator.share({
-          text: shareText
-        }).catch(error => {
-          console.error('Web Share error:', error);
-        });
-      }
-    }
-
-    // Copy share text for WhatsApp
-    function copyToClipboard() {
-      const publicKey = localStorage.getItem('publicKey');
-      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nPUBLIC KEY: ${publicKey}`;
-      
-      navigator.clipboard.writeText(shareText).then(() => {
-        document.getElementById('keyStatus').textContent = 'Digital signature copied to clipboard! Paste it into WhatsApp.';
-        document.getElementById('keyStatus').className = 'status';
-      }).catch(error => {
-        document.getElementById('keyStatus').textContent = 'Error copying to clipboard: ' + error;
-        document.getElementById('keyStatus').className = 'error';
-      });
-    }
+    };
   </script>
 </body>
 </html>

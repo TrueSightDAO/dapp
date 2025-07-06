@@ -3,26 +3,90 @@
 <head>
   <title>Cash Out Voting Rights</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; text-align: center; }
-    h1 { font-size: 24px; }
-    .info { margin: 10px 0; }
-    .input-group { margin: 15px 0; }
-    label { display: block; font-weight: bold; margin-bottom: 5px; }
-    input { width: 100%; padding: 8px; margin-bottom: 10px; }
-    button { margin: 10px; padding: 10px 20px; cursor: pointer; font-size: 16px; }
-    .status { color: green; }
-    .error { color: red; }
-    #shareOptions { display: none; margin-top: 10px; }
-    #shareOptions a, #shareOptions button { margin: 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+      text-align: center;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      font-size: 24px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    #description {
+      font-style: italic;
+      color: #555;
+      line-height: 1.5;
+      margin: 15px 0;
+    }
+    #status {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .status {
+      color: #28a745;
+    }
+    .error {
+      color: #dc3545;
+    }
+    .info {
+      margin: 10px 0;
+      font-weight: bold;
+      text-align: left;
+    }
+    .input-group {
+      margin: 20px 0;
+      text-align: left;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin: 10px auto;
+      padding: 12px 24px;
+      cursor: pointer;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      transition: background-color 0.3s, transform 0.1s;
+    }
+    button:hover {
+      background-color: #0056b3;
+      transform: scale(1.05);
+    }
+    @media (max-width: 600px) {
+      .info, .input-group {
+        text-align: center;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>Cash out voting rights</h1>
-  <p id="status"></p>
+  <h1>Cash Out Voting Rights</h1>
+  <p id="description">
+    This page allows you to exchange your DAO voting rights for other assets by submitting a signed withdrawal request to our community.
+  </p>
+  <p id="status">Verifying your digital signature...</p>
   <div id="info" style="display: none;">
-    <div class="info">Total Voting Rights: <span id="votingRights"></span></div>
-    <div class="info">Value per Voting Right: <span id="valuePerRight"></span></div>
-    <div class="info">Total Assets on Ledger: <span id="totalAssets"></span></div>
+    <div class="info"><strong>Your Total Voting Rights:</strong> <span id="votingRights"></span></div>
+    <div class="info"><strong>Value per Voting Right:</strong> <span id="valuePerRight"></span></div>
+    <div class="info"><strong>Total Assets on Ledger:</strong> <span id="totalAssets"></span></div>
     <div class="input-group">
       <label for="amount">Voting Rights to Cash Out</label>
       <input type="number" id="amount" placeholder="Enter number of voting rights" min="0">
@@ -32,23 +96,30 @@
       <input type="number" id="price" placeholder="Enter asking price" min="0" step="0.01">
     </div>
     <button onclick="submitRequest()">Submit Request</button>
-    <div id="shareOptions">
-      <a id="telegramShare" href="#" target="_blank">Share via Telegram</a>
-      <button onclick="copyToClipboard()">Copy for WhatsApp</button>
-    </div>
   </div>
 
   <script>
-    // Utility function for Base64 conversion
+    const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzB_FUyrMJ6oi9TERS-Kw-XjRm3mTFAO2V5t5_fL7CkK9DK-aP5A3ckxVqJ3kQGrqfH/exec';
+
     function arrayBufferToBase64(buffer) {
       return btoa(String.fromCharCode(...new Uint8Array(buffer)));
     }
 
-    // Check for public key and fetch data on page load
-    window.onload = async function() {
+    function base64ToArrayBuffer(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes.buffer;
+    }
+
+    function isMobileDevice() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    window.onload = async function () {
       const publicKey = localStorage.getItem('publicKey');
       if (!publicKey) {
-        document.getElementById('status').textContent = 'No digital signature found. Redirecting to create one...';
+        document.getElementById('status').textContent = 'No digital signature found. Redirecting...';
         document.getElementById('status').className = 'error';
         setTimeout(() => {
           window.location.href = './create_signature.html';
@@ -57,9 +128,7 @@
       }
 
       try {
-        const response = await fetch(
-          `https://script.google.com/macros/s/AKfycbzB_FUyrMJ6oi9TERS-Kw-XjRm3mTFAO2V5t5_fL7CkK9DK-aP5A3ckxVqJ3kQGrqfH/exec?signature=${encodeURIComponent(publicKey)}`
-        );
+        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
         const data = await response.json();
 
         if (data.error) {
@@ -69,10 +138,10 @@
         }
 
         document.getElementById('votingRights').textContent = data.voting_rights;
-        document.getElementById('valuePerRight').textContent = data.asset_per_circulated_voting_right.toFixed(2);
-        document.getElementById('totalAssets').textContent = data.total_assets;
+        document.getElementById('valuePerRight').textContent = Number(data.asset_per_circulated_voting_right).toFixed(5);
+        document.getElementById('totalAssets').textContent = Number(data.total_assets).toFixed(5);
         document.getElementById('info').style.display = 'block';
-        document.getElementById('status').textContent = 'Data loaded successfully.';
+        document.getElementById('status').textContent = `Welcome back, ${data.contributor_name}!`;
         document.getElementById('status').className = 'status';
       } catch (error) {
         document.getElementById('status').textContent = 'Error fetching data: ' + error;
@@ -80,7 +149,6 @@
       }
     };
 
-    // Submit and share request
     async function submitRequest() {
       const amount = document.getElementById('amount').value;
       const price = document.getElementById('price').value;
@@ -88,16 +156,13 @@
       const privateKey = localStorage.getItem('privateKey');
 
       if (!amount || !price || !publicKey || !privateKey) {
-        document.getElementById('status').textContent = 'Please provide voting rights amount, asking price, and ensure keys are available.';
+        document.getElementById('status').textContent = 'Please complete all fields and ensure your keys exist.';
         document.getElementById('status').className = 'error';
         return;
       }
 
       try {
-        // Generate request text
         const requestText = `[VOTING RIGHTS WITHDRAWAL REQUEST]\namount to withdraw: ${amount}\nasking price: ${price}\n--------`;
-        
-        // Sign the request text
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
           base64ToArrayBuffer(privateKey),
@@ -107,89 +172,25 @@
         );
 
         const encoder = new TextEncoder();
-        const data = encoder.encode(requestText);
         const signature = await window.crypto.subtle.sign(
           "RSASSA-PKCS1-v1_5",
           privateKeyObj,
-          data
+          encoder.encode(requestText)
         );
         const requestHash = arrayBufferToBase64(signature);
-
-        // Full share text
         const shareText = `${requestText}\nDigital Signature: ${publicKey}\nRequest Hash: ${requestHash}`;
 
-        // Show share options
-        const shareOptions = document.getElementById('shareOptions');
-        shareOptions.style.display = 'block';
-
-        // Telegram share link
-        const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareText)}`;
-        document.getElementById('telegramShare').href = telegramUrl;
-
-        // Web Share API (if available)
-        if (navigator.share) {
-          navigator.share({
-            text: shareText
-          }).catch(error => {
-            console.error('Web Share error:', error);
-          });
+        if (isMobileDevice() && navigator.share) {
+          await navigator.share({ text: shareText });
+        } else {
+          await navigator.clipboard.writeText(shareText);
+          document.getElementById('status').textContent = 'Request copied to clipboard! Share it in our Telegram or WhatsApp group.';
+          document.getElementById('status').className = 'status';
         }
-
-        document.getElementById('status').textContent = 'Request generated! Share it using the options below.';
-        document.getElementById('status').className = 'status';
       } catch (error) {
         document.getElementById('status').textContent = 'Error generating request: ' + error;
         document.getElementById('status').className = 'error';
       }
-    }
-
-    // Utility function to convert Base64 to ArrayBuffer
-    function base64ToArrayBuffer(base64) {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return bytes.buffer;
-    }
-
-    // Copy share text for WhatsApp
-    function copyToClipboard() {
-      const amount = document.getElementById('amount').value;
-      const price = document.getElementById('price').value;
-      const publicKey = localStorage.getItem('publicKey');
-      const requestText = `[VOTING RIGHTS WITHDRAWAL REQUEST]\namount to withdraw: ${amount}\nasking price: ${price}\n--------`;
-      
-      // Re-sign to ensure consistency (in case user modifies inputs after submitting)
-      window.crypto.subtle.importKey(
-        "pkcs8",
-        base64ToArrayBuffer(localStorage.getItem('privateKey')),
-        { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-        false,
-        ["sign"]
-      ).then(privateKeyObj => {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(requestText);
-        window.crypto.subtle.sign(
-          "RSASSA-PKCS1-v1_5",
-          privateKeyObj,
-          data
-        ).then(signature => {
-          const requestHash = arrayBufferToBase64(signature);
-          const shareText = `${requestText}\nDigital Signature: ${publicKey}\nRequest Hash: ${requestHash}`;
-          
-          navigator.clipboard.writeText(shareText).then(() => {
-            document.getElementById('status').textContent = 'Request copied to clipboard! Paste it into WhatsApp.';
-            document.getElementById('status').className = 'status';
-          }).catch(error => {
-            document.getElementById('status').textContent = 'Error copying to clipboard: ' + error;
-            document.getElementById('status').className = 'error';
-          });
-        });
-      }).catch(error => {
-        document.getElementById('status').textContent = 'Error signing request: ' + error;
-        document.getElementById('status').className = 'error';
-      });
     }
   </script>
 </body>
