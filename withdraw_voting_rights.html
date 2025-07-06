@@ -24,8 +24,15 @@
     }
     #status {
       text-align: center;
-      margin-top: 10px;
+      margin: 20px 0 10px;
       font-weight: bold;
+      min-height: 24px;
+    }
+    #welcome {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      margin: 15px 0;
     }
     .status {
       color: #28a745;
@@ -70,9 +77,17 @@
       background-color: #0056b3;
       transform: scale(1.05);
     }
+    .action-section {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+    }
     @media (max-width: 600px) {
       .info, .input-group {
         text-align: center;
+      }
+      #welcome {
+        font-size: 18px;
       }
     }
   </style>
@@ -82,6 +97,7 @@
   <p id="description">
     This page allows you to exchange your DAO voting rights for other assets by submitting a signed withdrawal request to our community.
   </p>
+  <div id="welcome" style="display: none;"></div>
   <p id="status">Verifying your digital signature...</p>
   <div id="info" style="display: none;">
     <div class="info"><strong>Your Total Voting Rights:</strong> <span id="votingRights"></span></div>
@@ -95,7 +111,11 @@
       <label for="price">Asking Price (Total)</label>
       <input type="number" id="price" placeholder="Enter asking price" min="0" step="0.01">
     </div>
-    <button onclick="submitRequest()">Submit Request</button>
+    
+    <div class="action-section">
+      <button onclick="submitRequest()">Submit Request</button>
+      <p id="action-status"></p>
+    </div>
   </div>
 
   <script>
@@ -141,7 +161,9 @@
         document.getElementById('valuePerRight').textContent = Number(data.asset_per_circulated_voting_right).toFixed(5);
         document.getElementById('totalAssets').textContent = Number(data.total_assets).toFixed(5);
         document.getElementById('info').style.display = 'block';
-        document.getElementById('status').textContent = `Welcome back, ${data.contributor_name}!`;
+        document.getElementById('welcome').textContent = `Welcome back, ${data.contributor_name}!`;
+        document.getElementById('welcome').style.display = 'block';
+        document.getElementById('status').textContent = 'Signature verified successfully';
         document.getElementById('status').className = 'status';
       } catch (error) {
         document.getElementById('status').textContent = 'Error fetching data: ' + error;
@@ -154,10 +176,11 @@
       const price = document.getElementById('price').value;
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
+      const actionStatus = document.getElementById('action-status');
 
       if (!amount || !price || !publicKey || !privateKey) {
-        document.getElementById('status').textContent = 'Please complete all fields and ensure your keys exist.';
-        document.getElementById('status').className = 'error';
+        actionStatus.textContent = 'Please complete all fields and ensure your keys exist.';
+        actionStatus.className = 'error';
         return;
       }
 
@@ -182,14 +205,16 @@
 
         if (isMobileDevice() && navigator.share) {
           await navigator.share({ text: shareText });
+          actionStatus.textContent = 'Request shared successfully!';
+          actionStatus.className = 'status';
         } else {
           await navigator.clipboard.writeText(shareText);
-          document.getElementById('status').textContent = 'Request copied to clipboard! Share it in our Telegram or WhatsApp group.';
-          document.getElementById('status').className = 'status';
+          actionStatus.textContent = 'Request copied to clipboard! Share it in our Telegram or WhatsApp group.';
+          actionStatus.className = 'status';
         }
       } catch (error) {
-        document.getElementById('status').textContent = 'Error generating request: ' + error;
-        document.getElementById('status').className = 'error';
+        actionStatus.textContent = 'Error generating request: ' + error;
+        actionStatus.className = 'error';
       }
     }
   </script>
