@@ -245,7 +245,8 @@ Request Transaction ID: XXXX...</pre>
     
     async function fetchContributorInfo(digitalSignature) {
       try {
-        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(digitalSignature)}`);
+        const timestamp = new Date().toISOString();
+        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(digitalSignature)}&timestamp=${encodeURIComponent(timestamp)}`);
         if (!response.ok) throw new Error('Failed to fetch contributor info');
         return await response.json();
       } catch (error) {
