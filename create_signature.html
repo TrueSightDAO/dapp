@@ -170,7 +170,7 @@
 
   <script>
     // API endpoint for checking registration
-    const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzB_FUyrMJ6oi9TERS-Kw-XjRm3mTFAO2V5t5_fL7CkK9DK-aP5A3ckxVqJ3kQGrqfH/exec';
+    const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
     // Telegram channel for sharing
     const TELEGRAM_CHANNEL = 'https://t.me/TrueSightDAO/1';
 
@@ -229,7 +229,8 @@
       
       try {
         const encodedSignature = encodeSignature(publicKey);
-        const url = `${API_ENDPOINT}?signature=${encodedSignature}`;
+        const timestamp = new Date().toISOString();
+        const url = `${API_ENDPOINT}?signature=${encodedSignature}&timestamp=${encodeURIComponent(timestamp)}`;
         
         console.log('Making request to:', url); // For debugging
         
@@ -337,39 +338,54 @@
         statusElement.className = 'loading fade-in';
         welcomeElement.style.display = 'none';
         generateButton.style.display = 'none';
-        
-        const data = await checkSignatureRegistration(publicKey);
-        
-        if (data && !data.error) {
-          // State 2b: Registered
-          welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
-          welcomeElement.style.display = 'block';
-          statusElement.textContent = 'Signature verified successfully';
-          statusElement.className = 'status fade-in';
-          shareButton.style.display = 'none';
-          createNewButton.style.display = 'none';
-          createNewButtonSecondary.style.display = 'inline-block';
-          cashOutLink.style.display = 'block';
-          inventoryLink.style.display = 'block';
-          actionHeader.style.display = 'block';
-          separator.style.display = 'block';
-        } else if (data && data.error) {
-          // State 2a: Not registered or error
-          statusElement.textContent = data.error.includes('No matching') ? 
-            'Your digital signature is not registered yet.' : 
-            data.error;
-          statusElement.className = data.error.includes('No matching') ? 
-            'prompt fade-in' : 'error fade-in';
+
+        // Check if signature is valid before making API call
+        if (!isValidSignature(publicKey)) {
+          statusElement.textContent = 'Invalid digital signature format';
+          statusElement.className = 'error fade-in';
           welcomeElement.style.display = 'none';
-          shareButton.style.display = 'inline-block';
-          shareButton.classList.remove('secondary');
+          shareButton.style.display = 'none';
           createNewButton.style.display = 'inline-block';
           createNewButton.classList.add('secondary');
-          createNewButtonSecondary.style.display = 'none';
+          createNewButtonSecondary.style.display = 'inline-block';
           cashOutLink.style.display = 'none';
           inventoryLink.style.display = 'none';
           actionHeader.style.display = 'none';
-          separator.style.display = 'none';
+          separator.style.display = 'block';
+        } else {
+          const data = await checkSignatureRegistration(publicKey);
+          
+          if (data && !data.error) {
+            // State 2b: Registered
+            welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
+            welcomeElement.style.display = 'block';
+            statusElement.textContent = 'Signature verified successfully';
+            statusElement.className = 'status fade-in';
+            shareButton.style.display = 'none';
+            createNewButton.style.display = 'none';
+            createNewButtonSecondary.style.display = 'inline-block';
+            cashOutLink.style.display = 'block';
+            inventoryLink.style.display = 'block';
+            actionHeader.style.display = 'block';
+            separator.style.display = 'block';
+          } else if (data && data.error) {
+            // State 2a: Not registered or error
+            statusElement.textContent = data.error.includes('No matching') ? 
+              'Your digital signature is not registered yet.' : 
+              data.error;
+            statusElement.className = data.error.includes('No matching') ? 
+              'prompt fade-in' : 'error fade-in';
+            welcomeElement.style.display = 'none';
+            shareButton.style.display = 'inline-block';
+            shareButton.classList.remove('secondary');
+            createNewButton.style.display = 'inline-block';
+            createNewButton.classList.add('secondary');
+            createNewButtonSecondary.style.display = 'none';
+            cashOutLink.style.display = 'none';
+            inventoryLink.style.display = 'none';
+            actionHeader.style.display = 'none';
+            separator.style.display = 'none';
+          }
         }
       }
     };
