@@ -174,37 +174,32 @@
     // Telegram channel for sharing
     const TELEGRAM_CHANNEL = 'https://t.me/TrueSightDAO/1';
 
-    // Utility function for Base64 conversion
+    // URL-safe Base64 encoding
     function arrayBufferToBase64(buffer) {
-      return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      // Replace + with -, / with _, and remove = padding
+      return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     }
 
     // Function to safely encode a signature for URL
     function encodeSignature(signature) {
       try {
-        // First encode the Base64 string to handle special characters
-        let encoded = encodeURIComponent(signature);
-        
-        // Additional handling for specific characters that might cause issues
-        encoded = encoded.replace(/%20/g, '+') // Convert spaces back to + if needed
-                         .replace(/'/g, '%27')
-                         .replace(/"/g, '%22');
-        
-        return encoded;
+        // The custom Base64 encoding already handles problematic characters
+        return encodeURIComponent(signature);
       } catch (e) {
         console.error('Error encoding signature:', e);
         return signature; // Fallback to original if encoding fails
       }
     }
 
-    // Function to validate signature format before sending
+    // Function to validate signature format
     function isValidSignature(signature) {
       if (!signature) return false;
       
-      // Basic validation for RSA public key format
-      const regex = /^[A-Za-z0-9+/=]+$/;
+      // Validate URL-safe Base64 format (only letters, numbers, -, and _)
+      const regex = /^[A-Za-z0-9\-_]+$/;
       if (!regex.test(signature)) {
-        console.error('Invalid signature format - contains non-Base64 characters');
+        console.error('Invalid signature format - contains non-URL-safe characters');
         return false;
       }
       
@@ -217,34 +212,75 @@
       return true;
     }
 
-    // Modified fetch call with proper encoding
+    // Modified fetch call with timestamp to prevent caching and enhanced error handling
     async function checkSignatureRegistration(publicKey) {
       const statusElement = document.getElementById('status');
       
-      if (!isValidSignature(publicKey)) {
-        statusElement.textContent = 'Invalid digital signature format';
+      if (!publicKey) {
+        statusElement.textContent = 'No digital signature found. Please create a new signature.';
         statusElement.className = 'error fade-in';
+        document.getElementById('createNewButton').style.display = 'block';
+        document.getElementById('createNewButton').classList.add('secondary');
+        document.getElementById('createNewButtonSecondary').style.display = 'inline-block';
+        return null;
+      }
+
+      if (!isValidSignature(publicKey)) {
+        statusElement.textContent = 'Invalid digital signature format. Please create a new signature.';
+        statusElement.className = 'error fade-in';
+        // Show create new signature buttons
+        document.getElementById('createNewButton').style.display = 'block';
+        document.getElementById('createNewButton').classList.add('secondary');
+        document.getElementById('createNewButtonSecondary').style.display = 'inline-block';
         return null;
       }
       
       try {
         const encodedSignature = encodeSignature(publicKey);
-        const url = `${API_ENDPOINT}?signature=${encodedSignature}`;
+        // Add timestamp to prevent caching
+        const timestamp = Date.now();
+        const url = `${API_ENDPOINT}?signature=${encodedSignature}&t=${timestamp}`;
         
         console.log('Making request to:', url); // For debugging
         
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          cache: 'no-store', // Prevent caching
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
         
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
-        return await response.json();
+        const data = await response.json();
+        
+        // Validate response structure
+        if (!data || typeof data !== 'object') {
+          throw new Error('Invalid response format from server');
+        }
+        
+        return data;
       } catch (error) {
         console.error('Error checking registration:', error);
-        statusElement.textContent = 'Error verifying signature: ' + error.message;
+        let errorMessage = 'Failed to verify signature. ';
+        if (error.message.includes('HTTP error')) {
+          errorMessage += 'Server connection issue. Please try again later.';
+        } else if (error.message.includes('Invalid response')) {
+          errorMessage += 'Unexpected response from server.';
+        } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+          errorMessage += 'Network error. Please check your internet connection.';
+        } else {
+          errorMessage += 'Unknown error occurred.';
+        }
+        statusElement.textContent = errorMessage;
         statusElement.className = 'error fade-in';
-        return { error: error.message };
+        // Show create new signature buttons as a fallback
+        document.getElementById('createNewButton').style.display = 'block';
+        document.getElementById('createNewButton').classList.add('secondary');
+        document.getElementById('createNewButtonSecondary').style.display = 'inline-block';
+        return { error: errorMessage };
       }
     }
 
@@ -259,6 +295,15 @@
       const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}`;
       const statusElement = document.getElementById('status');
       
+      if (!publicKey || !isValidSignature(publicKey)) {
+        statusElement.textContent = 'Invalid or missing signature. Please create a new signature.';
+        statusElement.className = 'error fade-in';
+        document.getElementById('createNewButton').style.display = 'block';
+        document.getElementById('createNewButton').classList.add('secondary');
+        document.getElementById('createNewButtonSecondary').style.display = 'inline-block';
+        return;
+      }
+
       if (isMobileDevice() && navigator.share) {
         // Mobile: Trigger native share dialog
         navigator.share({
@@ -267,7 +312,7 @@
           statusElement.textContent = 'Signature shared successfully!';
           statusElement.className = 'status fade-in';
         }).catch(error => {
-          statusElement.textContent = 'Error sharing signature: ' + error;
+          statusElement.textContent = 'Error sharing signature: ' + error.message;
           statusElement.className = 'error fade-in';
         });
       } else {
@@ -276,7 +321,7 @@
           statusElement.textContent = 'Signature copied to clipboard! Paste it in our Telegram or WhatsApp channels to register.';
           statusElement.className = 'status fade-in';
         }).catch(error => {
-          statusElement.textContent = 'Error copying to clipboard: ' + error;
+          statusElement.textContent = 'Error copying to clipboard: ' + error.message;
           statusElement.className = 'error fade-in';
         });
       }
@@ -287,11 +332,20 @@
       const publicKey = localStorage.getItem('publicKey');
       const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}`;
       
+      if (!publicKey || !isValidSignature(publicKey)) {
+        document.getElementById('status').textContent = 'Invalid or missing signature. Please create a new signature.';
+        document.getElementById('status').className = 'error fade-in';
+        document.getElementById('createNewButton').style.display = 'block';
+        document.getElementById('createNewButton').classList.add('secondary');
+        document.getElementById('createNewButtonSecondary').style.display = 'inline-block';
+        return;
+      }
+
       navigator.clipboard.writeText(shareText).then(() => {
         document.getElementById('status').textContent = 'Signature copied to clipboard!';
         document.getElementById('status').className = 'status fade-in';
       }).catch(err => {
-        document.getElementById('status').textContent = 'Failed to copy: ' + err;
+        document.getElementById('status').textContent = 'Failed to copy: ' + err.message;
         document.getElementById('status').className = 'error fade-in';
       });
     }
@@ -342,7 +396,7 @@
         
         if (data && !data.error) {
           // State 2b: Registered
-          welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
+          welcomeElement.textContent = `Welcome back, ${data.contributor_name || 'Contributor'}!`;
           welcomeElement.style.display = 'block';
           statusElement.textContent = 'Signature verified successfully';
           statusElement.className = 'status fade-in';
@@ -353,19 +407,19 @@
           inventoryLink.style.display = 'block';
           actionHeader.style.display = 'block';
           separator.style.display = 'block';
-        } else if (data && data.error) {
+        } else {
           // State 2a: Not registered or error
-          statusElement.textContent = data.error.includes('No matching') ? 
+          statusElement.textContent = data && data.error && data.error.includes('No matching') ? 
             'Your digital signature is not registered yet.' : 
-            data.error;
-          statusElement.className = data.error.includes('No matching') ? 
+            (data && data.error || 'Failed to verify signature. Please try again or create a new signature.');
+          statusElement.className = data && data.error && data.error.includes('No matching') ? 
             'prompt fade-in' : 'error fade-in';
           welcomeElement.style.display = 'none';
-          shareButton.style.display = 'inline-block';
+          shareButton.style.display = isValidSignature(publicKey) ? 'inline-block' : 'none';
           shareButton.classList.remove('secondary');
-          createNewButton.style.display = 'inline-block';
+          createNewButton.style.display = 'block';
           createNewButton.classList.add('secondary');
-          createNewButtonSecondary.style.display = 'none';
+          createNewButtonSecondary.style.display = 'inline-block';
           cashOutLink.style.display = 'none';
           inventoryLink.style.display = 'none';
           actionHeader.style.display = 'none';
@@ -424,7 +478,7 @@
         // Check registration status
         const data = await checkSignatureRegistration(publicKeyBase64);
         if (data && !data.error) {
-          welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
+          welcomeElement.textContent = `Welcome back, ${data.contributor_name || 'Contributor'}!`;
           welcomeElement.style.display = 'block';
           statusElement.textContent = 'Signature verified successfully';
           statusElement.className = 'status fade-in';
@@ -437,7 +491,7 @@
           document.getElementById('separator').style.display = 'block';
         }
       } catch (error) {
-        statusElement.textContent = 'Error generating keys: ' + error;
+        statusElement.textContent = 'Error generating keys: ' + error.message;
         statusElement.className = 'error fade-in';
         welcomeElement.style.display = 'none';
       }
