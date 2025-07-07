@@ -35,6 +35,12 @@
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    #buttons {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
     button {
       padding: 0.8rem 1.5rem;
       cursor: pointer;
@@ -240,10 +246,6 @@
         <hr id="separator" style="display: none;">
         <button id="createNewButtonSecondary" onclick="generateKeys()" style="display: none;" class="secondary">Create New Signature</button>
       </div>
-      <div id="shareOptions">
-        <a id="telegramShare" href="#" target="_blank">Share via Telegram</a>
-        <button onclick="copyToClipboard()">Copy for WhatsApp</button>
-      </div>
     </div>
   </div>
 
@@ -309,7 +311,7 @@
       try {
         const encodedSignature = encodeSignature(publicKey);
         const timestamp = new Date().toISOString();
-        const url = `${API_ENDPOINT}?signature=${encodedSignature}&timestamp=${encodeURIComponent(timestamp)}`;
+        const url = `${API_ENDPOINT}?signature=${encodedSignature}×tamp=${encodeURIComponent(timestamp)}`;
         
         console.log('Making request to:', url); // For debugging
         
