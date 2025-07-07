@@ -42,8 +42,24 @@ This tool allows DAO members to:
 6. Click **Submit Request** to generate a signed withdrawal message
 7. Share the request with the DAO community via your preferred channel
 
+### [Withdrawal Request Verifier](./verify_request.html)
+Verify authenticity of withdrawal requests:
+
+The Withdrawal Request Verifier allows DAO members to:
+- Verify the authenticity of a voting rights withdrawal request
+- Check if the digital signature matches the request details
+- Confirm the signature belongs to a registered DAO member
+- View member details and transaction information
+
+#### Usage
+1. Open [Withdrawal Request Verifier](./verify_request.html) in a modern browser
+2. Paste the complete withdrawal request (including digital signature and transaction ID) into the provided textarea
+3. Click **Check Request** to verify the request
+4. Review the verification results, including member name, signature status, and transaction details
+5. Note that verification confirms authenticity but does not approve the request
+
 ### [Serialized Cacao Bag Scanner](./scanner.html)
-QR Code Scanner
+QR Code Scanner:
 
 The QR Code Scanner provides DAO members with the ability to:
 - Scan the QR code on a cacao bag using the device camera

@@ -284,7 +284,7 @@
           encoder.encode(requestText)
         );
         const requestHash = arrayBufferToBase64(signature);
-        const shareText = `${requestText}\nDigital Signature: ${publicKey}\nRequest Hash: ${requestHash}`;
+        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}`;
 
         if (isMobileDevice() && navigator.share) {
           await navigator.share({ text: shareText });

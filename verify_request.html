@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verify Withdrawal Request</title>
+<style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .container {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+      margin-bottom: 15px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 0;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      display: none;
+    }
+    .valid {
+      background-color: #dff0d8;
+      color: #3c763d;
+      border: 1px solid #d6e9c6;
+    }
+    .invalid {
+      background-color: #f2dede;
+      color: #a94442;
+      border: 1px solid #ebccd1;
+    }
+    .info-card {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    .section-title {
+      font-weight: bold;
+      margin: 15px 0 5px 0;
+    }
+    .highlight {
+      background-color: #fffde7;
+      padding: 2px 4px;
+      border-radius: 3px;
+      word-break: break-all;
+    }
+    .loading {
+      color: #666;
+      font-style: italic;
+    }
+    .verified-badge {
+      color: #28a745;
+      font-weight: bold;
+      margin-left: 5px;
+    }
+    .transaction-details {
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f0f8ff;
+      border-left: 4px solid #4682b4;
+    }
+    .transaction-type {
+      font-weight: bold;
+      color: #4682b4;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Verify Withdrawal Request</h1>
+    
+    <p>Paste the complete withdrawal request below to check if it's genuine:</p>
+    
+    <textarea id="requestInput" placeholder="Paste the entire request including the digital signature and transaction ID here...">[VOTING RIGHTS WITHDRAWAL REQUEST]
+amount to withdraw: 70
+asking price: 90
+--------
+
+Digital Signature: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0D70xOu3BmuhnWJ5sAXdmJyglssswFUqcjjESrwdEeygjXkQaMcckbW4dt4Q6CmlHUKPshMDfy8Zrp+hVvr6WE6oC4cZe/faL20xNCmS0wos8w+USdvoGbvEC6yMop6XGR3r29fDwK1JohrXXrMpPYT3KYM6NlVvBnjOEejvOg0H1tWxwVXSMPwxfrPDJbfpY7oI+mK+lPbVsnuilKH7GCMTQMG1wlwo69nan5uIahtYl5WYCt7SuOYe91ziryNtJSweZK+9Vxv6k5oyopPxTZ+r5EMIneT0jsOZR7svp5rpSuEOP+1KSZ2dpHqgKw+OoGUXHbs0ANJwriV8erOAywIDAQAB
+
+Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMHlA1mqAPmo+r+WP2klbJTBxys871CG7kDcehJWN59awrRCzKF6AIuSzfq2T/PfVgufIJoZuDYD4FZgD3Z6nnpnuiBUCSW0vHQm9DnimRcZwQOyGAjMUHOKHglrtO6l1Y7J9oftkotXAjO7VceUoUKNgdCTrr8hoQL68Pd2p6ImazyPWgW+KKK3QGUrv0wOnqI/BE7rHC0G/VnOh6TwdA+PLGszXg74HizMTq4q4ELw1TllT6NExeaV4kYDyPr1fK1xYSa8lrpiTJ1cwE3BP94txrs2pBMrQ==</textarea>
+    
+    <button onclick="verifyRequest()">Check Request</button>
+    
+    <div id="result"></div>
+    
+    <div class="info-card">
+      <div class="section-title">How This Verification Works:</div>
+      <ol>
+        <li>We check the digital signature matches the request details</li>
+        <li>We confirm the signature belongs to a registered DAO member</li>
+        <li>We display the member's name and verification status</li>
+        <li>If everything matches, the request is authentic</li>
+      </ol>
+      <p><em>This doesn't approve the request - it only confirms it came from the claimed member.</em></p>
+    </div>
+  </div>
+
+  <script>
+    const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzB_FUyrMJ6oi9TERS-Kw-XjRm3mTFAO2V5t5_fL7CkK9DK-aP5A3ckxVqJ3kQGrqfH/exec';
+
+    async function verifyRequest() {
+      const requestText = document.getElementById('requestInput').value.trim();
+      const resultDiv = document.getElementById('result');
+      resultDiv.style.display = 'none';
+      
+      if (!requestText) {
+        alert('Please paste the request text to verify');
+        return;
+      }
+      
+      try {
+        // Show loading state
+        resultDiv.innerHTML = '<div class="loading">Checking request... Please wait.</div>';
+        resultDiv.style.display = 'block';
+        
+        // Extract components from the request
+        const parts = requestText.split('\n\n');
+        if (parts.length < 3) {
+          throw new Error('The request format looks incorrect. Make sure you copied all parts including the line breaks.');
+        }
+        
+        const message = parts[0];
+        const signatureLine = parts[1];
+        const transactionIdLine = parts[2];
+        
+        if (!signatureLine.startsWith('Digital Signature: ') || !transactionIdLine.startsWith('Request Transaction ID: ')) {
+          throw new Error('We couldn\'t find the digital signature or transaction ID in the request. Make sure they start with "Digital Signature:" and "Request Transaction ID:".');
+        }
+        
+        const digitalSignature = signatureLine.replace('Digital Signature: ', '').trim();
+        const transactionId = transactionIdLine.replace('Request Transaction ID: ', '').trim();
+        
+        // First verify the cryptographic signature
+        const isSignatureValid = await verifySignature(message, digitalSignature, transactionId);
+        
+        // Then fetch contributor info from API
+        const contributorInfo = await fetchContributorInfo(digitalSignature);
+        
+        // Display results
+        resultDiv.innerHTML = `
+          <div class="section-title">Verification Results:</div>
+          
+          <p><strong>Request Details:</strong><br>
+          <span class="highlight">${escapeHtml(message)}</span></p>
+          
+          <p><strong>DAO Member:</strong><br>
+          <span class="highlight">${escapeHtml(contributorInfo.contributor_name || 'Unknown')}</span>
+          ${isSignatureValid ? '<span class="verified-badge">✓ Verified</span>' : ''}</p>
+          
+          <p><strong>Digital Signature:</strong><br>
+          <span class="highlight">${shortenSignature(digitalSignature)}</span></p>
+          
+          <p><strong>Transaction ID:</strong><br>
+          <span class="highlight">${shortenSignature(transactionId)}</span></p>
+          
+          <p><strong>Status:</strong> ${isSignatureValid ? 
+            '✅ This request is authentic and matches the member\'s digital signature' : 
+            '❌ The signature doesn\'t match - this request may not be genuine'}</p>
+        `;
+        
+        resultDiv.className = isSignatureValid ? 'valid' : 'invalid';
+        
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="section-title">Verification Failed:</div>
+          <p>${escapeHtml(error.message)}</p>
+          <p>Please make sure your request has exactly this format:</p>
+          <pre>[VOTING RIGHTS WITHDRAWAL REQUEST]
+amount to withdraw: XX
+asking price: XX
+--------
+
+Digital Signature: XXXX...
+
+Request Transaction ID: XXXX...</pre>
+        `;
+        resultDiv.className = 'invalid';
+        console.error('Verification error:', error);
+      }
+    }
+
+    async function verifySignature(message, digitalSignature, signatureBase64) {
+      try {
+        // Convert the PEM format to raw base64
+        const rawBase64 = digitalSignature
+          .replace('-----BEGIN PUBLIC KEY-----', '')
+          .replace('-----END PUBLIC KEY-----', '')
+          .replace(/\s+/g, '');
+        
+        // Import the public key
+        const publicKey = await importPublicKey(rawBase64);
+        
+        // Convert base64 signature to ArrayBuffer
+        const signature = base64ToArrayBuffer(signatureBase64);
+        
+        // Create text encoder
+        const encoder = new TextEncoder();
+        const data = encoder.encode(message);
+        
+        // Verify the signature
+        return await window.crypto.subtle.verify(
+          "RSASSA-PKCS1-v1_5",
+          publicKey,
+          signature,
+          data
+        );
+      } catch (error) {
+        console.error('Signature verification error:', error);
+        throw new Error('The digital signature verification failed. Please ensure: \n1. The digital signature is correct\n2. The transaction ID matches the request\n3. All line breaks are preserved');
+      }
+    }
+    
+    async function fetchContributorInfo(digitalSignature) {
+      try {
+        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(digitalSignature)}`);
+        if (!response.ok) throw new Error('Failed to fetch contributor info');
+        return await response.json();
+      } catch (error) {
+        console.error('API error:', error);
+        return { error: "Couldn't verify member details" };
+      }
+    }
+    
+    function importPublicKey(base64) {
+      const binaryDer = base64ToArrayBuffer(base64);
+      return window.crypto.subtle.importKey(
+        "spki",
+        binaryDer,
+        { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+        true,
+        ["verify"]
+      );
+    }
+    
+    function base64ToArrayBuffer(base64) {
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+    
+    function escapeHtml(unsafe) {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;")
+        .replace(/\n/g, '<br>');
+    }
+    
+    function shortenSignature(sig) {
+      if (sig.length > 30) {
+        return sig.substring(0, 15) + '...' + sig.substring(sig.length - 15);
+      }
+      return sig;
+    }
+  </script>
+</body>
+</html>
