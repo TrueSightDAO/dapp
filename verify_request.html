@@ -1,52 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verify Withdrawal Request</title>
-<style>
+  <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
-      max-width: 800px;
-      margin: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 1rem;
+      padding: 1rem;
+      min-height: 100vh;
+      box-sizing: border-box;
       background-color: #f5f5f5;
     }
-    h1 {
-      color: #333;
-      text-align: center;
-      margin-bottom: 20px;
-    }
     .container {
+      max-width: 600px;
+      width: 100%;
       background-color: white;
-      padding: 20px;
+      padding: 1rem;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    h1 {
+      font-size: 1.8rem;
+      color: #333;
+      text-align: center;
+      margin: 0.5rem 0 1rem;
+    }
+    p {
+      font-size: 1rem;
+      color: #555;
+      text-align: center;
+      margin: 0.8rem 0;
+    }
     textarea {
       width: 100%;
-      min-height: 200px;
-      padding: 10px;
+      min-height: 150px;
+      padding: 0.8rem;
       border: 1px solid #ddd;
-      border-radius: 4px;
+      border-radius: 5px;
       font-family: monospace;
-      margin-bottom: 15px;
+      font-size: 0.95rem;
+      margin: 0.5rem 0;
+      box-sizing: border-box;
+    }
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
     }
     button {
       background-color: #4CAF50;
       color: white;
-      padding: 10px 15px;
+      padding: 0.8rem 1.5rem;
       border: none;
-      border-radius: 4px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 16px;
-      margin: 10px 0;
+      font-size: 1.1rem;
+      margin: 0.5rem 0;
+      width: 100%;
+      max-width: 300px;
+      transition: background-color 0.2s, transform 0.1s;
     }
     button:hover {
       background-color: #45a049;
+      transform: scale(1.02);
+    }
+    button:active {
+      transform: scale(0.98);
     }
     #result {
-      margin-top: 20px;
-      padding: 15px;
-      border-radius: 4px;
+      margin: 1rem 0;
+      padding: 1rem;
+      border-radius: 5px;
       display: none;
     }
     .valid {
@@ -60,40 +90,80 @@
       border: 1px solid #ebccd1;
     }
     .info-card {
-      margin-top: 20px;
-      padding: 15px;
+      margin: 1rem 0;
+      padding: 1rem;
       background-color: #f8f9fa;
-      border-radius: 4px;
+      border-radius: 5px;
       border: 1px solid #ddd;
+      font-size: 0.95rem;
     }
     .section-title {
       font-weight: bold;
-      margin: 15px 0 5px 0;
+      margin: 0.5rem 0;
+      font-size: 1.1rem;
     }
     .highlight {
       background-color: #fffde7;
-      padding: 2px 4px;
+      padding: 0.2rem 0.4rem;
       border-radius: 3px;
       word-break: break-all;
     }
     .loading {
       color: #666;
       font-style: italic;
+      font-size: 1rem;
     }
     .verified-badge {
       color: #28a745;
       font-weight: bold;
-      margin-left: 5px;
+      margin-left: 0.3rem;
     }
     .transaction-details {
-      margin: 10px 0;
-      padding: 10px;
+      margin: 0.5rem 0;
+      padding: 0.8rem;
       background-color: #f0f8ff;
       border-left: 4px solid #4682b4;
+      font-size: 0.95rem;
     }
     .transaction-type {
       font-weight: bold;
       color: #4682b4;
+    }
+    @media (max-width: 600px) {
+      body {
+        margin: 0.5rem;
+        padding: 0.5rem;
+      }
+      .container {
+        padding: 0.8rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      p {
+        font-size: 0.95rem;
+      }
+      textarea {
+        font-size: 0.9rem;
+        min-height: 120px;
+        padding: 0.6rem;
+      }
+      button {
+        padding: 1rem;
+        font-size: 1rem;
+      }
+      .info-card {
+        font-size: 0.9rem;
+      }
+      .section-title {
+        font-size: 1rem;
+      }
+      .transaction-details {
+        font-size: 0.9rem;
+      }
+      .loading {
+        font-size: 0.95rem;
+      }
     }
   </style>
 </head>
@@ -112,7 +182,9 @@ My Digital Signature: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0D70xOu3BmuhnW
 
 Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMHlA1mqAPmo+r+WP2klbJTBxys871CG7kDcehJWN59awrRCzKF6AIuSzfq2T/PfVgufIJoZuDYD4FZgD3Z6nnpnuiBUCSW0vHQm9DnimRcZwQOyGAjMUHOKHglrtO6l1Y7J9oftkotXAjO7VceUoUKNgdCTrr8hoQL68Pd2p6ImazyPWgW+KKK3QGUrv0wOnqI/BE7rHC0G/VnOh6TwdA+PLGszXg74HizMTq4q4ELw1TllT6NExeaV4kYDyPr1fK1xYSa8lrpiTJ1cwE3BP94txrs2pBMrQ==</textarea>
     
-    <button onclick="verifyRequest()">Check Request</button>
+    <div class="button-container">
+      <button onclick="verifyRequest()">Check Request</button>
+    </div>
     
     <div id="result"></div>
     
@@ -160,7 +232,6 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
         }
 
         const digitalSignature = signatureLine.replace('My Digital Signature: ', '').trim();
-
         const transactionId = transactionIdLine.replace('Request Transaction ID: ', '').trim();
         
         // First verify the cryptographic signature
@@ -192,6 +263,7 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
         `;
         
         resultDiv.className = isSignatureValid ? 'valid' : 'invalid';
+        resultDiv.style.display = 'block';
         
       } catch (error) {
         resultDiv.innerHTML = `
@@ -208,6 +280,7 @@ My Digital Signature: XXXX...
 Request Transaction ID: XXXX...</pre>
         `;
         resultDiv.className = 'invalid';
+        resultDiv.style.display = 'block';
         console.error('Verification error:', error);
       }
     }
