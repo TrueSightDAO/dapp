@@ -1,4 +1,3 @@
-console.log("Checking cache");
 
 // Get the current URL and its query parameters
 const url = new URL(window.location.href);
@@ -27,6 +26,7 @@ if (!timestamp || isNaN(timestamp) || (currentTime - timestamp) > oneHourInMs) {
   // Refresh the page with the new URL
   window.location.replace(newUrl);
 } else {
+  document.addEventListener('DOMContentLoaded', function() {
   // Update all static hyperlinks to include the timestamp
   document.querySelectorAll('a[href]').forEach(link => {
     try {
@@ -54,4 +54,5 @@ if (!timestamp || isNaN(timestamp) || (currentTime - timestamp) > oneHourInMs) {
       console.error(`Error updating link ${link.href}:`, e);
     }
   });
+});
 }
