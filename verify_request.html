@@ -396,5 +396,12 @@ Request Transaction ID: XXXX...</pre>
       return sig;
     }
   </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js', { scope: './' })
+        .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+        .catch(err => console.warn('Service Worker registration failed:', err));
+    }
+  </script>
 </body>
 </html>

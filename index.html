@@ -348,5 +348,12 @@
       <button onclick="window.location.href='./create_signature.html'">Get Started</button>
     </div>
   </div>
-</body>
+  </body>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js', { scope: './' })
+        .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+        .catch(err => console.warn('Service Worker registration failed:', err));
+    }
+  </script>
 </html>
