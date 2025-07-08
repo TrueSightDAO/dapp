@@ -37,14 +37,14 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
-  // Default: cache-first strategy
+  // Default: network-first strategy, fallback to cache if offline
   event.respondWith(
-    caches.match(request).then(cachedResponse => {
-      return cachedResponse || fetch(request).then(response => {
+    fetch(request)
+      .then(response => {
         const responseClone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(request, responseClone));
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(request))
   );
 });
