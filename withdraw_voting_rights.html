@@ -39,6 +39,25 @@
       font-size: 1rem;
       text-align: center;
     }
+    #backLink {
+      top: 1rem;
+      left: 1rem;
+      font-size: 1rem;
+      color: #007bff;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: color 0.2s;
+    }
+    #backLink:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+    #backLink::before {
+      content: "←";
+      font-size: 1.2rem;
+    }    
     #status {
       margin: 1rem 0;
       font-weight: bold;
@@ -127,6 +146,23 @@
       font-size: 1rem;
       text-align: center;
     }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .loading {
+      color: #6c757d;
+      font-style: italic;
+      animation: pulse 2s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
+    }
     @media (max-width: 600px) {
       body {
         margin: 0.5rem;
@@ -170,12 +206,16 @@
 </head>
 <body>
   <div class="container">
+    <a id="backLink" href="./index.html">Back to Home</a>        
+    <div style="text-align: center;">
+      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+    </div>    
     <h1>Cash Out Voting Rights</h1>
     <p id="description">
       This page allows you to exchange your DAO voting rights for other assets by submitting a signed withdrawal request to our community.
     </p>
     <div id="welcome" style="display: none;"></div>
-    <p id="status">Verifying your digital signature...</p>
+    <p id="status" class="fade-in">Verifying your digital signature...</p>
     <div id="info" style="display: none;">
       <div class="info"><strong>Your Total Voting Rights:</strong> <span id="votingRights"></span></div>
       <div class="info"><strong>Value per Voting Right:</strong> <span id="valuePerRight"></span></div>
@@ -189,7 +229,7 @@
         <input type="number" id="price" placeholder="Enter asking price" min="0" step="0.01">
       </div>
       
-      <div class="action-section">
+      <div class="actionit-section">
         <div class="button-container">
           <button onclick="submitRequest()">Submit Request</button>
         </div>
@@ -282,9 +322,13 @@
 
     window.onload = async function () {
       const publicKey = localStorage.getItem('publicKey');
+      const statusElement = document.getElementById('status');
+      statusElement.textContent = 'Verifying your digital signature...';
+      statusElement.className = 'loading fade-in';
+
       if (!publicKey) {
-        document.getElementById('status').textContent = 'No digital signature found. Redirecting...';
-        document.getElementById('status').className = 'error';
+        statusElement.textContent = 'No digital signature found. Redirecting...';
+        statusElement.className = 'error fade-in';
         setTimeout(() => {
           window.location.href = './create_signature.html';
         }, 2000);
@@ -297,8 +341,8 @@
         const data = await response.json();
 
         if (data.error) {
-          document.getElementById('status').textContent = 'Error: ' + data.error;
-          document.getElementById('status').className = 'error';
+          statusElement.textContent = 'Error: ' + data.error;
+          statusElement.className = 'error fade-in';
           return;
         }
 
@@ -310,7 +354,7 @@
         document.getElementById('welcome').textContent = `Welcome back, ${data.contributor_name}!`;
         document.getElementById('welcome').style.display = 'block';
         document.getElementById('status').textContent = 'Signature verified successfully';
-        document.getElementById('status').className = 'status';
+        document.getElementById('status').className = 'status fade-in';
 
         // Add input validation listeners
         document.getElementById('amount').addEventListener('change', validateInputs);
@@ -318,8 +362,8 @@
         document.getElementById('price').addEventListener('change', validateInputs);
         document.getElementById('price').addEventListener('input', validateInputs);
       } catch (error) {
-        document.getElementById('status').textContent = 'Error fetching data: ' + error;
-        document.getElementById('status').className = 'error';
+        statusElement.textContent = 'Error fetching data: ' + error;
+        statusElement.className = 'error fade-in';
       }
     };
 

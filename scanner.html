@@ -15,6 +15,25 @@
             min-height: 100vh;
             box-sizing: border-box;
         }
+        #backLink {
+          top: 1rem;
+          left: 1rem;
+          font-size: 1rem;
+          color: #007bff;
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          gap: 0.3rem;
+          transition: color 0.2s;
+        }
+        #backLink:hover {
+          color: #0056b3;
+          text-decoration: underline;
+        }
+        #backLink::before {
+          content: "←";
+          font-size: 1.2rem;
+        }            
         h1 {
             font-size: 1.8rem;
             margin-bottom: 1.5rem;
@@ -126,6 +145,10 @@
     </style>
 </head>
 <body>
+    <a id="backLink" href="./index.html">Back to Home</a>        
+    <div style="text-align: center;">
+      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+    </div>            
     <h1>QR Code Reader</h1>
     <video id="video" width="400" height="300" autoplay playsinline muted></video>
     <canvas id="canvas" style="display: none;"></canvas>

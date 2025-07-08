@@ -12,6 +12,25 @@
             align-items: center;
             margin: 20px;
         }
+        #backLink {
+          top: 1rem;
+          left: 1rem;
+          font-size: 1rem;
+          color: #007bff;
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          gap: 0.3rem;
+          transition: color 0.2s;
+        }
+        #backLink:hover {
+          color: #0056b3;
+          text-decoration: underline;
+        }
+        #backLink::before {
+          content: "←";
+          font-size: 1.2rem;
+        }                
         canvas {
             border: 1px solid #ccc;
             margin-bottom: 10px;
@@ -47,6 +66,10 @@
     </style>
 </head>
 <body>
+    <a id="backLink" href="./index.html">Back to Home</a>        
+    <div style="text-align: center;">
+      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+    </div>                
     <h1>Report Inventory Movement</h1>
     <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
     <canvas id="canvas" style="display: none;"></canvas>

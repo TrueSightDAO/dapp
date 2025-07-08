@@ -17,6 +17,25 @@
       box-sizing: border-box;
       background-color: #f5f5f5;
     }
+    #backLink {
+      top: 1rem;
+      left: 1rem;
+      font-size: 1rem;
+      color: #007bff;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: color 0.2s;
+    }
+    #backLink:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+    #backLink::before {
+      content: "←";
+      font-size: 1.2rem;
+    }        
     .container {
       max-width: 600px;
       width: 100%;
@@ -170,6 +189,10 @@
 </head>
 <body>
   <div class="container">
+    <a id="backLink" href="./index.html">Back to Home</a>        
+    <div style="text-align: center;">
+      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+    </div>        
     <h1>Verify Withdrawal Request</h1>
     
     <p>Paste the complete withdrawal request below to check if it's genuine:</p>

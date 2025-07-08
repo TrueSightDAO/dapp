@@ -35,6 +35,26 @@
       padding: 1rem;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: relative; /* For positioning the back link */
+    }
+    #backLink {
+      top: 1rem;
+      left: 1rem;
+      font-size: 1rem;
+      color: #007bff;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: color 0.2s;
+    }
+    #backLink:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+    #backLink::before {
+      content: "←";
+      font-size: 1.2rem;
     }
     #buttons {
       display: flex;
@@ -170,6 +190,7 @@
     .loading {
       color: #6c757d;
       font-style: italic;
+      animation: pulse 2s infinite ease-in-out;
     }
     .prompt {
       color: #007bff;
@@ -178,6 +199,11 @@
       margin-top: 1.5rem;
       padding-top: 1rem;
       width: 100%;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
     }
     @media (max-width: 600px) {
       body {
@@ -192,6 +218,11 @@
       }
       .container {
         padding: 0.8rem;
+      }
+      #backLink {
+        font-size: 0.9rem;
+        top: 0.8rem;
+        left: 0.8rem;
       }
       button {
         padding: 1rem;
@@ -221,6 +252,10 @@
 </head>
 <body>
   <div class="container">
+    <a id="backLink" href="./index.html">Back to Home</a>    
+    <div style="text-align: center;">
+      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+    </div>    
     <h2>Manage Your Digital Signature</h2>
     <p id="explanation" class="fade-in">Your digital signature is used in our DAO to verify your identity for sensitive actions, like cashing out your voting rights.</p>
     
