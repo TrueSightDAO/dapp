@@ -81,8 +81,14 @@
     .warning {
       color: #ffc107;
     }
+    .info-box {
+      margin: 1rem 0;
+      background-color: #fff;
+      padding: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
     .info {
-      margin: 0.8rem 0;
       font-weight: bold;
       text-align: left;
       font-size: 1rem;
@@ -183,6 +189,9 @@
       #welcome {
         font-size: 1.1rem;
       }
+      .info-box {
+        padding: 0.5rem;
+      }
       .info {
         font-size: 0.95rem;
         text-align: center;
@@ -217,9 +226,11 @@
     <div id="welcome" style="display: none;"></div>
     <p id="status" class="fade-in">Verifying your digital signature...</p>
     <div id="info" style="display: none;">
-      <div class="info"><strong>Your Total Voting Rights:</strong> <span id="votingRights"></span></div>
-      <div class="info"><strong>Value per Voting Right:</strong> <span id="valuePerRight"></span></div>
-      <div class="info"><strong>Total Assets on Ledger:</strong> <span id="totalAssets"></span></div>
+      <div class="info-box">
+        <div class="info"><strong>Your Total Voting Rights:</strong> <span id="votingRights"></span></div>
+        <div class="info"><strong>Value per Voting Right:</strong> <span id="valuePerRight"></span></div>
+        <div class="info"><strong>Total Assets on Ledger:</strong> <span id="totalAssets"></span></div>
+      </div>
       <div class="input-group">
         <label for="amount">Voting Rights to Cash Out</label>
         <input type="number" id="amount" placeholder="Enter number of voting rights" min="0">
@@ -228,8 +239,7 @@
         <label for="price">Asking Price (Total)</label>
         <input type="number" id="price" placeholder="Enter asking price" min="0" step="0.01">
       </div>
-      
-      <div class="actionit-section">
+      <div class="action-section">
         <div class="button-container">
           <button onclick="submitRequest()">Submit Request</button>
         </div>
