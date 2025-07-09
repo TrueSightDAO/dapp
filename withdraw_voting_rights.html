@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta description="Easily submit request to withdraw your voting rights into cash">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cash Out Voting Rights</title>
   <script src="./refreshWithTimestamp.js"></script>
@@ -412,7 +413,7 @@
           encoder.encode(requestText)
         );
         const requestHash = arrayBufferToBase64(signature);
-        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}`;
+        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}`;
 
         if (isMobileDevice() && navigator.share) {
           await navigator.share({ text: shareText });
@@ -435,6 +436,40 @@
         .then(reg => console.log('Service Worker registered with scope:', reg.scope))
         .catch(err => console.warn('Service Worker registration failed:', err));
     }
+  </script>
+  <!-- Reload latest version link -->
+  <script>
+    (function() {
+      const div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.marginTop = '1rem';
+      const url = new URL(window.location.href);
+      url.searchParams.set('reload', 'true');
+      const a = document.createElement('a');
+      a.href = url.toString();
+      a.textContent = 'Reload Latest Version';
+      a.style.fontSize = '0.8rem';
+      a.style.color = '#007bff';
+      a.style.textDecoration = 'none';
+      div.appendChild(a);
+      document.body.appendChild(div);
+    })();
+  </script>
+  <!-- View Source Code link -->
+  <script>
+    (function() {
+      const div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.marginTop = '1rem';
+      const a = document.createElement('a');
+      a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/withdraw_voting_rights.html';
+      a.textContent = 'View Source Code';
+      a.style.fontSize = '0.8rem';
+      a.style.color = '#007bff';
+      a.style.textDecoration = 'none';
+      div.appendChild(a);
+      document.body.appendChild(div);
+    })();
   </script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta description="Simple tools to help you interact with the rest of our community">  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -130,13 +131,6 @@
     .module-card a {
       font-weight: bold;
     }
-    .troubleshooting {
-      background-color: #f8f9fa;
-      padding: 1rem;
-      border-radius: 5px;
-      border: 1px solid #ddd;
-      margin: 1rem 0;
-    }
     code {
       background-color: #f0f0f0;
       padding: 0.2rem 0.4rem;
@@ -174,9 +168,6 @@
       .module-card h3 {
         font-size: 1.15rem;
       }
-      .troubleshooting {
-        font-size: 0.9rem;
-      }
     }
   </style>
 </head>
@@ -187,134 +178,107 @@
     </div>
     <h1>TrueSight DAO DApp</h1>    
     <p>
-      This repository provides decentralized application (DApp) tools for TrueSight DAO members, with an initial focus on the Agroverse cacao circles. These web-based utilities enable members to manage serialized cacao bags, scan QR codes, and share sale or expense information seamlessly.
+      Web-based tools for TrueSight DAO members to manage cacao inventory, scan QR codes, and handle voting rights.
     </p>
 
     <div class="section">
-      <h2>Modules</h2>
-
+      <h2>Identity & Governance</h2>
       <div class="module-card">
         <h3><a href="./create_signature.html">Digital Signature Creator</a></h3>
-        <p>Manage your secure digital identity for DAO operations.</p>
+        <p>Create a secure digital identity for DAO tasks.</p>
         <p><strong>Features</strong>:</p>
         <ul>
-          <li>Generate a unique cryptographic key pair for identity verification</li>
-          <li>Store keys securely in the browser's local storage</li>
-          <li>Register your public key with the DAO community</li>
-          <li>Use your digital signature for authentication in other DAO tools</li>
+          <li>Generate and store a key pair</li>
+          <li>Register your identity with the DAO</li>
+          <li>Authenticate for other tools</li>
         </ul>
         <p><strong>Usage</strong>:</p>
         <ol>
-          <li>Open <a href="./create_signature.html">Digital Signature Creator</a> in a modern browser (e.g., Chrome, Firefox, Safari).</li>
-          <li>Click <strong>Create Digital Signature</strong> to generate your key pair.</li>
-          <li>Securely note your private key (never share it).</li>
-          <li>Click <strong>Register It with Our Community</strong> to share your public key via Telegram or WhatsApp.</li>
-          <li>Use your digital signature to authenticate with other DAO tools.</li>
+          <li>Open <a href="./create_signature.html">Digital Signature Creator</a>.</li>
+          <li>Generate and save your keys.</li>
+          <li>Share your public key to our <a href="https://t.me/TrueSightDAO">Telegram channel</a>.</li>
         </ol>
       </div>
-
       <div class="module-card">
         <h3><a href="./withdraw_voting_rights.html">Voting Rights Cash Out</a></h3>
-        <p>Exchange your DAO voting rights for other assets.</p>
+        <p>Trade your voting rights for assets.</p>
         <p><strong>Features</strong>:</p>
         <ul>
-          <li>View your current voting rights balance</li>
-          <li>Check the current value per voting right</li>
-          <li>Submit signed requests to exchange voting rights</li>
-          <li>Share withdrawal requests for community verification</li>
+          <li>View voting rights balance</li>
+          <li>Submit signed withdrawal requests</li>
+          <li>Share requests for approval</li>
         </ul>
         <p><strong>Usage</strong>:</p>
         <ol>
-          <li>Open <a href="./withdraw_voting_rights.html">Voting Rights Cash Out</a> in a modern browser.</li>
-          <li>The system verifies your digital signature automatically.</li>
-          <li>Review your available voting rights and their valuation.</li>
-          <li>Enter the number of voting rights to cash out and your asking price.</li>
-          <li>Click <strong>Submit Request</strong> to generate a signed withdrawal message.</li>
-          <li>Share the request with the DAO community via Telegram or WhatsApp.</li>
+          <li>Open <a href="./withdraw_voting_rights.html">Voting Rights Cash Out</a>.</li>
+          <li>Enter amount and price.</li>
+          <li>Submit and share request to our <a href="https://t.me/TrueSightDAO">Telegram channel</a>.</li>
         </ol>
       </div>
-
       <div class="module-card">
         <h3><a href="./verify_request.html">Withdrawal Request Verifier</a></h3>
-        <p>Verify the authenticity of voting rights withdrawal requests.</p>
+        <p>Check withdrawal request authenticity.</p>
         <p><strong>Features</strong>:</p>
         <ul>
-          <li>Validate the digital signature of a withdrawal request</li>
-          <li>Confirm the signature matches a registered DAO member</li>
-          <li>Display member details and transaction information</li>
-          <li>Ensure the request is genuine (does not approve the request)</li>
+          <li>Verify digital signatures</li>
+          <li>Confirm member and transaction details</li>
         </ul>
         <p><strong>Usage</strong>:</p>
         <ol>
-          <li>Open <a href="./verify_request.html">Withdrawal Request Verifier</a> in a modern browser.</li>
-          <li>Paste the complete withdrawal request (including digital signature and transaction ID) into the textarea.</li>
-          <li>Click <strong>Check Request</strong> to verify.</li>
-          <li>Review the results, including member name, signature status, and transaction details.</li>
+          <li>Open <a href="./verify_request.html">Verifier</a>.</li>
+          <li>Paste request text.</li>
+          <li>Check authenticity.</li>
         </ol>
       </div>
+    </div>
 
+    <div class="section">
+      <h2>Inventory & Sales</h2>
       <div class="module-card">
-        <h3><a href="./scanner.html">Serialized Cacao Bag Scanner</a></h3>
-        <p>Scan and report cacao bag sales using QR codes.</p>
+        <h3><a href="./scanner.html">Cacao Bag Scanner</a></h3>
+        <p>Scan QR codes to report cacao sales.</p>
         <p><strong>Features</strong>:</p>
         <ul>
-          <li>Scan QR codes on cacao bags using the device camera</li>
-          <li>Extract the bag’s unique identifier (<code>qr_code</code> parameter)</li>
-          <li>Generate a standardized sale message (e.g., <code>ABC123 – this bag of cacao just sold by me for $25.</code>)</li>
-          <li>Share the message via native share (mobile) or clipboard (desktop) to the Town Hall channel</li>
+          <li>Scan bag QR codes</li>
+          <li>Share sale reports</li>
         </ul>
         <p><strong>Usage</strong>:</p>
         <ol>
-          <li>Open <a href="./scanner.html">Serialized Cacao Bag Scanner</a> in a modern browser with camera support.</li>
-          <li>Grant camera access when prompted.</li>
-          <li>Point the camera at the QR code on the cacao bag.</li>
-          <li>Click <strong>Scan QR Code</strong> to extract the <code>qr_code</code> parameter.</li>
-          <li>Click <strong>Report Sold</strong> to share or copy the sale message.</li>
+          <li>Open <a href="./scanner.html">Cacao Bag Scanner</a>.</li>
+          <li>Scan QR code.</li>
+          <li>Share sale report to our <a href="https://t.me/TrueSightDAO">Telegram channel</a>.</li>
         </ol>
       </div>
-
       <div class="module-card">
         <h3><a href="./report_dao_expenses.html">Inventory Expense Reporter</a></h3>
-        <p>Report expenses for DAO inventory resources.</p>
+        <p>Report DAO inventory expenses.</p>
         <p><strong>Features</strong>:</p>
         <ul>
-          <li>Select a DAO member from an API-driven dropdown</li>
-          <li>Choose an inventory resource and view its available quantity</li>
-          <li>Enter the quantity expensed</li>
-          <li>Attach an image or PDF file</li>
-          <li>Share or copy the standardized expense report</li>
+          <li>Select resources and quantities</li>
+          <li>Attach proof (image/PDF)</li>
+          <li>Share expense reports</li>
         </ul>
         <p><strong>Usage</strong>:</p>
         <ol>
-          <li>Open <a href="./report_dao_expenses.html">Inventory Expense Reporter</a> in a modern browser.</li>
-          <li>Select a <strong>DAO Member</strong> from the dropdown.</li>
-          <li>Choose an <strong>Inventory Resource</strong> and review its available quantity.</li>
-          <li>Enter the <strong>Quantity Expensed</strong>.</li>
-          <li>Optionally attach an image or PDF.</li>
-          <li>Click <strong>Submit Expense Report</strong> to share (mobile) or copy (desktop).</li>
+          <li>Open <a href="./report_dao_expenses.html">Expense Reporter</a>.</li>
+          <li>Select resource and quantity.</li>
+          <li>Submit report with proof to our <a href="https://t.me/TrueSightDAO">Telegram channel</a>.</li>
         </ol>
       </div>
-
       <div class="module-card">
         <h3><a href="./report_inventory_movement.html">Inventory Movement Reporter</a></h3>
-        <p>Report inventory movements with camera integration.</p>
+        <p>Track inventory transfers.</p>
         <p><strong>Features</strong>:</p>
         <ul>
-          <li>Select a warehouse manager from an API-driven dropdown</li>
-          <li>Choose an inventory item and view its available quantity</li>
-          <li>Select a recipient from the contact list</li>
-          <li>Enter the quantity to move</li>
-          <li>Capture and share a camera snapshot with the report</li>
+          <li>Select items and recipients</li>
+          <li>Capture snapshots</li>
+          <li>Share transfer reports</li>
         </ul>
         <p><strong>Usage</strong>:</p>
         <ol>
-          <li>Open <a href="./report_inventory_movement.html">Inventory Movement Reporter</a> in a modern browser with camera support.</li>
-          <li>Grant camera access when prompted.</li>
-          <li>Select a <strong>Warehouse Manager</strong> from the dropdown.</li>
-          <li>Choose an <strong>Inventory Item</strong> and review its available quantity.</li>
-          <li>Select a <strong>Recipient</strong> from the contacts dropdown.</li>
-          <li>Enter the <strong>Quantity to Move</strong>.</li>
-          <li>Click <strong>Report Inventory Movement</strong> to share (mobile) or copy (desktop) the report with a camera snapshot.</li>
+          <li>Open <a href="./report_inventory_movement.html">Movement Reporter</a>.</li>
+          <li>Select item and recipient.</li>
+          <li>Submit report with snapshot to our <a href="https://t.me/TrueSightDAO">Telegram channel</a>.</li>
         </ol>
       </div>
     </div>
@@ -328,17 +292,6 @@
       </ul>
     </div>
 
-    <div class="section troubleshooting">
-      <h2>Troubleshooting</h2>
-      <p>If the latest version of a page does not load on your mobile device:</p>
-      <ul>
-        <li><strong>Clear Browser Cache</strong>: Go to your browser settings (e.g., Chrome: Settings → Privacy and security → Clear browsing data; Safari: Settings → Safari → Clear History and Website Data).</li>
-        <li><strong>Use Incognito Mode</strong>: Open the site in a private/incognito tab to bypass cached content.</li>
-        <li><strong>Append Query String</strong>: Add <code>?v=2</code> to the URL (e.g., <code>https://your-site.github.io/?v=2</code>) to force a fresh load.</li>
-        <li><strong>Wait for CDN Refresh</strong>: GitHub Pages may take up to 10 minutes to reflect changes due to CDN caching. Check the deployment status in the repository’s <strong>Actions</strong> tab.</li>
-      </ul>
-    </div>
-
     <div class="section">
       <h2>License</h2>
       <p>This project is licensed under the terms in the <a href="./LICENSE">LICENSE</a> file.</p>
@@ -348,7 +301,40 @@
       <button onclick="window.location.href='./create_signature.html'">Get Started</button>
     </div>
   </div>
-  </body>
+  <!-- Reload latest version link -->
+  <script>
+    (function() {
+      const div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.marginTop = '1rem';
+      const url = new URL(window.location.href);
+      url.searchParams.set('reload', 'true');
+      const a = document.createElement('a');
+      a.href = url.toString();
+      a.textContent = 'Reload Latest Version';
+      a.style.fontSize = '0.8rem';
+      a.style.color = '#007bff';
+      a.style.textDecoration = 'none';
+      div.appendChild(a);
+      document.body.appendChild(div);
+    })();
+  </script>
+  <!-- View Source Code link -->
+  <script>
+    (function() {
+      const div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.marginTop = '1rem';
+      const a = document.createElement('a');
+      a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/index.html';
+      a.textContent = 'View Source Code';
+      a.style.fontSize = '0.8rem';
+      a.style.color = '#007bff';
+      a.style.textDecoration = 'none';
+      div.appendChild(a);
+      document.body.appendChild(div);
+    })();
+  </script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js', { scope: './' })
@@ -356,4 +342,5 @@
         .catch(err => console.warn('Service Worker registration failed:', err));
     }
   </script>
+</body>
 </html>
