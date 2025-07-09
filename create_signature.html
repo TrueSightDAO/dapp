@@ -35,7 +35,7 @@
       padding: 1rem;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      position: relative; /* For positioning the back link */
+      position: relative;
     }
     #backLink {
       top: 1rem;
@@ -299,38 +299,29 @@
     // Function to safely encode a signature for URL
     function encodeSignature(signature) {
       try {
-        // First encode the Base64 string to handle special characters
         let encoded = encodeURIComponent(signature);
-        
-        // Additional handling for specific characters that might cause issues
-        encoded = encoded.replace(/%20/g, '+') // Convert spaces back to + if needed
+        encoded = encoded.replace(/%20/g, '+')
                          .replace(/'/g, '%27')
                          .replace(/"/g, '%22');
-        
         return encoded;
       } catch (e) {
         console.error('Error encoding signature:', e);
-        return signature; // Fallback to original if encoding fails
+        return signature;
       }
     }
 
     // Function to validate signature format before sending
     function isValidSignature(signature) {
       if (!signature) return false;
-      
-      // Basic validation for RSA public key format
       const regex = /^[A-Za-z0-9+/=]+$/;
       if (!regex.test(signature)) {
         console.error('Invalid signature format - contains non-Base64 characters');
         return false;
       }
-      
-      // Check for reasonable length (RSA keys are typically long)
       if (signature.length < 100 || signature.length > 5000) {
         console.error('Invalid signature length');
         return false;
       }
-      
       return true;
     }
 
@@ -348,7 +339,7 @@
         const encodedSignature = encodeSignature(publicKey);
         const timestamp = new Date().toISOString();
         const url = `${API_ENDPOINT}?signature=${encodedSignature}&timestamp=${encodeURIComponent(timestamp)}`;
-        console.log('Making request to:', url); // For debugging
+        console.log('Making request to:', url);
         
         const response = await fetch(url);
         
@@ -373,11 +364,10 @@
     // Handle registration sharing
     function registerSignature() {
       const publicKey = localStorage.getItem('publicKey');
-      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}`;
+      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}\n\nThis submission was generated using ${window.location.href}`;
       const statusElement = document.getElementById('status');
       
       if (isMobileDevice() && navigator.share) {
-        // Mobile: Trigger native share dialog
         navigator.share({
           text: shareText
         }).then(() => {
@@ -388,7 +378,6 @@
           statusElement.className = 'error fade-in';
         });
       } else {
-        // Desktop: Copy to clipboard and show prompt
         navigator.clipboard.writeText(shareText).then(() => {
           statusElement.textContent = 'Signature copied to clipboard! Paste it in our Telegram or WhatsApp channels to register.';
           statusElement.className = 'status fade-in';
@@ -402,7 +391,7 @@
     // Copy to clipboard function
     function copyToClipboard() {
       const publicKey = localStorage.getItem('publicKey');
-      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}`;
+      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}\n\nThis submission was generated using ${window.location.href}`;
       
       navigator.clipboard.writeText(shareText).then(() => {
         document.getElementById('status').textContent = 'Signature copied to clipboard!';
@@ -431,7 +420,6 @@
       const separator = document.getElementById('separator');
 
       if (!publicKey || !privateKey) {
-        // State 1: No keys detected
         statusElement.textContent = 'Your digital signature is not created yet.';
         statusElement.className = 'prompt fade-in';
         welcomeElement.style.display = 'none';
@@ -447,7 +435,6 @@
         actionHeader.style.display = 'none';
         separator.style.display = 'none';
       } else {
-        // State 2: Keys exist, check registration
         publicKeyLabel.style.display = 'block';
         publicKeyDiv.textContent = publicKey;
         statusElement.textContent = 'Verifying your digital signature...';
@@ -455,7 +442,6 @@
         welcomeElement.style.display = 'none';
         generateButton.style.display = 'none';
 
-        // Check if signature is valid before making API call
         if (!isValidSignature(publicKey)) {
           statusElement.textContent = 'Invalid digital signature format';
           statusElement.className = 'error fade-in';
@@ -472,7 +458,6 @@
           const data = await checkSignatureRegistration(publicKey);
           
           if (data && !data.error) {
-            // State 2b: Registered
             welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
             welcomeElement.style.display = 'block';
             statusElement.textContent = 'Signature verified successfully';
@@ -485,7 +470,6 @@
             actionHeader.style.display = 'block';
             separator.style.display = 'block';
           } else if (data && data.error) {
-            // State 2a: Not registered or error
             statusElement.textContent = data.error.includes('No matching') ? 
               'Your digital signature is not registered yet.' : 
               data.error;
@@ -532,11 +516,9 @@
         const publicKeyBase64 = arrayBufferToBase64(publicKey);
         const privateKeyBase64 = arrayBufferToBase64(privateKey);
 
-        // Store keys in localStorage
         localStorage.setItem('publicKey', publicKeyBase64);
         localStorage.setItem('privateKey', privateKeyBase64);
 
-        // Update UI to State 2a (not registered)
         document.getElementById('publicKeyLabel').style.display = 'block';
         document.getElementById('publicKey').textContent = publicKeyBase64;
         statusElement.textContent = 'Your digital signature is not registered yet.';
@@ -553,7 +535,6 @@
         document.getElementById('actionHeader').style.display = 'none';
         document.getElementById('separator').style.display = 'none';
 
-        // Check registration status
         const data = await checkSignatureRegistration(publicKeyBase64);
         if (data && !data.error) {
           welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
@@ -581,6 +562,21 @@
         .then(reg => console.log('Service Worker registered with scope:', reg.scope))
         .catch(err => console.warn('Service Worker registration failed:', err));
     }
+  </script>
+  <script>
+    (function() {
+      const div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.marginTop = '1rem';
+      const a = document.createElement('a');
+      a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/create_signature.html';
+      a.textContent = 'View Source Code';
+      a.style.fontSize = '0.8rem';
+      a.style.color = '#007bff';
+      a.style.textDecoration = 'none';
+      div.appendChild(a);
+      document.body.appendChild(div);
+    })();
   </script>
 </body>
 </html>
