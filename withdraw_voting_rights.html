@@ -7,13 +7,13 @@
   <title>Cash Out Voting Rights</title>
 
   <!-- Open Graph tags for WhatsApp and social media previews -->
-    <meta property="og:title" content="Cash Out Voting Rights">
-    <meta property="og:description" content="Easily submit request to withdraw your voting rights into cash">
-    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
-    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
-    <meta property="og:type" content="website">
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">    
+  <meta property="og:title" content="Cash Out Voting Rights">
+  <meta property="og:description" content="Easily submit request to withdraw your voting rights into cash">
+  <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+  <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+  <meta property="og:type" content="website">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">    
 
   <script src="./refreshWithTimestamp.js"></script>
   <style>
@@ -103,6 +103,7 @@
       font-weight: bold;
       text-align: left;
       font-size: 1rem;
+      margin: 0.5rem 0;
     }
     .input-group {
       margin: 1rem 0;
@@ -114,7 +115,7 @@
       font-weight: bold;
       font-size: 1rem;
     }
-    input {
+    input, select {
       width: 100%;
       padding: 0.8rem;
       font-size: 1rem;
@@ -122,7 +123,7 @@
       border-radius: 5px;
       border: 1px solid #ccc;
     }
-    input.invalid {
+    input.invalid, select.invalid {
       border-color: #dc3545;
       background-color: #fff0f0;
     }
@@ -180,6 +181,9 @@
       50% { opacity: 1; }
       100% { opacity: 0.5; }
     }
+    .withdrawal-details {
+      display: none;
+    }
     @media (max-width: 600px) {
       body {
         margin: 0.5rem;
@@ -213,7 +217,7 @@
       label {
         font-size: 0.95rem;
       }
-      input {
+      input, select {
         font-size: 0.95rem;
         padding: 0.6rem;
       }
@@ -245,10 +249,48 @@
       <div class="input-group">
         <label for="amount">Voting Rights to Cash Out</label>
         <input type="number" id="amount" placeholder="Enter number of voting rights" min="0">
+        <div class="info"><strong>Expected Total Amount (USD):</strong> <span id="expectedTotal"></span></div>
       </div>
       <div class="input-group">
-        <label for="price">Asking Price (Total)</label>
-        <input type="number" id="price" placeholder="Enter asking price" min="0" step="0.01">
+        <label for="withdrawalMethod">Withdrawal Method</label>
+        <select id="withdrawalMethod">
+          <option value="" disabled selected>Select a withdrawal method</option>
+          <option value="PIX">PIX - Brazil</option>
+          <option value="Venmo">Venmo - USA</option>
+          <option value="Zelle">Zelle - USA</option>          
+          <option value="PayPal">PayPal - International</option>
+          <option value="WiseTransfer">WiseTransfer - International</option>
+        </select>
+      </div>
+      <div class="input-group withdrawal-details" id="pixDetails">
+        <label for="pixNumber">PIX Number (CPF, Phone, or Email)</label>
+        <input type="text" id="pixNumber" placeholder="Enter PIX key">
+      </div>
+      <div class="input-group withdrawal-details" id="venmoDetails">
+        <label for="venmoNumber">Venmo Username or Phone Number</label>
+        <input type="text" id="venmoNumber" placeholder="Enter Venmo username or phone">
+      </div>
+      <div class="input-group withdrawal-details" id="paypalDetails">
+        <label for="paypalId">PayPal ID (Email)</label>
+        <input type="text" id="paypalId" placeholder="Enter PayPal email">
+      </div>
+      <div class="input-group withdrawal-details" id="wiseDetails">
+        <label for="wiseEmail">Recipient Email</label>
+        <input type="email" id="wiseEmail" placeholder="Enter recipient email">
+        <label for="wiseFullName">Recipient Full Name</label>
+        <input type="text" id="wiseFullName" placeholder="Enter recipient full name">
+        <label for="wiseIban">IBAN (Optional)</label>
+        <input type="text" id="wiseIban" placeholder="Enter IBAN">
+        <label for="wiseAccountNumber">Account Number (Optional)</label>
+        <input type="text" id="wiseAccountNumber" placeholder="Enter account number">
+        <label for="wiseBankName">Bank Name</label>
+        <input type="text" id="wiseBankName" placeholder="Enter bank name">
+        <label for="wiseSwiftCode">SWIFT/BIC Code (Optional)</label>
+        <input type="text" id="wiseSwiftCode" placeholder="Enter SWIFT/BIC code">
+      </div>
+      <div class="input-group withdrawal-details" id="zelleDetails">
+        <label for="zelleId">Zelle ID (Email or Phone Number)</label>
+        <input type="text" id="zelleId" placeholder="Enter Zelle email or phone">
       </div>
       <div class="action-section">
         <div class="button-container">
@@ -262,6 +304,7 @@
   <script>
     const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
     let maxVotingRights = 0;
+    let valuePerRight = 0;
 
     function arrayBufferToBase64(buffer) {
       return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -278,25 +321,88 @@
       return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
 
+    // Show/hide withdrawal method details based on selection
+    function updateWithdrawalDetails() {
+      const method = document.getElementById('withdrawalMethod').value;
+      const pixDetails = document.getElementById('pixDetails');
+      const venmoDetails = document.getElementById('venmoDetails');
+      const paypalDetails = document.getElementById('paypalDetails');
+      const wiseDetails = document.getElementById('wiseDetails');
+      const zelleDetails = document.getElementById('zelleDetails');
+
+      // Hide all details sections
+      pixDetails.style.display = 'none';
+      venmoDetails.style.display = 'none';
+      paypalDetails.style.display = 'none';
+      wiseDetails.style.display = 'none';
+      zelleDetails.style.display = 'none';
+
+      // Show the relevant section based on the selected method
+      if (method === 'PIX') {
+        pixDetails.style.display = 'block';
+      } else if (method === 'Venmo') {
+        venmoDetails.style.display = 'block';
+      } else if (method === 'PayPal') {
+        paypalDetails.style.display = 'block';
+      } else if (method === 'WiseTransfer') {
+        wiseDetails.style.display = 'block';
+      } else if (method === 'Zelle') {
+        zelleDetails.style.display = 'block';
+      }
+    }
+
+    // Update expected total amount based on voting rights input
+    function updateExpectedTotal() {
+      const amountInput = document.getElementById('amount');
+      const expectedTotalElement = document.getElementById('expectedTotal');
+      const amount = parseFloat(amountInput.value);
+      if (isNaN(amount) || amount <= 0) {
+        expectedTotalElement.textContent = '$0.00';
+      } else {
+        const total = (amount * valuePerRight).toFixed(2);
+        expectedTotalElement.textContent = `$${total}`;
+      }
+    }
+
     // Validate and correct input values
     function validateInputs() {
       const amountInput = document.getElementById('amount');
-      const priceInput = document.getElementById('price');
+      const withdrawalMethod = document.getElementById('withdrawalMethod');
+      const pixNumber = document.getElementById('pixNumber');
+      const venmoNumber = document.getElementById('venmoNumber');
+      const paypalId = document.getElementById('paypalId');
+      const wiseEmail = document.getElementById('wiseEmail');
+      const wiseFullName = document.getElementById('wiseFullName');
+      const wiseIban = document.getElementById('wiseIban');
+      const wiseAccountNumber = document.getElementById('wiseAccountNumber');
+      const wiseBankName = document.getElementById('wiseBankName');
+      const wiseSwiftCode = document.getElementById('wiseSwiftCode');
+      const zelleId = document.getElementById('zelleId');
       const actionStatus = document.getElementById('action-status');
       let amount = parseFloat(amountInput.value);
-      let price = parseFloat(priceInput.value);
       let hasError = false;
 
       // Reset input styles
       amountInput.classList.remove('invalid');
-      priceInput.classList.remove('invalid');
+      withdrawalMethod.classList.remove('invalid');
+      pixNumber.classList.remove('invalid');
+      venmoNumber.classList.remove('invalid');
+      paypalId.classList.remove('invalid');
+      wiseEmail.classList.remove('invalid');
+      wiseFullName.classList.remove('invalid');
+      wiseIban.classList.remove('invalid');
+      wiseAccountNumber.classList.remove('invalid');
+      wiseBankName.classList.remove('invalid');
+      wiseSwiftCode.classList.remove('invalid');
+      zelleId.classList.remove('invalid');
       actionStatus.textContent = '';
       actionStatus.className = '';
 
       // Validate voting rights amount
-      if (isNaN(amount) ) {
-        amount = 0;
-        amountInput.value = '';
+      if (isNaN(amount) || amountInput.value === '') {
+        amountInput.classList.add('invalid');
+        actionStatus.textContent = 'Please enter a valid number of voting rights.';
+        actionStatus.className = 'error';
         return false;
       }
 
@@ -318,24 +424,105 @@
         hasError = true;
       }
 
-      // Validate price
-      if (isNaN(price)) {
-        price = 0;
-        priceInput.value = '';
+      // Validate withdrawal method
+      if (!withdrawalMethod.value) {
+        withdrawalMethod.classList.add('invalid');
+        if (!hasError) {
+          actionStatus.textContent = 'Please select a withdrawal method.';
+          actionStatus.className = 'error';
+        } else {
+          actionStatus.textContent += ' Also, please select a withdrawal method.';
+        }
         return false;
       }
 
-      if (price < 0) {
-        price = 0;
-        priceInput.value = 0;
-        priceInput.classList.add('invalid');
+      // Validate withdrawal method-specific fields
+      if (withdrawalMethod.value === 'PIX' && (!pixNumber.value.trim() || pixNumber.value.trim() === '')) {
+        pixNumber.classList.add('invalid');
         if (!hasError) {
-          actionStatus.textContent = 'Price cannot be negative. Set to 0.';
+          actionStatus.textContent = 'Please enter a valid PIX number.';
           actionStatus.className = 'error';
         } else {
-          actionStatus.textContent += ' Also, price cannot be negative. Set to 0.';
+          actionStatus.textContent += ' Also, please enter a valid PIX number.';
         }
-        hasError = true;
+        return false;
+      }
+
+      if (withdrawalMethod.value === 'Venmo' && (!venmoNumber.value.trim() || venmoNumber.value.trim() === '')) {
+        venmoNumber.classList.add('invalid');
+        if (!hasError) {
+          actionStatus.textContent = 'Please enter a valid Venmo username or phone number.';
+          actionStatus.className = 'error';
+        } else {
+          actionStatus.textContent += ' Also, please enter a valid Venmo username or phone number.';
+        }
+        return false;
+      }
+
+      if (withdrawalMethod.value === 'PayPal' && (!paypalId.value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(paypalId.value.trim()))) {
+        paypalId.classList.add('invalid');
+        if (!hasError) {
+          actionStatus.textContent = 'Please enter a valid PayPal email.';
+          actionStatus.className = 'error';
+        } else {
+          actionStatus.textContent += ' Also, please enter a valid PayPal email.';
+        }
+        return false;
+      }
+
+      if (withdrawalMethod.value === 'WiseTransfer') {
+        if (!wiseEmail.value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wiseEmail.value.trim())) {
+          wiseEmail.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid recipient email for WiseTransfer.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid recipient email for WiseTransfer.';
+          }
+          return false;
+        }
+        if (!wiseFullName.value.trim()) {
+          wiseFullName.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid recipient full name for WiseTransfer.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid recipient full name for WiseTransfer.';
+          }
+          return false;
+        }
+        if (!wiseBankName.value.trim()) {
+          wiseBankName.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid bank name for WiseTransfer.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid bank name for WiseTransfer.';
+          }
+          return false;
+        }
+        if (!wiseIban.value.trim() && !wiseAccountNumber.value.trim()) {
+          wiseIban.classList.add('invalid');
+          wiseAccountNumber.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter either an IBAN or account number for WiseTransfer.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter either an IBAN or account number for WiseTransfer.';
+          }
+          return false;
+        }
+      }
+
+      if (withdrawalMethod.value === 'Zelle' && (!zelleId.value.trim() || !(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(zelleId.value.trim()) || /^\+?\d{10,15}$/.test(zelleId.value.trim())))) {
+        zelleId.classList.add('invalid');
+        if (!hasError) {
+          actionStatus.textContent = 'Please enter a valid Zelle email or phone number.';
+          actionStatus.className = 'error';
+        } else {
+          actionStatus.textContent += ' Also, please enter a valid Zelle email or phone number.';
+        }
+        return false;
       }
 
       return !hasError;
@@ -368,8 +555,10 @@
         }
 
         maxVotingRights = parseFloat(data.voting_rights);
+        valuePerRight = parseFloat(data.asset_per_circulated_voting_right);
         document.getElementById('votingRights').textContent = maxVotingRights;
-        document.getElementById('valuePerRight').textContent = Number(data.asset_per_circulated_voting_right).toFixed(5);
+        document.getElementById('valuePerRight').textContent = `$${valuePerRight.toFixed(5)}`;
+        document.getElementById('expectedTotal').textContent = '$0.00';
         document.getElementById('totalAssets').textContent = Number(data.total_assets).toFixed(5);
         document.getElementById('info').style.display = 'block';
         document.getElementById('welcome').textContent = `Welcome back, ${data.contributor_name}!`;
@@ -378,10 +567,39 @@
         document.getElementById('status').className = 'status fade-in';
 
         // Add input validation listeners
-        document.getElementById('amount').addEventListener('change', validateInputs);
-        document.getElementById('amount').addEventListener('input', validateInputs);
-        document.getElementById('price').addEventListener('change', validateInputs);
-        document.getElementById('price').addEventListener('input', validateInputs);
+        const amountInput = document.getElementById('amount');
+        amountInput.addEventListener('change', () => {
+          validateInputs();
+          updateExpectedTotal();
+        });
+        amountInput.addEventListener('input', () => {
+          validateInputs();
+          updateExpectedTotal();
+        });
+        document.getElementById('withdrawalMethod').addEventListener('change', () => {
+          updateWithdrawalDetails();
+          validateInputs();
+        });
+        document.getElementById('pixNumber').addEventListener('change', validateInputs);
+        document.getElementById('pixNumber').addEventListener('input', validateInputs);
+        document.getElementById('venmoNumber').addEventListener('change', validateInputs);
+        document.getElementById('venmoNumber').addEventListener('input', validateInputs);
+        document.getElementById('paypalId').addEventListener('change', validateInputs);
+        document.getElementById('paypalId').addEventListener('input', validateInputs);
+        document.getElementById('wiseEmail').addEventListener('change', validateInputs);
+        document.getElementById('wiseEmail').addEventListener('input', validateInputs);
+        document.getElementById('wiseFullName').addEventListener('change', validateInputs);
+        document.getElementById('wiseFullName').addEventListener('input', validateInputs);
+        document.getElementById('wiseIban').addEventListener('change', validateInputs);
+        document.getElementById('wiseIban').addEventListener('input', validateInputs);
+        document.getElementById('wiseAccountNumber').addEventListener('change', validateInputs);
+        document.getElementById('wiseAccountNumber').addEventListener('input', validateInputs);
+        document.getElementById('wiseBankName').addEventListener('change', validateInputs);
+        document.getElementById('wiseBankName').addEventListener('input', validateInputs);
+        document.getElementById('wiseSwiftCode').addEventListener('change', validateInputs);
+        document.getElementById('wiseSwiftCode').addEventListener('input', validateInputs);
+        document.getElementById('zelleId').addEventListener('change', validateInputs);
+        document.getElementById('zelleId').addEventListener('input', validateInputs);
       } catch (error) {
         statusElement.textContent = 'Error fetching data: ' + error;
         statusElement.className = 'error fade-in';
@@ -395,19 +613,46 @@
       }
 
       const amount = document.getElementById('amount').value;
-      const price = document.getElementById('price').value;
+      const withdrawalMethod = document.getElementById('withdrawalMethod').value;
+      const pixNumber = document.getElementById('pixNumber').value;
+      const venmoNumber = document.getElementById('venmoNumber').value;
+      const paypalId = document.getElementById('paypalId').value;
+      const wiseEmail = document.getElementById('wiseEmail').value;
+      const wiseFullName = document.getElementById('wiseFullName').value;
+      const wiseIban = document.getElementById('wiseIban').value;
+      const wiseAccountNumber = document.getElementById('wiseAccountNumber').value;
+      const wiseBankName = document.getElementById('wiseBankName').value;
+      const wiseSwiftCode = document.getElementById('wiseSwiftCode').value;
+      const zelleId = document.getElementById('zelleId').value;
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
       const actionStatus = document.getElementById('action-status');
+      const expectedTotal = (parseFloat(amount) * valuePerRight).toFixed(2);
 
-      if (!amount || !price || !publicKey || !privateKey) {
-        actionStatus.textContent = 'Please complete all fields and ensure your keys exist.';
+      if (!amount || !withdrawalMethod || !publicKey || !privateKey) {
+        actionStatus.textContent = 'Please complete all required fields and ensure your keys exist.';
         actionStatus.className = 'error';
         return;
       }
 
       try {
-        const requestText = `[VOTING RIGHTS WITHDRAWAL REQUEST]\namount to withdraw: ${amount}\nasking price: ${price}\n--------`;
+        let requestText = `[VOTING RIGHTS WITHDRAWAL REQUEST]\namount to withdraw: ${amount}\nvalue per voting right: $${valuePerRight.toFixed(5)}\nexpected total amount (USD): $${expectedTotal}\nwithdrawal method: ${withdrawalMethod}\n`;
+        if (withdrawalMethod === 'PIX') {
+          requestText += `PIX number: ${pixNumber}\n`;
+        } else if (withdrawalMethod === 'Venmo') {
+          requestText += `Venmo number: ${venmoNumber}\n`;
+        } else if (withdrawalMethod === 'PayPal') {
+          requestText += `PayPal ID: ${paypalId}\n`;
+        } else if (withdrawalMethod === 'WiseTransfer') {
+          requestText += `Wise email: ${wiseEmail}\nWise full name: ${wiseFullName}\nWise bank name: ${wiseBankName}\n`;
+          if (wiseIban) requestText += `Wise IBAN: ${wiseIban}\n`;
+          if (wiseAccountNumber) requestText += `Wise account number: ${wiseAccountNumber}\n`;
+          if (wiseSwiftCode) requestText += `Wise SWIFT/BIC code: ${wiseSwiftCode}\n`;
+        } else if (withdrawalMethod === 'Zelle') {
+          requestText += `Zelle ID: ${zelleId}\n`;
+        }
+        requestText += '--------';
+
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
           base64ToArrayBuffer(privateKey),
