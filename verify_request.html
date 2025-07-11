@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="description" content="Easily verify a request submission in your community channel">
+  <meta name="description" content="Verify withdrawal requests or tree planting reports in your community channel">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Withdrawal Request</title>
+  <title>Verify Request</title>
 
-    <!-- Open Graph tags for WhatsApp and social media previews -->
-    <meta property="og:title" content="Verify Withdrawal Request">
-    <meta property="og:description" content="Easily verify a request submission in your community channel">
-    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
-    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
-    <meta property="og:type" content="website">
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">    
+  <!-- Open Graph tags for WhatsApp and social media previews -->
+  <meta property="og:title" content="Verify Request">
+  <meta property="og:description" content="Verify withdrawal requests or tree planting reports in your community channel">
+  <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+  <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+  <meta property="og:type" content="website">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">    
 
   <script src="./refreshWithTimestamp.js"></script>
   <style>
@@ -142,7 +142,6 @@
       color: #666;
       font-style: italic;
       font-size: 1rem;
-      /* Fade in/out (pulse) animation for loading text */
       animation: pulse 2s infinite ease-in-out;
     }
     .verified-badge {
@@ -150,7 +149,6 @@
       font-weight: bold;
       margin-left: 0.3rem;
     }
-    /* Pulse keyframes for loading animation */
     @keyframes pulse {
       0% { opacity: 0.5; }
       50% { opacity: 1; }
@@ -211,18 +209,19 @@
     <div style="text-align: center;">
       <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
     </div>        
-    <h1>Verify Withdrawal Request</h1>
+    <h1>Verify Request</h1>
     
-    <p>Paste the complete withdrawal request below to check if it's genuine:</p>
+    <p>Paste the complete withdrawal request or tree planting report below to check if it's genuine:</p>
     
-    <textarea id="requestInput" placeholder="Paste the entire request including the digital signature and transaction ID here...">[VOTING RIGHTS WITHDRAWAL REQUEST]
+    <textarea id="requestInput" placeholder="Paste the entire request or report including the digital signature and transaction ID here...">[VOTING RIGHTS WITHDRAWAL REQUEST]
 amount to withdraw: 70
 asking price: 90
 --------
 
 My Digital Signature: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0D70xOu3BmuhnWJ5sAXdmJyglssswFUqcjjESrwdEeygjXkQaMcckbW4dt4Q6CmlHUKPshMDfy8Zrp+hVvr6WE6oC4cZe/faL20xNCmS0wos8w+USdvoGbvEC6yMop6XGR3r29fDwK1JohrXXrMpPYT3KYM6NlVvBnjOEejvOg0H1tWxwVXSMPwxfrPDJbfpY7oI+mK+lPbVsnuilKH7GCMTQMG1wlwo69nan5uIahtYl5WYCt7SuOYe91ziryNtJSweZK+9Vxv6k5oyopPxTZ+r5EMIneT0jsOZR7svp5rpSuEOP+1KSZ2dpHqgKw+OoGUXHbs0ANJwriV8erOAywIDAQAB
 
-Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMHlA1mqAPmo+r+WP2klbJTBxys871CG7kDcehJWN59awrRCzKF6AIuSzfq2T/PfVgufIJoZuDYD4FZgD3Z6nnpnuiBUCSW0vHQm9DnimRcZwQOyGAjMUHOKHglrtO6l1Y7J9oftkotXAjO7VceUoUKNgdCTrr8hoQL68Pd2p6ImazyPWgW+KKK3QGUrv0wOnqI/BE7rHC0G/VnOh6TwdA+PLGszXg74HizMTq4q4ELw1TllT6NExeaV4kYDyPr1fK1xYSa8lrpiTJ1cwE3BP94txrs2pBMrQ==</textarea>
+Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMHlA1mqAPmo+r+WP2klbJTBxys871CG7kDcehJWN59awrRCzKF6AIuSzfq2T/PfVgufIJoZuDYD4FZgD3Z6nnpnuiBUCSW0vHQm9DnimRcZwQOyGAjMUHOKHglrtO6l1Y7J9oftkotXAjO7VceUoUKNgdCTrr8hoQL68Pd2p6ImazyPWgW+KKK3QGUrv0wOnqI/BE7rHC0G/VnOh6TwdA+PLGszXg74HizMTq4q4ELw1TllT6NExeaV4kYDyPr1fK1xYSa8lrpiTJ1cwE3BP94txrs2pBMrQ==
+</textarea>
     
     <div class="button-container">
       <button onclick="verifyRequest()">Check Request</button>
@@ -233,12 +232,12 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
     <div class="info-card">
       <div class="section-title">How This Verification Works:</div>
       <ol>
-        <li>We check the digital signature matches the request details</li>
+        <li>We check the digital signature matches the request or report details</li>
         <li>We confirm the signature belongs to a registered DAO member</li>
         <li>We display the member's name and verification status</li>
-        <li>If everything matches, the request is authentic</li>
+        <li>If everything matches, the request or report is authentic</li>
       </ol>
-      <p><em>This doesn't approve the request - it only confirms it came from the claimed member.</em></p>
+      <p><em>This doesn't approve the request or report - it only confirms it came from the claimed member.</em></p>
     </div>
   </div>
 
@@ -251,7 +250,7 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
       resultDiv.style.display = 'none';
       
       if (!requestText) {
-        alert('Please paste the request text to verify');
+        alert('Please paste the request or report text to verify');
         return;
       }
       
@@ -262,6 +261,7 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
         
         // Extract components from the request
         const parts = requestText.split('\n\n');
+        console.log(parts)
         if (parts.length < 3) {
           throw new Error('The request format looks incorrect. Make sure you copied all parts including the line breaks.');
         }
@@ -275,30 +275,56 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
 
         const digitalSignature = signatureLine.replace('My Digital Signature: ', '').trim();
         const transactionId = transactionIdLine.replace('Request Transaction ID: ', '').trim();
+
         
-        // First verify the cryptographic signature
+        // Determine request type
+        let requestType = '';
+        let transactionDetails = '';
+
+        const headerMatch = message.match(/^\[(.*?)\]/);
+        if (headerMatch) {
+          requestType = headerMatch[1];
+
+          const lines = message.split('\n').slice(1); // Skip header
+          const dataLines = lines.filter(line =>
+            line.trim() &&
+            !/^[-]{2,}$/.test(line.trim()) // Skip lines like ------
+          );
+
+          const parsedLines = dataLines.map(line => {
+            const cleaned = line.replace(/^[-•]\s*/, ''); // Remove dash/bullet prefix
+            const [key, ...rest] = cleaned.split(':');
+            if (!key || !rest.length) return ''; // skip malformed lines
+            return `<strong>${escapeHtml(key.trim())}:</strong> ${escapeHtml(rest.join(':').trim())}`;
+          }).filter(Boolean); // remove empty lines
+
+          transactionDetails = `
+            <div class="transaction-details">
+              <span class="transaction-type">${escapeHtml(requestType)}</span><br>
+              ${parsedLines.join('<br>')}
+            </div>`;
+        } else {
+          throw new Error('Invalid request format. First line must start with [TYPE].');
+        }
+
+        
+        // Verify the cryptographic signature
         const isSignatureValid = await verifySignature(message, digitalSignature, transactionId);
         
-        // Then fetch contributor info from API
+        // Fetch contributor info from API
         const contributorInfo = await fetchContributorInfo(digitalSignature);
         
         // Display results
         resultDiv.innerHTML = `
           <div class="section-title">Verification Results:</div>
-          
-          <p><strong>Request Details:</strong><br>
-          <span class="highlight">${escapeHtml(message)}</span></p>
-          
+          ${transactionDetails}
           <p><strong>DAO Member:</strong><br>
           <span class="highlight">${escapeHtml(contributorInfo.contributor_name || 'Unknown')}</span>
           ${isSignatureValid ? '<span class="verified-badge">✓ Verified</span>' : ''}</p>
-          
-          <p><strong>My Digital Signature:</strong><br>
+          <p><strong>Digital Signature:</strong><br>
           <span class="highlight">${shortenSignature(digitalSignature)}</span></p>
-          
           <p><strong>Transaction ID:</strong><br>
           <span class="highlight">${shortenSignature(transactionId)}</span></p>
-          
           <p><strong>Status:</strong> ${isSignatureValid ? 
             '✅ This request is authentic and matches the member\'s digital signature' : 
             '❌ The signature doesn\'t match - this request may not be genuine'}</p>
@@ -311,10 +337,20 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
         resultDiv.innerHTML = `
           <div class="section-title">Verification Failed:</div>
           <p>${escapeHtml(error.message)}</p>
-          <p>Please make sure your request has exactly this format:</p>
+          <p>Please make sure your request has one of these formats:</p>
           <pre>[VOTING RIGHTS WITHDRAWAL REQUEST]
 amount to withdraw: XX
 asking price: XX
+--------
+
+My Digital Signature: XXXX...
+
+Request Transaction ID: XXXX...</pre>
+
+
+          <pre>[TREE PLANTING EVENT]
+- Latitude: XX.XXXXXX
+- Longitude: XX.XXXXXX
 --------
 
 My Digital Signature: XXXX...
