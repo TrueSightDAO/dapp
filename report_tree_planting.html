@@ -265,7 +265,16 @@
         return;
       }
 
-      const constraints = isMobileDevice() ? { video: { facingMode: 'user' } } : { video: true };
+      const constraints = {
+        video: isMobileDevice()
+          ? {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          : true
+      };
+
       navigator.mediaDevices.getUserMedia(constraints)
         .then(function(s) {
           stream = s;
@@ -398,7 +407,7 @@
 
       try {
         const timestamp = new Date().toISOString();
-        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestam[=${encodeURIComponent(timestamp)}`);
+        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestamp=${encodeURIComponent(timestamp)}`);
         const data = await response.json();
 
         if (data.error) {
