@@ -355,7 +355,7 @@
           encoder.encode(requestText)
         );
         const requestHash = arrayBufferToBase64(signature);
-        const shareText = `${requestText}\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}`;
+        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}`;
 
         // Share or copy to clipboard
         if (isMobileDevice() && navigator.share) {
