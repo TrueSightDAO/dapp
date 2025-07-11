@@ -280,31 +280,33 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
         // Determine request type
         let requestType = '';
         let transactionDetails = '';
-        if (message.startsWith('[VOTING RIGHTS WITHDRAWAL REQUEST]')) {
-          requestType = 'Voting Rights Withdrawal';
-          const lines = message.split('\n').slice(1, -1); // Skip header and --------
-          const amount = lines.find(line => line.startsWith('amount to withdraw: '))?.replace('amount to withdraw: ', '') || 'N/A';
-          const price = lines.find(line => line.startsWith('asking price: '))?.replace('asking price: ', '') || 'N/A';
+
+        const headerMatch = message.match(/^\[(.*?)\]/);
+        if (headerMatch) {
+          requestType = headerMatch[1];
+
+          const lines = message.split('\n').slice(1); // Skip header
+          const dataLines = lines.filter(line =>
+            line.trim() &&
+            !/^[-]{2,}$/.test(line.trim()) // Skip lines like ------
+          );
+
+          const parsedLines = dataLines.map(line => {
+            const cleaned = line.replace(/^[-•]\s*/, ''); // Remove dash/bullet prefix
+            const [key, ...rest] = cleaned.split(':');
+            if (!key || !rest.length) return ''; // skip malformed lines
+            return `<strong>${escapeHtml(key.trim())}:</strong> ${escapeHtml(rest.join(':').trim())}`;
+          }).filter(Boolean); // remove empty lines
+
           transactionDetails = `
             <div class="transaction-details">
-              <span class="transaction-type">${requestType}</span><br>
-              Amount to Withdraw: ${escapeHtml(amount)}<br>
-              Asking Price: ${escapeHtml(price)}
-            </div>`;
-        } else if (message.startsWith('[TREE PLANTING EVENT]')) {
-          requestType = 'Tree Planting Report';
-          const lines = message.split('\n').slice(1, -1); // Skip header and --------
-          const latitude = lines.find(line => line.startsWith('- Latitude: '))?.replace('- Latitude: ', '') || 'N/A';
-          const longitude = lines.find(line => line.startsWith('- Longitude: '))?.replace('- Longitude: ', '') || 'N/A';
-          transactionDetails = `
-            <div class="transaction-details">
-              <span class="transaction-type">${requestType}</span><br>
-              Latitude: ${escapeHtml(latitude)}<br>
-              Longitude: ${escapeHtml(longitude)}
+              <span class="transaction-type">${escapeHtml(requestType)}</span><br>
+              ${parsedLines.join('<br>')}
             </div>`;
         } else {
-          throw new Error('Unknown request type. Expected [VOTING RIGHTS WITHDRAWAL REQUEST] or [TREE PLANTING EVENT].');
+          throw new Error('Invalid request format. First line must start with [TYPE].');
         }
+
         
         // Verify the cryptographic signature
         const isSignatureValid = await verifySignature(message, digitalSignature, transactionId);
