@@ -668,7 +668,7 @@
           encoder.encode(requestText)
         );
         const requestHash = arrayBufferToBase64(signature);
-        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}`;
+        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
 
         if (isMobileDevice() && navigator.share) {
           await navigator.share({ text: shareText });
