@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="Notarize a supply chain document with a file or photo">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notarize Document</title>
+
+  <!-- Open Graph tags for WhatsApp and social media previews -->
+  <meta property="og:title" content="Notarize Document">
+  <meta property="og:description" content="Notarize a supply chain document with a file or photo">
+  <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+  <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+  <meta property="og:type" content="website">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">    
+
+  <script src="./refreshWithTimestamp.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 1rem;
+      padding: 1rem;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background-color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 1.8rem;
+      color: #333;
+      margin: 0.5rem 0 1rem;
+      text-align: center;
+    }
+    #description {
+      font-style: italic;
+      color: #555;
+      line-height: 1.5;
+      margin: 0.8rem 0;
+      font-size: 1rem;
+      text-align: center;
+    }
+    #backLink {
+      top: 1rem;
+      left: 1rem;
+      font-size: 1rem;
+      color: #007bff;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: color 0.2s;
+    }
+    #backLink:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+    #backLink::before {
+      content: "←";
+      font-size: 1.2rem;
+    }
+    #status {
+      margin: 1rem 0;
+      font-weight: bold;
+      min-height: 24px;
+      font-size: 1rem;
+      text-align: center;
+    }
+    #welcome {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin: 0.8rem 0;
+      text-align: center;
+      display: none;
+    }
+    .status {
+      color: #28a745;
+    }
+    .error {
+      color: #dc3545;
+    }
+    .warning {
+      color: #ffc107;
+    }
+    .info-box {
+      margin: 1rem 0;
+      background-color: #f8f9fa;
+      padding: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 0.95rem;
+    }
+    .info {
+      font-weight: bold;
+      text-align: left;
+      font-size: 1rem;
+      margin: 0.5rem 0;
+    }
+    .info-location {
+      font-weight: normal;
+      margin-left: 1.5rem;
+      line-height: 1.4;
+    }
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    button {
+      padding: 0.8rem 1.5rem;
+      cursor: pointer;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #4CAF50;
+      color: white;
+      transition: background-color 0.2s, transform 0.1s;
+      margin: 0.5rem 0;
+      width: 100%;
+      max-width: 300px;
+    }
+    button:hover {
+      background-color: #45a049;
+      transform: scale(1.02);
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    #action-status {
+      margin: 0.5rem 0;
+      font-size: 1rem;
+      text-align: center;
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .loading {
+      color: #6c757d;
+      font-style: italic;
+      animation: pulse 2s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
+    }
+    #cameraPreview {
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      border-radius: 5px;
+      margin: 1rem 0;
+      display: none;
+    }
+    select {
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      width: 100%;
+      max-width: 300px;
+      margin: 0.5rem 0;
+    }
+    input[type="file"] {
+      margin: 1rem 0;
+      font-size: 1rem;
+    }
+    @media (max-width: 600px) {
+      body {
+        margin: 0.5rem;
+        padding: 0.5rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      .container {
+        padding: 0.8rem;
+      }
+      #description {
+        font-size: 0.95rem;
+      }
+      #status {
+        font-size: 0.95rem;
+      }
+      #welcome {
+        font-size: 1.1rem;
+      }
+      .info-box {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+      }
+      .info, .info-location {
+        font-size: 0.95rem;
+        text-align: center;
+      }
+      button {
+        padding: 1rem;
+        font-size: 1rem;
+      }
+      #cameraPreview {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a id="backLink" href="./index.html">Back to Home</a>
+    <div style="text-align: center;">
+      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSightDAO Logo"/>
+    </div>
+    <h1>Notarize Supply Chain Document</h1>
+    <p id="description">
+      Upload a document or capture a photo to notarize your supply chain transparency proof.
+    </p>
+    <div id="welcome" style="display: none;"></div>
+    <p id="status" class="fade-in">Verifying your digital signature...</p>
+    <div id="info" style="display: none;">
+      <select id="inputType" onchange="toggleInputMethod()">
+        <option value="file">Upload Document</option>
+        <option value="camera">Capture Photo</option>
+      </select>
+      <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx" style="display: block;">
+      <video id="cameraPreview" autoplay playsinline style="display: none;"></video>
+      <canvas id="captureCanvas" style="display: none;"></canvas>
+      <div class="info-box">
+        <div class="info">Notarization Type:</div>
+        <select id="docType">
+          <option value="FDA prior notice">FDA Prior Notice</option>
+          <option value="Shipping invoice">Shipping Invoice</option>
+          <option value="Farmer invoice">Farmer Invoice</option>
+          <option value="Official certifications">Official Certifications</option>
+          <option value="Lab report">Lab Report</option>
+          <option value="Manufacturer's invoice">Manufacturer's Invoice</option>
+          <option value="Freighting document">Freighting Document</option>
+          <option value="In person physical verification">In Person Physical Verification</option>
+        </select>
+        <div class="info">Current Location:</div>
+        <div class="info-location" id="location">Waiting for geolocation...</div>
+        <div class="info">Original File Name:</div>
+        <div class="info-location" id="originalFileName">No file selected</div>
+        <div class="info">Notarized File Name:</div>
+        <div class="info-location" id="notarizedFileName">Waiting for file selection...</div>
+        <div class="info">Notarization Location:</div>
+        <div class="info-location" id="notarizationLocation">Waiting for file selection...</div>
+      </div>
+      <div class="button-container">
+        <button id="submitButton" onclick="submitReport()">Submit Notarization</button>
+      </div>
+      <p id="action-status"></p>
+    </div>
+  </div>
+
+  <script>
+    const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+    const REPO_BASE_URL = 'https://github.com/TrueSightDAO/notarizations/';
+    let latitude = null;
+    let longitude = null;
+    let file = null;
+    let stream = null;
+    let contributorName = '';
+
+    function arrayBufferToBase64(buffer) {
+      return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes.buffer;
+    }
+
+    function isMobileDevice() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    function generateNotarizedFileName(originalFileName) {
+      const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+      const cleanContributorName = contributorName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      const cleanFileName = originalFileName.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
+      return `${timestamp}_${cleanContributorName}_${cleanFileName}`;
+    }
+
+    function startCamera() {
+      const video = document.getElementById('cameraPreview');
+      const submitButton = document.getElementById('submitButton');
+      const actionStatus = document.getElementById('action-status');
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        actionStatus.textContent = 'Camera not supported on this device.';
+        actionStatus.className = 'error';
+        submitButton.style.display = 'none';
+        return;
+      }
+
+      const constraints = {
+        video: isMobileDevice()
+          ? {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          : true
+      };
+
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(function(s) {
+          stream = s;
+          video.srcObject = stream;
+          video.style.display = 'block';
+          submitButton.style.display = 'block';
+          actionStatus.textContent = 'Camera started. Point at the document and click "Submit Notarization".';
+          actionStatus.className = 'status';
+        })
+        .catch(function(error) {
+          actionStatus.textContent = 'Error accessing camera: ' + error.message;
+          actionStatus.className = 'error';
+          submitButton.style.display = 'none';
+        });
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+        document.getElementById('cameraPreview').style.display = 'none';
+      }
+    }
+
+    function toggleInputMethod() {
+      const inputType = document.getElementById('inputType').value;
+      const fileInput = document.getElementById('fileInput');
+      const cameraPreview = document.getElementById('cameraPreview');
+      const actionStatus = document.getElementById('action-status');
+
+      if (inputType === 'file') {
+        stopCamera();
+        fileInput.style.display = 'block';
+        cameraPreview.style.display = 'none';
+        actionStatus.textContent = 'Please select a file to upload.';
+        actionStatus.className = 'status';
+      } else {
+        fileInput.style.display = 'none';
+        fileInput.value = '';
+        document.getElementById('originalFileName').textContent = 'No file selected';
+        document.getElementById('notarizedFileName').textContent = 'Waiting for file selection...';
+        document.getElementById('notarizationLocation').textContent = 'Waiting for file selection...';
+        startCamera();
+      }
+    }
+
+    function updateFileInfo(fileName) {
+      const originalFileNameElement = document.getElementById('originalFileName');
+      const notarizedFileNameElement = document.getElementById('notarizedFileName');
+      const notarizationLocationElement = document.getElementById('notarizationLocation');
+
+      if (fileName) {
+        originalFileNameElement.textContent = fileName;
+        const notarizedFileName = generateNotarizedFileName(fileName);
+        notarizedFileNameElement.textContent = notarizedFileName;
+        notarizationLocationElement.textContent = `${REPO_BASE_URL}${notarizedFileName}`;
+      } else {
+        originalFileNameElement.textContent = 'No file selected';
+        notarizedFileNameElement.textContent = 'Waiting for file selection...';
+        notarizationLocationElement.textContent = 'Waiting for file selection...';
+      }
+    }
+
+    function getLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation not supported on this device.'));
+        }
+        navigator.geolocation.getCurrentPosition(
+          position => {
+            latitude = position.coords.latitude.toFixed(6);
+            longitude = position.coords.longitude.toFixed(6);
+            resolve({ latitude, longitude });
+          },
+          error => reject(new Error('Error getting location: ' + error.message)),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
+    }
+
+    async function submitReport() {
+      const inputType = document.getElementById('inputType').value;
+      const fileInput = document.getElementById('fileInput');
+      const video = document.getElementById('cameraPreview');
+      const canvas = document.getElementById('captureCanvas');
+      const docType = document.getElementById('docType').value;
+      const actionStatus = document.getElementById('action-status');
+      const publicKey = localStorage.getItem('publicKey');
+      const privateKey = localStorage.getItem('privateKey');
+
+      if (!latitude || !longitude) {
+        actionStatus.textContent = 'Location not available. Please allow location access and try again.';
+        actionStatus.className = 'error';
+        return;
+      }
+
+      if (!publicKey || !privateKey) {
+        actionStatus.textContent = 'No digital signature found. Redirecting to create one...';
+        actionStatus.className = 'error';
+        setTimeout(() => {
+          window.location.href = './create_signature.html';
+        }, 2000);
+        return;
+      }
+
+      let fileName = '';
+      try {
+        if (inputType === 'file') {
+          if (!fileInput.files[0]) {
+            actionStatus.textContent = 'No file selected. Please upload a file.';
+            actionStatus.className = 'error';
+            return;
+          }
+          file = fileInput.files[0];
+          fileName = file.name;
+        } else {
+          if (!stream) {
+            actionStatus.textContent = 'Camera not started. Please ensure camera access is allowed.';
+            actionStatus.className = 'error';
+            return;
+          }
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const context = canvas.getContext('2d');
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+          file = new File([blob], 'captured_photo.jpg', { type: 'image/jpeg' });
+          fileName = 'captured_photo.jpg';
+        }
+
+        const notarizedFileName = generateNotarizedFileName(fileName);
+        const notarizationLocation = `${REPO_BASE_URL}${notarizedFileName}`;
+        const requestText = `[NOTARIZATION EVENT]\n- Submitter Name: ${contributorName}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Document Type: ${docType}\n- Attached Filename: ${fileName}\n- Destination Notarized File Location: ${notarizationLocation}\n--------`;
+
+        const privateKeyObj = await window.crypto.subtle.importKey(
+          "pkcs8",
+          base64ToArrayBuffer(privateKey),
+          { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+
+        const encoder = new TextEncoder();
+        const signature = await window.crypto.subtle.sign(
+          "RSASSA-PKCS1-v1_5",
+          privateKeyObj,
+          encoder.encode(requestText)
+        );
+        const requestHash = arrayBufferToBase64(signature);
+        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}`;
+
+        if (isMobileDevice() && navigator.share) {
+          await navigator.share({
+            text: shareText,
+            files: [file]
+          });
+          actionStatus.textContent = 'Notarization shared successfully!';
+          actionStatus.className = 'status';
+        } else {
+          await navigator.clipboard.writeText(shareText);
+          actionStatus.textContent = 'Notarization details copied to clipboard! Share it with the file in our community.';
+          actionStatus.className = 'status';
+        }
+
+        stopCamera();
+      } catch (error) {
+        actionStatus.textContent = 'Error generating notarization: ' + error.message;
+        actionStatus.className = 'error';
+      }
+    }
+
+    window.onload = async function () {
+      const publicKey = localStorage.getItem('publicKey');
+      const statusElement = document.getElementById('status');
+      statusElement.textContent = 'Verifying your digital signature...';
+      statusElement.className = 'loading fade-in';
+
+      if (!publicKey) {
+        statusElement.textContent = 'No digital signature found. Redirecting...';
+        statusElement.className = 'error fade-in';
+        setTimeout(() => {
+          window.location.href = './create_signature.html';
+        }, 2000);
+        return;
+      }
+
+      try {
+        const timestamp = new Date().toISOString();
+        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestamp=${encodeURIComponent(timestamp)}`);
+        const data = await response.json();
+
+        if (data.error) {
+          statusElement.textContent = 'Error: ' + data.error;
+          statusElement.className = 'error fade-in';
+          return;
+        }
+
+        contributorName = data.contributor_name;
+        document.getElementById('info').style.display = 'block';
+        document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+        document.getElementById('welcome').style.display = 'block';
+        statusElement.textContent = 'Signature verified successfully';
+        statusElement.className = 'status fade-in';
+
+        try {
+          const location = await getLocation();
+          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
+        } catch (error) {
+          document.getElementById('location').textContent = error.message;
+          statusElement.textContent = 'Location access denied. Please allow location permissions.';
+          statusElement.className = 'error fade-in';
+          document.getElementById('submitButton').style.display = 'none';
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function() {
+          updateFileInfo(this.files[0]?.name || '');
+        });
+      } catch (error) {
+        statusElement.textContent = 'Error fetching data: ' + error.message;
+        statusElement.className = 'error fade-in';
+        document.getElementById('submitButton').style.display = 'none';
+      }
+    };
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js', { scope: './' })
+        .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+        .catch(err => console.warn('Service Worker registration failed:', err));
+    }
+  </script>
+  <script>
+    (function() {
+      const div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.marginTop = '1rem';
+      const url = new URL(window.location.href);
+      url.searchParams.set('reload', 'true');
+      const a = document.createElement('a');
+      a.href = url.toString();
+      a.textContent = 'Reload Latest Version';
+      a.style.fontSize = '0.8rem';
+      a.style.color = '#007bff';
+      a.style.textDecoration = 'none';
+      div.appendChild(a);
+      document.body.appendChild(div);
+    })();
+  </script>
+  <script>
+    (function() {
+      const div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.marginTop = '1rem';
+      const a = document.createElement('a');
+      a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/notarize_document.html';
+      a.textContent = 'View Source Code';
+      a.style.fontSize = '0.8rem';
+      a.style.color = '#007bff';
+      a.style.textDecoration = 'none';
+      div.appendChild(a);
+      document.body.appendChild(div);
+    })();
+  </script>
+</body>
+</html>
