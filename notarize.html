@@ -451,7 +451,7 @@
 
         const notarizedFileName = generateNotarizedFileName(fileName);
         const notarizationLocation = `${REPO_BASE_URL}${notarizedFileName}`;
-        const requestText = `[NOTARIZATION EVENT]\n- Submitter Name: ${contributorName}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Document Type: ${docType}\n- Attached Filename: ${fileName}\n- Destination Notarized File Location: ${notarizationLocation}\n--------`;
+        const requestText = `[NOTARIZATION EVENT]\n- Submitter Name: ${contributorName}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Document Type: ${docType}\n- Attached Filename: ${fileName}\n- Destination Notarized File Location: ${notarizationLocation}\n- Submission Source: ${window.location.href}\n--------`;
 
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
