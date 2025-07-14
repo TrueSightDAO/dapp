@@ -180,6 +180,24 @@
       margin: 1rem 0;
       font-size: 1rem;
     }
+    textarea {
+      width: 100%;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      resize: none;
+      min-height: 80px;
+      margin: 0.5rem 0;
+      box-sizing: border-box;
+    }
+    .char-count {
+      font-size: 0.8rem;
+      color: #666;
+      text-align: right;
+      margin-top: -0.5rem;
+      margin-bottom: 0.5rem;
+    }
     @media (max-width: 600px) {
       body {
         margin: 0.5rem;
@@ -250,6 +268,11 @@
           <option value="Freighting document">Freighting Document</option>
           <option value="In person physical verification">In Person Physical Verification</option>
         </select>
+        
+        <div class="info">Description:</div>
+        <textarea id="descriptionField" maxlength="500" placeholder="Enter a brief description (alphanumeric characters, spaces, periods, and commas only)"></textarea>
+        <div class="char-count"><span id="charCount">0</span>/500 characters</div>
+        
         <div class="info">Current Location:</div>
         <div class="info-location" id="location">Waiting for geolocation...</div>
         <div class="info">Original File Name:</div>
@@ -399,12 +422,18 @@
       });
     }
 
+    function validateDescription(description) {
+      // Only allow alphanumeric, spaces, periods, and commas
+      return /^[a-zA-Z0-9 .,]*$/.test(description);
+    }
+
     async function submitReport() {
       const inputType = document.getElementById('inputType').value;
       const fileInput = document.getElementById('fileInput');
       const video = document.getElementById('cameraPreview');
       const canvas = document.getElementById('captureCanvas');
       const docType = document.getElementById('docType').value;
+      const description = document.getElementById('descriptionField').value;
       const actionStatus = document.getElementById('action-status');
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
@@ -421,6 +450,12 @@
         setTimeout(() => {
           window.location.href = './create_signature.html';
         }, 2000);
+        return;
+      }
+
+      if (!validateDescription(description)) {
+        actionStatus.textContent = 'Description contains invalid characters. Only letters, numbers, spaces, periods, and commas are allowed.';
+        actionStatus.className = 'error';
         return;
       }
 
@@ -451,7 +486,7 @@
 
         const notarizedFileName = generateNotarizedFileName(fileName);
         const notarizationLocation = `${REPO_BASE_URL}${notarizedFileName}`;
-        const requestText = `[NOTARIZATION EVENT]\n- Submitter Name: ${contributorName}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Document Type: ${docType}\n- Attached Filename: ${fileName}\n- Destination Notarized File Location: ${notarizationLocation}\n- Submission Source: ${window.location.href}\n--------`;
+        const requestText = `[NOTARIZATION EVENT]\n- Submitter Name: ${contributorName}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Document Type: ${docType}\n- Description: ${description}\n- Attached Filename: ${fileName}\n- Destination Notarized File Location: ${notarizationLocation}\n- Submission Source: ${window.location.href}\n--------`;
 
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
@@ -535,6 +570,23 @@
 
         document.getElementById('fileInput').addEventListener('change', function() {
           updateFileInfo(this.files[0]?.name || '');
+        });
+
+        // Add character count functionality for description field
+        const descriptionField = document.getElementById('descriptionField');
+        const charCount = document.getElementById('charCount');
+        
+        descriptionField.addEventListener('input', function() {
+          // Filter out any invalid characters
+          this.value = this.value.replace(/[^a-zA-Z0-9 .,]/g, '');
+          charCount.textContent = this.value.length;
+        });
+
+        // Prevent line breaks in description field
+        descriptionField.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+          }
         });
       } catch (error) {
         statusElement.textContent = 'Error fetching data: ' + error.message;
