@@ -268,7 +268,7 @@
       <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
     </div>    
     <h2>Manage Your Digital Signature</h2>
-    <p id="explanation" class="fade-in">Your digital signature is used in our DAO to verify your identity for sensitive actions, like cashing out your voting rights.</p>
+    <p id="explanation" class="fade-in">Your digital signature is used in our DAO to verify your identity for sensitive actions, like cashing out your voting rights, managing inventory, or notarizing documents.</p>
     
     <div id="welcome"></div>
     
@@ -286,6 +286,7 @@
     <div id="actionLinks">
       <a id="cashOutLink" href="./withdraw_voting_rights.html" style="display: none;">Cash Out Voting Rights</a>
       <a id="inventoryLink" href="./report_inventory_movement.html" style="display: none;">Manage DAO Inventory</a>
+      <a id="notarizeLink" href="./notarize.html" style="display: none;">Notarize Documents</a>
     </div>
     
     <div class="action-section">
@@ -299,8 +300,6 @@
   <script>
     // API endpoint for checking registration
     const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
-    // Telegram channel for sharing
-    const TELEGRAM_CHANNEL = 'https://t.me/TrueSightDAO/1';
 
     // Utility function for Base64 conversion
     function arrayBufferToBase64(buffer) {
@@ -367,11 +366,7 @@
       }
     }
 
-    // Detect if device is mobile
-    function isMobileDevice() {
-      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    }
-
+    // Handle registration via email
     function registerSignature() {
       const publicKey = localStorage.getItem('publicKey');
       const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}\n\nThis submission was generated using ${window.location.href}`;
@@ -381,26 +376,11 @@
       const mailtoLink = `mailto:admin@truesight.me?subject=${emailSubject}&body=${emailBody}`;
 
       navigator.clipboard.writeText(shareText).then(() => {
-        statusElement.innerHTML = 'Signature copied to clipboard! <p>Please send an email to <a href="mailto:admin@truesight.me">admin@truesight.me</a> with the subject "Register my Digital Signature" and paste the copied text in the email body. </p><p>Or <a href="' + mailtoLink + '" style="color: #007bff; text-decoration: underline;" onclick="setTimeout(() => { document.getElementById(\'status\').innerHTML += \'<br>Please verify the email content and send it.\'; }, 1000);">open your email client</a>.</p>';
+        statusElement.innerHTML = '<p>Signature copied to clipboard! </p><p>Please send an email to <a href="' + mailtoLink + '">admin@truesight.me</a> with the subject "Register my Digital Signature" and paste the copied text in the email body. You will receive an email confirmation once your signature is registered. </p>';
         statusElement.className = 'status fade-in';
       }).catch(error => {
-        statusElement.innerHTML = 'Error copying to clipboard: ' + error + '. Please manually copy the signature below and email it to <a href="mailto:admin@truesight.me">admin@truesight.me</a> with the subject "Register my Digital Signature". Or <a href="' + mailtoLink + '" style="color: #007bff; text-decoration: underline;" onclick="setTimeout(() => { document.getElementById(\'status\').innerHTML += \'<br>Please verify the email content and send it.\'; }, 1000);">open your email client</a>.';
+        statusElement.innerHTML = '<p>Error copying to clipboard: ' + error + '. </p><p>Please manually copy the signature below and email it to <a href="' + mailtoLink + '">admin@truesight.me</a> with the subject "Register my Digital Signature". You will receive an email confirmation once your signature is registered. </p>';
         statusElement.className = 'error fade-in';
-      });
-    }
-
-
-    // Copy to clipboard function
-    function copyToClipboard() {
-      const publicKey = localStorage.getItem('publicKey');
-      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}\n\nThis submission was generated using ${window.location.href}`;
-      
-      navigator.clipboard.writeText(shareText).then(() => {
-        document.getElementById('status').textContent = 'Signature copied to clipboard!';
-        document.getElementById('status').className = 'status fade-in';
-      }).catch(err => {
-        document.getElementById('status').textContent = 'Failed to copy: ' + err;
-        document.getElementById('status').className = 'error fade-in';
       });
     }
 
@@ -418,6 +398,7 @@
       const createNewButtonSecondary = document.getElementById('createNewButtonSecondary');
       const cashOutLink = document.getElementById('cashOutLink');
       const inventoryLink = document.getElementById('inventoryLink');
+      const notarizeLink = document.getElementById('notarizeLink');
       const actionHeader = document.getElementById('actionHeader');
       const separator = document.getElementById('separator');
 
@@ -434,6 +415,7 @@
         createNewButtonSecondary.style.display = 'none';
         cashOutLink.style.display = 'none';
         inventoryLink.style.display = 'none';
+        notarizeLink.style.display = 'none';
         actionHeader.style.display = 'none';
         separator.style.display = 'none';
       } else {
@@ -454,6 +436,7 @@
           createNewButtonSecondary.style.display = 'inline-block';
           cashOutLink.style.display = 'none';
           inventoryLink.style.display = 'none';
+          notarizeLink.style.display = 'none';
           actionHeader.style.display = 'none';
           separator.style.display = 'block';
         } else {
@@ -469,6 +452,7 @@
             createNewButtonSecondary.style.display = 'inline-block';
             cashOutLink.style.display = 'block';
             inventoryLink.style.display = 'block';
+            notarizeLink.style.display = 'block';
             actionHeader.style.display = 'block';
             separator.style.display = 'block';
           } else if (data && data.error) {
@@ -485,6 +469,7 @@
             createNewButtonSecondary.style.display = 'none';
             cashOutLink.style.display = 'none';
             inventoryLink.style.display = 'none';
+            notarizeLink.style.display = 'none';
             actionHeader.style.display = 'none';
             separator.style.display = 'none';
           }
@@ -534,6 +519,7 @@
         document.getElementById('createNewButtonSecondary').style.display = 'none';
         document.getElementById('cashOutLink').style.display = 'none';
         document.getElementById('inventoryLink').style.display = 'none';
+        document.getElementById('notarizeLink').style.display = 'none';
         document.getElementById('actionHeader').style.display = 'none';
         document.getElementById('separator').style.display = 'none';
 
@@ -548,6 +534,7 @@
           document.getElementById('createNewButtonSecondary').style.display = 'inline-block';
           document.getElementById('cashOutLink').style.display = 'block';
           document.getElementById('inventoryLink').style.display = 'block';
+          document.getElementById('notarizeLink').style.display = 'block';
           document.getElementById('actionHeader').style.display = 'block';
           document.getElementById('separator').style.display = 'block';
         }
