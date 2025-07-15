@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DAO Inventory Expense Report</title>
 
-
-
     <!-- Open Graph tags for WhatsApp and social media previews -->
     <meta property="og:title" content="DAO Inventory Expense Report">
     <meta property="og:description" content="Easily report an expense to our community">
@@ -44,6 +42,14 @@
             margin: 0.5rem 0 1rem;
             text-align: center;
         }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
         #backLink {
             top: 1rem;
             left: 1rem;
@@ -63,6 +69,45 @@
             content: "←";
             font-size: 1.2rem;
         }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #welcome {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0.8rem 0;
+            text-align: center;
+            display: none;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info-box {
+            margin: 1rem 0;
+            background-color: #f8f9fa;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.95rem;
+        }
+        .info {
+            font-weight: bold;
+            text-align: left;
+            font-size: 1rem;
+            margin: 0.5rem 0;
+        }
+        .info-location {
+            font-weight: normal;
+            margin-left: 1.5rem;
+            line-height: 1.4;
+        }
         .form-row {
             margin: 1rem 0;
             text-align: left;
@@ -73,7 +118,7 @@
             font-weight: bold;
             font-size: 1rem;
         }
-        select, input[type="number"], input[type="file"], input[type="text"] {
+        select, input[type="number"], input[type="file"], textarea {
             width: 100%;
             padding: 0.8rem;
             font-size: 1rem;
@@ -81,7 +126,7 @@
             border-radius: 5px;
             border: 1px solid #ccc;
         }
-        select:disabled, input:disabled {
+        select:disabled, input:disabled, textarea:disabled {
             background-color: #f0f0f0;
             cursor: not-allowed;
         }
@@ -134,6 +179,27 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        textarea {
+            resize: none;
+            min-height: 80px;
+        }
+        .char-count {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: right;
+            margin-top: -0.5rem;
+            margin-bottom: 0.5rem;
+        }
         @media (max-width: 600px) {
             body {
                 margin: 0.5rem;
@@ -151,13 +217,17 @@
             label {
                 font-size: 0.95rem;
             }
-            select, input[type="number"], input[type="file"], input[type="text"] {
+            select, input[type="number"], input[type="file"], textarea {
                 font-size: 0.95rem;
                 padding: 0.6rem;
             }
             button {
                 padding: 1rem;
                 font-size: 1rem;
+            }
+            .info, .info-location {
+                font-size: 0.95rem;
+                text-align: center;
             }
         }
     </style>
@@ -166,49 +236,124 @@
     <div class="container">
         <a id="backLink" href="./index.html">Back to Home</a>    
         <div style="text-align: center;">
-        <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>        
         <h1>DAO Inventory Expense Report</h1>
-        <div class="form-row">
-            <label for="memberSelect">DAO Member:</label>
-            <select id="memberSelect">
-                <option value="">Loading members...</option>
-            </select>
+        <p id="description">
+            Submit an expense report with a file attachment for DAO inventory.
+        </p>
+        <div id="welcome" style="display: none;"></div>
+        <p id="status" class="fade-in">Verifying your digital signature...</p>
+        <div id="info" style="display: none;">
+            <div class="form-row">
+                <label for="memberSelect">DAO Member:</label>
+                <select id="memberSelect">
+                    <option value="">Loading members...</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="resourceSelect">Inventory Resource:</label>
+                <select id="resourceSelect" disabled>
+                    <option value="">Select a member first</option>
+                </select>
+                <div id="availableQuantity"></div>
+            </div>
+            <div class="form-row">
+                <label for="quantityInput">Quantity Expensed:</label>
+                <input type="number" id="quantityInput" min="0.01" step="0.01" disabled>
+            </div>
+            <div class="form-row">
+                <label for="descriptionInput">Expense Description:</label>
+                <textarea id="descriptionInput" maxlength="500" placeholder="Enter expense description (alphanumeric characters, spaces, periods, and commas only)"></textarea>
+                <div class="char-count"><span id="charCount">0</span>/500 characters</div>
+            </div>
+            <div class="form-row">
+                <label for="attachmentInput">Attachment:</label>
+                <input type="file" id="attachmentInput" accept="image/*,application/pdf">
+                <div class="info-box">
+                    <div class="info">Original File Name:</div>
+                    <div class="info-location" id="originalFileName">No file selected</div>
+                    <div class="info">Expense Report File Name:</div>
+                    <div class="info-location" id="expenseFileName">Waiting for file selection...</div>
+                    <div class="info">Expense Report Location:</div>
+                    <div class="info-location" id="expenseLocation">Waiting for file selection...</div>
+                    <div class="info">Current Location:</div>
+                    <div class="info-location" id="location">Waiting for geolocation...</div>
+                </div>
+            </div>
+            <button id="submitButton" disabled>Submit Expense Report</button>
+            <div id="outputMessage"></div>
         </div>
-        <div class="form-row">
-            <label for="resourceSelect">Inventory Resource:</label>
-            <select id="resourceSelect" disabled>
-                <option value="">Select a member first</option>
-            </select>
-            <div id="availableQuantity"></div>
-        </div>
-        <div class="form-row">
-            <label for="quantityInput">Quantity Expensed:</label>
-            <input type="number" id="quantityInput" min="0.01" step="0.01" disabled>
-        </div>
-        <div class="form-row">
-            <label for="descriptionInput">Expense Description:</label>
-            <input type="text" id="descriptionInput" placeholder="Enter expense description">
-        </div>
-        <div class="form-row">
-            <label for="attachmentInput">Attachment:</label>
-            <input type="file" id="attachmentInput" accept="image/*,application/pdf">
-        </div>
-        <button id="submitButton" disabled>Submit Expense Report</button>
-        <div id="outputMessage"></div>
     </div>
 
     <script>
-        // Register Service Worker for offline support
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js', { scope: './' })
-                .then(reg => console.log('Service Worker registered with scope:', reg.scope))
-                .catch(err => console.warn('Service Worker registration failed:', err));
+        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
+        let resources = [];
+        let latitude = null;
+        let longitude = null;
+        let contributorName = '';
+
+        function arrayBufferToBase64(buffer) {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
         }
 
-        let resources = [];
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes.buffer;
+        }
 
-        // Load DAO members
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        function generateExpenseFileName(originalFileName) {
+            const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+            const cleanContributorName = contributorName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            const cleanFileName = originalFileName.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
+            return `expense_${timestamp}_${cleanContributorName}_${cleanFileName}`;
+        }
+
+        function updateFileInfo(fileName) {
+            const originalFileNameElement = document.getElementById('originalFileName');
+            const expenseFileNameElement = document.getElementById('expenseFileName');
+            const expenseLocationElement = document.getElementById('expenseLocation');
+
+            if (fileName) {
+                originalFileNameElement.textContent = fileName;
+                const expenseFileName = generateExpenseFileName(fileName);
+                expenseFileNameElement.textContent = expenseFileName;
+                expenseLocationElement.textContent = `${REPO_BASE_URL}${expenseFileName}`;
+            } else {
+                originalFileNameElement.textContent = 'No file selected';
+                expenseFileNameElement.textContent = 'Waiting for file selection...';
+                expenseLocationElement.textContent = 'Waiting for file selection...';
+            }
+        }
+
+        function getLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation not supported on this device.'));
+                }
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        latitude = position.coords.latitude.toFixed(6);
+                        longitude = position.coords.longitude.toFixed(6);
+                        resolve({ latitude, longitude });
+                    },
+                    error => reject(new Error('Error getting location: ' + error.message)),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            });
+        }
+
+        function validateDescription(description) {
+            return /^[a-zA-Z0-9 .,]*$/.test(description);
+        }
+
         async function loadMembers() {
             try {
                 const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?list=true');
@@ -224,10 +369,10 @@
             } catch (err) {
                 console.error('Error loading members:', err);
                 document.getElementById('outputMessage').textContent = 'Error loading members: ' + err.message;
+                document.getElementById('outputMessage').className = 'error';
             }
         }
 
-        // Load resources for selected member
         async function onMemberChange() {
             const memberKey = this.value;
             const resourceSel = document.getElementById('resourceSelect');
@@ -255,12 +400,12 @@
                 } catch (err) {
                     console.error('Error loading resources:', err);
                     document.getElementById('outputMessage').textContent = 'Error loading resources: ' + err.message;
+                    document.getElementById('outputMessage').className = 'error';
                 }
             }
             updateSubmitButtonState();
         }
 
-        // Update available quantity and input constraints
         function onResourceChange() {
             const selected = this.value;
             const availableQty = document.getElementById('availableQuantity');
@@ -278,7 +423,6 @@
             updateSubmitButtonState();
         }
 
-        // Enable/disable submit button based on form completion
         function updateSubmitButtonState() {
             const memberSel = document.getElementById('memberSelect');
             const resourceSel = document.getElementById('resourceSelect');
@@ -288,7 +432,6 @@
             submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0 && descriptionInput.value);
         }
 
-        // Handle form submission
         async function onSubmit() {
             const memberSel = document.getElementById('memberSelect');
             const memberName = memberSel.options[memberSel.selectedIndex].text;
@@ -298,48 +441,162 @@
             const description = document.getElementById('descriptionInput').value;
             const attachmentInput = document.getElementById('attachmentInput');
             const output = document.getElementById('outputMessage');
+            const publicKey = localStorage.getItem('publicKey');
+            const privateKey = localStorage.getItem('privateKey');
 
-            const text = `[DAO Inventory Expense Event]\n- DAO Member Name: ${memberName}\n- Inventory Type: ${resourceName}\n- Inventory Quantity: ${quantity}\n- Expense Description: ${description}\n\nThis submission was generated using ${window.location.href}`;
-            output.textContent = '';
+            if (!latitude || !longitude) {
+                output.textContent = 'Location not available. Please allow location access and try again.';
+                output.className = 'error';
+                return;
+            }
 
-            const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-            const telegramLink = 'https://t.me/TrueSightDAO';
-            const telegramSuggestion = `Please paste or share this report in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+            if (!publicKey || !privateKey) {
+                output.textContent = 'No digital signature found. Redirecting to create one...';
+                output.className = 'error';
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
 
-            if (isMobile && navigator.share) {
-                const files = attachmentInput.files.length > 0 ? [attachmentInput.files[0]] : [];
-                const shareData = { text };
-                if (files.length > 0 && navigator.canShare({ files })) {
-                    shareData.files = files;
-                }
-                try {
-                    await navigator.share(shareData);
-                    output.innerHTML = `Report shared successfully. ${telegramSuggestion}`;
-                } catch (err) {
-                    output.innerHTML = `Error sharing report: ${err.message}. ${telegramSuggestion}`;
-                }
+            if (!validateDescription(description)) {
+                output.textContent = 'Description contains invalid characters. Only letters, numbers, spaces, periods, and commas are allowed.';
+                output.className = 'error';
+                return;
+            }
+
+            let fileName = '';
+            let file = null;
+            if (attachmentInput.files.length > 0) {
+                file = attachmentInput.files[0];
+                fileName = file.name;
             } else {
-                try {
-                    await navigator.clipboard.writeText(text);
-                    output.innerHTML = `Report copied to clipboard. ${telegramSuggestion}`;
-                } catch (err) {
-                    output.innerHTML = `Failed to copy report: ${err.message}. ${telegramSuggestion}`;
+                output.textContent = 'No file selected. Please upload a file.';
+                output.className = 'error';
+                return;
+            }
+
+            try {
+                const expenseFileName = generateExpenseFileName(fileName);
+                const expenseLocation = `${REPO_BASE_URL}${expenseFileName}`;
+                const requestText = `[DAO Inventory Expense Event]\n- DAO Member Name: ${memberName}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Inventory Type: ${resourceName}\n- Inventory Quantity: ${quantity}\n- Description: ${description}\n- Attached Filename: ${fileName}\n- Destination Expense File Location: ${expenseLocation}\n- Submission Source: ${window.location.href}\n--------`;
+
+                const privateKeyObj = await window.crypto.subtle.importKey(
+                    "pkcs8",
+                    base64ToArrayBuffer(privateKey),
+                    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+                    false,
+                    ["sign"]
+                );
+
+                const encoder = new TextEncoder();
+                const signature = await window.crypto.subtle.sign(
+                    "RSASSA-PKCS1-v1_5",
+                    privateKeyObj,
+                    encoder.encode(requestText)
+                );
+                const requestHash = arrayBufferToBase64(signature);
+                const telegramLink = 'https://t.me/TrueSightDAO';
+                const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
+
+                if (isMobileDevice() && navigator.share) {
+                    await navigator.share({
+                        text: shareText,
+                        files: [file]
+                    });
+                    output.innerHTML = `Report shared successfully. Please ensure it is posted in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+                    output.className = 'status';
+                } else {
+                    await navigator.clipboard.writeText(shareText);
+                    output.innerHTML = `Report copied to clipboard. Please paste it with the file in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+                    output.className = 'status';
                 }
+            } catch (err) {
+                output.innerHTML = `Error generating expense report: ${err.message}. Please try again or contact support.`;
+                output.className = 'error';
             }
         }
 
-        // Initialize the module
-        window.addEventListener('load', () => {
-            loadMembers();
-            document.getElementById('memberSelect').addEventListener('change', onMemberChange);
-            document.getElementById('resourceSelect').addEventListener('change', onResourceChange);
-            document.getElementById('quantityInput').addEventListener('input', updateSubmitButtonState);
-            document.getElementById('descriptionInput').addEventListener('input', updateSubmitButtonState);
-            document.getElementById('attachmentInput').addEventListener('change', updateSubmitButtonState);
-            document.getElementById('submitButton').addEventListener('click', onSubmit);
+        window.addEventListener('load', async () => {
+            const publicKey = localStorage.getItem('publicKey');
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading fade-in';
+
+            if (!publicKey) {
+                statusElement.textContent = 'No digital signature found. Redirecting...';
+                statusElement.className = 'error fade-in';
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            try {
+                const timestamp = new Date().toISOString();
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestamp=${encodeURIComponent(timestamp)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    statusElement.textContent = 'Error: ' + data.error;
+                    statusElement.className = 'error fade-in';
+                    return;
+                }
+
+                contributorName = data.contributor_name;
+                document.getElementById('info').style.display = 'block';
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+
+                try {
+                    const location = await getLocation();
+                    document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
+                } catch (error) {
+                    document.getElementById('location').textContent = error.message;
+                    statusElement.textContent = 'Location access denied. Please allow location permissions.';
+                    statusElement.className = 'error fade-in';
+                    document.getElementById('submitButton').style.display = 'none';
+                }
+
+                loadMembers();
+                document.getElementById('memberSelect').addEventListener('change', onMemberChange);
+                document.getElementById('resourceSelect').addEventListener('change', onResourceChange);
+                document.getElementById('quantityInput').addEventListener('input', updateSubmitButtonState);
+                const descriptionInput = document.getElementById('descriptionInput');
+                const charCount = document.getElementById('charCount');
+
+                descriptionInput.addEventListener('input', function() {
+                    this.value = this.value.replace(/[^a-zA-Z0-9 .,]/g, '');
+                    charCount.textContent = this.value.length;
+                    updateSubmitButtonState();
+                });
+
+                descriptionInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                    }
+                });
+
+                document.getElementById('attachmentInput').addEventListener('change', function() {
+                    updateFileInfo(this.files[0]?.name || '');
+                    updateSubmitButtonState();
+                });
+                document.getElementById('submitButton').addEventListener('click', onSubmit);
+            } catch (error) {
+                statusElement.textContent = 'Error fetching data: ' + error.message;
+                statusElement.className = 'error fade-in';
+                document.getElementById('submitButton').style.display = 'none';
+            }
         });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { scope: './' })
+                .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+                .catch(err => console.warn('Service Worker registration failed:', err));
+        }
     </script>
-    <!-- Reload latest version link -->
     <script>
       (function() {
         const div = document.createElement('div');
@@ -357,7 +614,6 @@
         document.body.appendChild(div);
       })();
     </script>
-    <!-- View Source Code link -->
     <script>
       (function() {
         const div = document.createElement('div');
