@@ -372,32 +372,23 @@
       return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
 
-    // Handle registration sharing
     function registerSignature() {
       const publicKey = localStorage.getItem('publicKey');
       const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}\n\nThis submission was generated using ${window.location.href}`;
       const statusElement = document.getElementById('status');
-      
-      if (isMobileDevice() && navigator.share) {
-        navigator.share({
-          text: shareText
-        }).then(() => {
-          statusElement.textContent = 'Signature shared successfully!';
-          statusElement.className = 'status fade-in';
-        }).catch(error => {
-          statusElement.textContent = 'Error sharing signature: ' + error;
-          statusElement.className = 'error fade-in';
-        });
-      } else {
-        navigator.clipboard.writeText(shareText).then(() => {
-          statusElement.textContent = 'Signature copied to clipboard! Paste it in our Telegram or WhatsApp channels to register.';
-          statusElement.className = 'status fade-in';
-        }).catch(error => {
-          statusElement.textContent = 'Error copying to clipboard: ' + error;
-          statusElement.className = 'error fade-in';
-        });
-      }
+      const emailSubject = encodeURIComponent('Register my Digital Signature');
+      const emailBody = encodeURIComponent(shareText);
+      const mailtoLink = `mailto:admin@truesight.me?subject=${emailSubject}&body=${emailBody}`;
+
+      navigator.clipboard.writeText(shareText).then(() => {
+        statusElement.innerHTML = 'Signature copied to clipboard! <p>Please send an email to <a href="mailto:admin@truesight.me">admin@truesight.me</a> with the subject "Register my Digital Signature" and paste the copied text in the email body. </p><p>Or <a href="' + mailtoLink + '" style="color: #007bff; text-decoration: underline;" onclick="setTimeout(() => { document.getElementById(\'status\').innerHTML += \'<br>Please verify the email content and send it.\'; }, 1000);">open your email client</a>.</p>';
+        statusElement.className = 'status fade-in';
+      }).catch(error => {
+        statusElement.innerHTML = 'Error copying to clipboard: ' + error + '. Please manually copy the signature below and email it to <a href="mailto:admin@truesight.me">admin@truesight.me</a> with the subject "Register my Digital Signature". Or <a href="' + mailtoLink + '" style="color: #007bff; text-decoration: underline;" onclick="setTimeout(() => { document.getElementById(\'status\').innerHTML += \'<br>Please verify the email content and send it.\'; }, 1000);">open your email client</a>.';
+        statusElement.className = 'error fade-in';
+      });
     }
+
 
     // Copy to clipboard function
     function copyToClipboard() {
