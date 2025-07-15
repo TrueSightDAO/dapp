@@ -268,7 +268,7 @@
       <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
     </div>    
     <h2>Manage Your Digital Signature</h2>
-    <p id="explanation" class="fade-in">Your digital signature is used in our DAO to verify your identity for sensitive actions, like cashing out your voting rights, managing inventory, or notarizing documents. To register, email your signature to <a href="mailto:admin@truesight.me">admin@truesight.me</a> with the subject "Register my Digital Signature".</p>
+    <p id="explanation" class="fade-in">Your digital signature is used in our DAO to verify your identity for sensitive actions, like cashing out your voting rights, managing inventory, or notarizing documents.</p>
     
     <div id="welcome"></div>
     
@@ -376,10 +376,10 @@
       const mailtoLink = `mailto:admin@truesight.me?subject=${emailSubject}&body=${emailBody}`;
 
       navigator.clipboard.writeText(shareText).then(() => {
-        statusElement.innerHTML = 'Signature copied to clipboard! Please send an email to <a href="' + mailtoLink + '">admin@truesight.me</a> with the subject "Register my Digital Signature" and paste the copied text in the email body. Or <a href="' + mailtoLink + '" style="color: #007bff; text-decoration: underline;" onclick="setTimeout(() => { document.getElementById(\'status\').innerHTML += \'<br>Please verify the email content and send it.\'; }, 1000);">open your email client</a>.';
+        statusElement.innerHTML = '<p>Signature copied to clipboard! </p><p>Please send an email to <a href="' + mailtoLink + '">admin@truesight.me</a> with the subject "Register my Digital Signature" and paste the copied text in the email body. You will receive an email confirmation once your signature is registered. </p>';
         statusElement.className = 'status fade-in';
       }).catch(error => {
-        statusElement.innerHTML = 'Error copying to clipboard: ' + error + '. Please manually copy the signature below and email it to <a href="mailto:admin@truesight.me">admin@truesight.me</a> with the subject "Register my Digital Signature". Or <a href="' + mailtoLink + '" style="color: #007bff; text-decoration: underline;" onclick="setTimeout(() => { document.getElementById(\'status\').innerHTML += \'<br>Please verify the email content and send it.\'; }, 1000);">open your email client</a>.';
+        statusElement.innerHTML = '<p>Error copying to clipboard: ' + error + '. </p><p>Please manually copy the signature below and email it to <a href="' + mailtoLink + '">admin@truesight.me</a> with the subject "Register my Digital Signature". You will receive an email confirmation once your signature is registered. </p>';
         statusElement.className = 'error fade-in';
       });
     }
