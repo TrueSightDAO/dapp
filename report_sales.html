@@ -56,8 +56,14 @@
         }            
         h1 {
             font-size: 1.8rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        #intro {
+            font-size: 1rem;
             margin-bottom: 1.5rem;
             text-align: center;
+            color: #333;
         }
         #video-holder {
             text-align: center;
@@ -70,6 +76,10 @@
             display: block;
             margin-left: auto;
             margin-right: auto;
+        }
+        video.scanning {
+            border-color: #28a745;
+            box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
         }
         input[type="button"] {
             padding: 0.8rem 2rem;
@@ -248,8 +258,15 @@
         <p id="status" class="fade-in">Verifying your digital signature...</p>
         <div id="welcome" style="display: none;"></div>
         <div id="info" style="display: none;">
+            <p id="intro">Report an item sale by selecting a DAO member, choosing a QR code input method, scanning or uploading the QR code, and submitting the sale to TrueSight DAO's Town Hall.</p>
             <div class="form-row">
-                <label for="inputMethod">Input Method:</label>
+                <label for="memberSelect">Sold by DAO Member:</label>
+                <select id="memberSelect">
+                    <option value="">Loading members...</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="inputMethod">QR Code Input:</label>
                 <select id="inputMethod">
                     <option value="camera">Use Camera</option>
                     <option value="upload">Upload Image</option>
@@ -264,18 +281,12 @@
             </div>
             <canvas id="canvas" style="display: none;"></canvas>
             <img id="uploaded-image" style="display: none;" alt="Uploaded QR Code">
-            <div id="output">Scan or upload a QR code to report an item sale in TrueSight DAO's Town Hall. Help us track our transparent ledger!</div>    
+            <div id="output">Select a QR code input method above to report an item sale in TrueSight DAO's Town Hall. Help us track our transparent ledger!</div>    
             <div class="button-row" id="scan-button-row">
-                <input type="button" id="scan_button" value="Start Scanning" disabled>
+                <input type="button" id="scan_button" value="Scan QR Code" disabled>
             </div>
             <div id="qr_param_display"></div>
             <div id="report_output"></div>
-            <div class="form-row">
-                <label for="memberSelect">Sold by DAO Member:</label>
-                <select id="memberSelect">
-                    <option value="">Loading members...</option>
-                </select>
-            </div>
             <div class="button-row">
                 <input type="button" id="report_button" value="Report Sold" disabled>
             </div>
@@ -345,7 +356,7 @@
                 updateReportButtonState();
             } catch (err) {
                 console.error('Error loading members:', err);
-                reportOutput.textContent = 'Error loading members: ' + err.message;
+                reportOutput.textContent = 'Failed to load DAO members. Please try again later.';
                 reportOutput.className = 'error';
             }
         }
@@ -360,6 +371,7 @@
                 uploadSection.style.display = 'none';
                 videoHolder.style.display = 'block';
                 uploadedImage.style.display = 'none';
+                scanButtonRow.style.display = 'block';
                 output.textContent = 'Scan a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
                 lastQrParam = null;
                 qrParamDisplay.textContent = '';
@@ -405,8 +417,8 @@
                 };
             } catch (err) {
                 console.error('Error accessing camera:', err);
-                output.textContent = 'Error accessing camera: ' + err.message;
-                statusElement.textContent = 'Error accessing camera: ' + err.message;
+                output.textContent = 'Unable to access camera. Please check permissions or try uploading an image.';
+                statusElement.textContent = 'Unable to access camera. Please check permissions.';
                 statusElement.className = 'error fade-in';
                 scan_button.disabled = true;
             }
@@ -417,11 +429,13 @@
                 currentStream.getTracks().forEach(track => track.stop());
                 currentStream = null;
                 video.srcObject = null;
+                video.classList.remove('scanning');
             }
         }
 
         function scanQRCode() {
             if (!scanning) return;
+            video.classList.add('scanning');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height, {
@@ -432,7 +446,8 @@
                 console.log('QR Code detected:', code.data);
                 output.textContent = 'QR Code Data: ' + code.data;
                 scanning = false;
-                scan_button.value = 'Scan another QR Code';
+                video.classList.remove('scanning');
+                scan_button.value = 'Scan Another QR Code';
                 try {
                     const urlObj = new URL(code.data);
                     if (urlObj.searchParams.has('qr_code')) {
@@ -440,13 +455,14 @@
                         qrParamDisplay.textContent = `QR Code: ${lastQrParam}`;
                         updateReportButtonState();
                     } else {
-                        qrParamDisplay.textContent = 'No QR code parameter found';
+                        qrParamDisplay.textContent = 'No valid QR code data found';
                         reportButton.disabled = true;
                     }
                 } catch (e) {
                     console.error('Error parsing QR code:', e);
                     qrParamDisplay.textContent = 'Invalid QR code format';
                     reportButton.disabled = true;
+                    output.textContent = 'Invalid QR code format. Please try scanning again.';
                 }
             } else {
                 requestAnimationFrame(scanQRCode);
@@ -491,7 +507,7 @@
                                 qrParamDisplay.textContent = `QR Code: ${lastQrParam}`;
                                 updateReportButtonState();
                             } else {
-                                qrParamDisplay.textContent = 'No QR code parameter found';
+                                qrParamDisplay.textContent = 'No valid QR code data found';
                                 reportButton.disabled = true;
                             }
                         } catch (e) {
@@ -502,14 +518,14 @@
                         }
                     } else {
                         console.warn('No QR code found in the uploaded image');
-                        output.textContent = 'No QR code found in the uploaded image. Please ensure the image contains a clear QR code.';
+                        output.textContent = 'No QR code found in the image. Please upload an image with a clear QR code.';
                         qrParamDisplay.textContent = '';
                         reportButton.disabled = true;
                     }
                 };
                 img.onerror = () => {
                     console.error('Error loading image');
-                    output.textContent = 'Error loading image. Please upload a valid image file.';
+                    output.textContent = 'Unable to load image. Please upload a valid image file (e.g., PNG or JPEG).';
                     qrParamDisplay.textContent = '';
                     reportButton.disabled = true;
                     uploadedImage.style.display = 'none'; // Hide on error
@@ -518,7 +534,7 @@
             };
             reader.onerror = () => {
                 console.error('Error reading file');
-                output.textContent = 'Error reading file. Please try again.';
+                output.textContent = 'Error reading file. Please try uploading again.';
                 qrParamDisplay.textContent = '';
                 reportButton.disabled = true;
                 uploadedImage.style.display = 'none'; // Hide on error
@@ -573,7 +589,7 @@
                 return;
             }
 
-            const requestText = `[QR CODE EVENT]\n- Item: ${lastQrParam}\n- Sales price: $25\n- Sold by: ${memberName}\n--------`;
+            const requestText = `[SALES EVENT]\n- Item: ${lastQrParam}\n- Sales price: $25\n- Sold by: ${memberName}\n--------`;
             const telegramLink = 'https://t.me/TrueSightDAO';
 
             try {
@@ -593,7 +609,7 @@
                 );
                 const requestHash = arrayBufferToBase64(signature);
                 const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}`;
-                const telegramSuggestion = `Please paste or share this report in the TrueSightDAO Telegram channel: <a id="telegram_link" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+                const telegramSuggestion = `Please paste or share this report in the TrueSight DAO Telegram channel: <a id="telegram_link" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
 
                 reportOutput.innerHTML = '';
                 const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -621,8 +637,8 @@
                     }
                 } else if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(shareText)
-                        .then(() => { reportOutput.innerHTML = `Report text copied to clipboard. ${telegramSuggestion}`; })
-                        .catch((err) => { reportOutput.innerHTML = `Failed to copy text: ${err}. ${telegramSuggestion}`; });
+                        .then(() => { reportOutput.innerHTML = `Report copied to clipboard. ${telegramSuggestion}`; })
+                        .catch((err) => { reportOutput.innerHTML = `Failed to copy report: ${err}. ${telegramSuggestion}`; });
                 } else {
                     const textarea = document.createElement('textarea');
                     textarea.value = shareText;
@@ -633,9 +649,9 @@
                     textarea.select();
                     try {
                         document.execCommand('copy');
-                        reportOutput.innerHTML = `Report text copied to clipboard. ${telegramSuggestion}`;
+                        reportOutput.innerHTML = `Report copied to clipboard. ${telegramSuggestion}`;
                     } catch (err) {
-                        reportOutput.innerHTML = `Failed to copy text: ${err}. ${telegramSuggestion}`;
+                        reportOutput.innerHTML = `Failed to copy report: ${err}. ${telegramSuggestion}`;
                     }
                     document.body.removeChild(textarea);
                 }
