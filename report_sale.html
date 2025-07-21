@@ -67,6 +67,9 @@
             margin-bottom: 1rem;
             max-width: 100%;
             height: auto;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
         }
         input[type="button"] {
             padding: 0.8rem 2rem;
@@ -262,9 +265,8 @@
             <canvas id="canvas" style="display: none;"></canvas>
             <img id="uploaded-image" style="display: none;" alt="Uploaded QR Code">
             <div id="output">Scan or upload the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO's Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!</div>    
-            <div class="button-row">
+            <div class="button-row" id="scan-button-row">
                 <input type="button" id="scan_button" value="Start Scanning" disabled>
-                <input type="button" id="report_button" value="Report Sold" disabled>
             </div>
             <div id="qr_param_display"></div>
             <div id="report_output"></div>
@@ -273,6 +275,9 @@
                 <select id="memberSelect">
                     <option value="">Loading members...</option>
                 </select>
+            </div>
+            <div class="button-row">
+                <input type="button" id="report_button" value="Report Sold" disabled>
             </div>
         </div>
     </div>
@@ -318,6 +323,7 @@
         const imageInput = document.getElementById('imageInput');
         const videoHolder = document.getElementById('video-holder');
         const uploadedImage = document.getElementById('uploaded-image');
+        const scanButtonRow = document.getElementById('scan-button-row');
         let scanning = false;
         let lastQrParam = null;
         let uploadedFile = null;
@@ -354,7 +360,7 @@
                 uploadSection.style.display = 'none';
                 videoHolder.style.display = 'block';
                 uploadedImage.style.display = 'none';
-                scan_button.style.display = 'block';
+                scanButtonRow.style.display = 'block';
                 output.textContent = 'Scan the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO\'s Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!';
                 lastQrParam = null;
                 qrParamDisplay.textContent = '';
@@ -365,9 +371,9 @@
             } else {
                 stopCamera();
                 videoHolder.style.display = 'none';
-                scan_button.style.display = 'none';
+                scanButtonRow.style.display = 'none';
                 uploadSection.style.display = 'block';
-                uploadedImage.style.display = 'block';
+                uploadedImage.style.display = 'none'; // Hide by default
                 output.textContent = 'Upload an image containing a QR code to report its sale in TrueSight DAO\'s Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!';
                 lastQrParam = null;
                 qrParamDisplay.textContent = '';
@@ -420,10 +426,11 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert'
+                inversionAttempts: 'attemptBoth'
             });
 
             if (code) {
+                console.log('QR Code detected:', code.data);
                 output.textContent = 'QR Code Data: ' + code.data;
                 scanning = false;
                 scan_button.value = 'Scan another QR Code';
@@ -438,6 +445,7 @@
                         reportButton.disabled = true;
                     }
                 } catch (e) {
+                    console.error('Error parsing QR code:', e);
                     qrParamDisplay.textContent = 'Invalid QR code format';
                     reportButton.disabled = true;
                 }
@@ -451,17 +459,31 @@
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
+                    // Scale image to a maximum dimension of 1024 pixels
+                    let width = img.width;
+                    let height = img.height;
+                    const maxDimension = 1024;
+                    if (width > maxDimension || height > maxDimension) {
+                        const ratio = Math.min(maxDimension / width, maxDimension / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
                     uploadedImage.src = e.target.result;
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0, img.width, img.height);
+                    uploadedImage.style.display = 'block'; // Show image after loading
+
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    debugger;
+                    console.log('Image dimensions:', canvas.width, 'x', canvas.height);
+                    console.log('Image data length:', imageData.data.length);
+
                     const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: 'dontInvert'
+                        inversionAttempts: 'attemptBoth'
                     });
 
                     if (code) {
+                        console.log('QR Code detected in uploaded image:', code.data);
                         output.textContent = 'QR Code Data: ' + code.data;
                         try {
                             const urlObj = new URL(code.data);
@@ -474,16 +496,33 @@
                                 reportButton.disabled = true;
                             }
                         } catch (e) {
+                            console.error('Error parsing QR code:', e);
                             qrParamDisplay.textContent = 'Invalid QR code format';
                             reportButton.disabled = true;
+                            output.textContent = 'Invalid QR code format. Please upload a valid QR code image.';
                         }
                     } else {
-                        output.textContent = 'No QR code found in the uploaded image';
+                        console.warn('No QR code found in the uploaded image');
+                        output.textContent = 'No QR code found in the uploaded image. Please ensure the image contains a clear QR code.';
                         qrParamDisplay.textContent = '';
                         reportButton.disabled = true;
                     }
                 };
+                img.onerror = () => {
+                    console.error('Error loading image');
+                    output.textContent = 'Error loading image. Please upload a valid image file.';
+                    qrParamDisplay.textContent = '';
+                    reportButton.disabled = true;
+                    uploadedImage.style.display = 'none'; // Hide on error
+                };
                 img.src = e.target.result;
+            };
+            reader.onerror = () => {
+                console.error('Error reading file');
+                output.textContent = 'Error reading file. Please try again.';
+                qrParamDisplay.textContent = '';
+                reportButton.disabled = true;
+                uploadedImage.style.display = 'none'; // Hide on error
             };
             reader.readAsDataURL(file);
         }
@@ -509,6 +548,7 @@
             } else {
                 uploadedFile = null;
                 uploadedImage.src = '';
+                uploadedImage.style.display = 'none'; // Hide when no file selected
                 lastQrParam = null;
                 qrParamDisplay.textContent = '';
                 reportButton.disabled = true;
