@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Easily scan or upload a QR code to submit a Cacao sale in our community channel">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Reader</title>
+
+    <!-- Open Graph tags for WhatsApp and social media previews -->
+    <meta property="og:title" content="QR Code Reader">
+    <meta property="og:description" content="Easily scan or upload a QR code to submit a Cacao sale in our community channel">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+    <meta property="og:type" content="website">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">    
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #backLink {
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
+            color: #007bff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: color 0.2s;
+        }
+        #backLink:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        #backLink::before {
+            content: "←";
+            font-size: 1.2rem;
+        }            
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        #video-holder {
+            text-align: center;
+        }
+        video, canvas, #uploaded-image {
+            border: 1px solid #ccc;
+            margin-bottom: 1rem;
+            max-width: 100%;
+            height: auto;
+        }
+        input[type="button"] {
+            padding: 0.8rem 2rem;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        input[type="button"]:active {
+            transform: scale(0.98);
+        }
+        #scan_button {
+            background-color: #28a745;
+            color: white;
+        }
+        #report_button {
+            background-color: #007bff;
+            color: white;
+        }
+        input[type="button"]:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1rem;
+            box-sizing: border-box;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        #output {
+            margin: 1rem 0;
+            padding: 1rem;
+            border: none;
+            max-width: 90%;
+            font-size: 1rem;
+            line-height: 1.5;
+            text-align: center;
+            word-wrap: break-word;
+        }
+        #qr_param_display {
+            margin: 1rem 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        #report_output {
+            margin: 1rem 0;
+            max-width: 90%;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #telegram_link {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+            width: 100%;
+            max-width: 600px;
+        }
+        .form-row {
+            margin: 1rem 0;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        select {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1rem;
+            box-sizing: border-box;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        select:disabled {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #welcome {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0.8rem 0;
+            text-align: center;
+            display: none;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        @media (max-width: 600px) {
+            body {
+                margin: 0.5rem;
+                padding: 0.5rem;
+            }
+            .container {
+                padding: 0.8rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            video, canvas, #uploaded-image {
+                width: 100%;
+                max-width: 400px;
+            }
+            input[type="button"], input[type="file"] {
+                padding: 1rem;
+                font-size: 1.1rem;
+                width: 100%;
+            }
+            .button-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            #output, #qr_param_display, #report_output {
+                font-size: 0.95rem;
+                max-width: 100%;
+            }
+            .form-row {
+                text-align: center;
+            }
+            label {
+                font-size: 0.95rem;
+            }
+            select {
+                font-size: 0.95rem;
+                padding: 0.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a id="backLink" href="./index.html">Back to Home</a>        
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>            
+        <h1>QR Code Reader</h1>
+        <p id="status" class="fade-in">Verifying your digital signature...</p>
+        <div id="welcome" style="display: none;"></div>
+        <div id="info" style="display: none;">
+            <div class="form-row">
+                <label for="inputMethod">Input Method:</label>
+                <select id="inputMethod">
+                    <option value="camera">Use Camera</option>
+                    <option value="upload">Upload Image</option>
+                </select>
+            </div>
+            <div class="form-row" id="upload-section" style="display: none;">
+                <label for="imageInput">Upload QR Code Image:</label>
+                <input type="file" id="imageInput" accept="image/*">
+            </div>
+            <div id="video-holder">
+                <video id="video" width="400" height="300" autoplay playsinline muted></video>
+            </div>
+            <canvas id="canvas" style="display: none;"></canvas>
+            <img id="uploaded-image" style="display: none;" alt="Uploaded QR Code">
+            <div id="output">Scan or upload the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO's Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!</div>    
+            <div class="button-row">
+                <input type="button" id="scan_button" value="Start Scanning" disabled>
+                <input type="button" id="report_button" value="Report Sold" disabled>
+            </div>
+            <div id="qr_param_display"></div>
+            <div id="report_output"></div>
+            <div class="form-row">
+                <label for="memberSelect">DAO Member:</label>
+                <select id="memberSelect">
+                    <option value="">Loading members...</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <!-- Include jsQR library via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+        // Register Service Worker for offline support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { scope: './' })
+                .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+                .catch(err => console.warn('Service Worker registration failed:', err));
+        }
+
+        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        let contributorName = '';
+        let members = [];
+        let currentStream = null;
+
+        function arrayBufferToBase64(buffer) {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        // Get DOM elements
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const output = document.getElementById('output');
+        const scan_button = document.getElementById('scan_button');
+        const qrParamDisplay = document.getElementById('qr_param_display');
+        const reportButton = document.getElementById('report_button');
+        const reportOutput = document.getElementById('report_output');
+        const statusElement = document.getElementById('status');
+        const memberSelect = document.getElementById('memberSelect');
+        const inputMethod = document.getElementById('inputMethod');
+        const uploadSection = document.getElementById('upload-section');
+        const imageInput = document.getElementById('imageInput');
+        const videoHolder = document.getElementById('video-holder');
+        const uploadedImage = document.getElementById('uploaded-image');
+        let scanning = false;
+        let lastQrParam = null;
+        let uploadedFile = null;
+
+        async function loadMembers() {
+            try {
+                const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?list=true');
+                members = await res.json();
+                memberSelect.innerHTML = '<option value="">Select a DAO member</option>';
+                members.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.key;
+                    opt.textContent = m.name;
+                    if (m.name === contributorName) {
+                        opt.selected = true;
+                    }
+                    memberSelect.appendChild(opt);
+                });
+                updateReportButtonState();
+            } catch (err) {
+                console.error('Error loading members:', err);
+                reportOutput.textContent = 'Error loading members: ' + err.message;
+                reportOutput.className = 'error';
+            }
+        }
+
+        function updateReportButtonState() {
+            reportButton.disabled = !lastQrParam || !memberSelect.value;
+        }
+
+        function toggleInputMethod() {
+            const method = inputMethod.value;
+            if (method === 'camera') {
+                uploadSection.style.display = 'none';
+                videoHolder.style.display = 'block';
+                uploadedImage.style.display = 'none';
+                scan_button.style.display = 'block';
+                output.textContent = 'Scan the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO\'s Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!';
+                lastQrParam = null;
+                qrParamDisplay.textContent = '';
+                reportButton.disabled = true;
+                uploadedFile = null;
+                uploadedImage.src = '';
+                startCamera();
+            } else {
+                stopCamera();
+                videoHolder.style.display = 'none';
+                scan_button.style.display = 'none';
+                uploadSection.style.display = 'block';
+                uploadedImage.style.display = 'block';
+                output.textContent = 'Upload an image containing a QR code to report its sale in TrueSight DAO\'s Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!';
+                lastQrParam = null;
+                qrParamDisplay.textContent = '';
+                reportButton.disabled = true;
+                uploadedFile = null;
+                uploadedImage.src = '';
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                const constraints = {
+                    video: isMobile
+                        ? {
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                        : true
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream;
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    scan_button.disabled = false;
+                    video.play();
+                };
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                output.textContent = 'Error accessing camera: ' + err.message;
+                statusElement.textContent = 'Error accessing camera: ' + err.message;
+                statusElement.className = 'error fade-in';
+                scan_button.disabled = true;
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+                video.srcObject = null;
+            }
+        }
+
+        function scanQRCode() {
+            if (!scanning) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+            });
+
+            if (code) {
+                output.textContent = 'QR Code Data: ' + code.data;
+                scanning = false;
+                scan_button.value = 'Scan another QR Code';
+                try {
+                    const urlObj = new URL(code.data);
+                    if (urlObj.searchParams.has('qr_code')) {
+                        lastQrParam = urlObj.searchParams.get('qr_code');
+                        qrParamDisplay.textContent = `QR Code: ${lastQrParam}`;
+                        updateReportButtonState();
+                    } else {
+                        qrParamDisplay.textContent = 'No QR code parameter found';
+                        reportButton.disabled = true;
+                    }
+                } catch (e) {
+                    qrParamDisplay.textContent = 'Invalid QR code format';
+                    reportButton.disabled = true;
+                }
+            } else {
+                requestAnimationFrame(scanQRCode);
+            }
+        }
+
+        function processUploadedImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    uploadedImage.src = e.target.result;
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0, img.width, img.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    debugger;
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'dontInvert'
+                    });
+
+                    if (code) {
+                        output.textContent = 'QR Code Data: ' + code.data;
+                        try {
+                            const urlObj = new URL(code.data);
+                            if (urlObj.searchParams.has('qr_code')) {
+                                lastQrParam = urlObj.searchParams.get('qr_code');
+                                qrParamDisplay.textContent = `QR Code: ${lastQrParam}`;
+                                updateReportButtonState();
+                            } else {
+                                qrParamDisplay.textContent = 'No QR code parameter found';
+                                reportButton.disabled = true;
+                            }
+                        } catch (e) {
+                            qrParamDisplay.textContent = 'Invalid QR code format';
+                            reportButton.disabled = true;
+                        }
+                    } else {
+                        output.textContent = 'No QR code found in the uploaded image';
+                        qrParamDisplay.textContent = '';
+                        reportButton.disabled = true;
+                    }
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        scan_button.addEventListener('click', () => {
+            if (scanning) return;
+            qrParamDisplay.textContent = '';
+            reportOutput.textContent = '';
+            reportButton.disabled = true;
+            lastQrParam = null;
+            scanning = true;
+            scan_button.value = 'Scanning...';
+            output.textContent = 'Scanning...';
+            scanQRCode();
+        });
+
+        inputMethod.addEventListener('change', toggleInputMethod);
+
+        imageInput.addEventListener('change', () => {
+            if (imageInput.files.length > 0) {
+                uploadedFile = imageInput.files[0];
+                processUploadedImage(uploadedFile);
+            } else {
+                uploadedFile = null;
+                uploadedImage.src = '';
+                lastQrParam = null;
+                qrParamDisplay.textContent = '';
+                reportButton.disabled = true;
+                output.textContent = 'Upload an image containing a QR code to report its sale in TrueSight DAO\'s Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!';
+            }
+        });
+
+        // Handle report sold button click
+        reportButton.addEventListener('click', async () => {
+            if (!lastQrParam) return;
+            const selectedMemberKey = memberSelect.value;
+            const selectedMember = members.find(m => m.key === selectedMemberKey);
+            const memberName = selectedMember ? selectedMember.name : contributorName;
+            const publicKey = localStorage.getItem('publicKey');
+            const privateKey = localStorage.getItem('privateKey');
+
+            if (!publicKey || !privateKey) {
+                reportOutput.textContent = 'No digital signature found. Redirecting to create one...';
+                reportOutput.className = 'error';
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            const requestText = `[QR CODE EVENT]\n- Item: ${lastQrParam}\n- Sales price: $25\n- Sold by: ${memberName}\n--------`;
+            const telegramLink = 'https://t.me/TrueSightDAO';
+
+            try {
+                const privateKeyObj = await window.crypto.subtle.importKey(
+                    "pkcs8",
+                    base64ToArrayBuffer(privateKey),
+                    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+                    false,
+                    ["sign"]
+                );
+
+                const encoder = new TextEncoder();
+                const signature = await window.crypto.subtle.sign(
+                    "RSASSA-PKCS1-v1_5",
+                    privateKeyObj,
+                    encoder.encode(requestText)
+                );
+                const requestHash = arrayBufferToBase64(signature);
+                const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}`;
+                const telegramSuggestion = `Please paste or share this report in the TrueSightDAO Telegram channel: <a id="telegram_link" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+
+                reportOutput.innerHTML = '';
+                const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                if (isMobile && navigator.share) {
+                    const fileToShare = inputMethod.value === 'upload' && uploadedFile ? uploadedFile : null;
+                    if (fileToShare && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+                        navigator.share({ text: shareText, files: [fileToShare] })
+                            .then(() => { reportOutput.innerHTML = `Shared successfully. ${telegramSuggestion}`; })
+                            .catch((error) => { reportOutput.innerHTML = `Error sharing: ${error}. ${telegramSuggestion}`; });
+                    } else {
+                        canvas.toBlob(blob => {
+                            if (blob) {
+                                const file = new File([blob], 'scan.png', { type: blob.type });
+                                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                    navigator.share({ text: shareText, files: [file] })
+                                        .then(() => { reportOutput.innerHTML = `Shared successfully. ${telegramSuggestion}`; })
+                                        .catch((error) => { reportOutput.innerHTML = `Error sharing: ${error}. ${telegramSuggestion}`; });
+                                    return;
+                                }
+                            }
+                            navigator.share({ text: shareText })
+                                .then(() => { reportOutput.innerHTML = `Shared successfully. ${telegramSuggestion}`; })
+                                .catch((error) => { reportOutput.innerHTML = `Error sharing: ${error}. ${telegramSuggestion}`; });
+                        });
+                    }
+                } else if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(shareText)
+                        .then(() => { reportOutput.innerHTML = `Report text copied to clipboard. ${telegramSuggestion}`; })
+                        .catch((err) => { reportOutput.innerHTML = `Failed to copy text: ${err}. ${telegramSuggestion}`; });
+                } else {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = shareText;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.focus();
+                    textarea.select();
+                    try {
+                        document.execCommand('copy');
+                        reportOutput.innerHTML = `Report text copied to clipboard. ${telegramSuggestion}`;
+                    } catch (err) {
+                        reportOutput.innerHTML = `Failed to copy text: ${err}. ${telegramSuggestion}`;
+                    }
+                    document.body.removeChild(textarea);
+                }
+            } catch (err) {
+                reportOutput.innerHTML = `Error generating report: ${err.message}. ${telegramSuggestion}`;
+                reportOutput.className = 'error';
+            }
+        });
+
+        // Initialize on page load
+        window.onload = async function() {
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading fade-in';
+            const publicKey = localStorage.getItem('publicKey');
+            if (!publicKey) {
+                statusElement.textContent = 'No digital signature found. Redirecting...';
+                statusElement.className = 'error fade-in';
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            try {
+                const timestamp = new Date().toISOString();
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestamp=${encodeURIComponent(timestamp)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    statusElement.textContent = 'Error: ' + data.error;
+                    statusElement.className = 'error fade-in';
+                    return;
+                }
+
+                contributorName = data.contributor_name;
+                document.getElementById('info').style.display = 'block';
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+
+                await loadMembers();
+                toggleInputMethod();
+                memberSelect.addEventListener('change', updateReportButtonState);
+            } catch (error) {
+                statusElement.textContent = 'Error fetching data: ' + error.message;
+                statusElement.className = 'error fade-in';
+                reportButton.disabled = true;
+                scan_button.disabled = true;
+            }
+        }
+    </script>
+    <!-- Reload latest version link -->
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const url = new URL(window.location.href);
+        url.searchParams.set('reload', 'true');
+        const a = document.createElement('a');
+        a.href = url.toString();
+        a.textContent = 'Reload Latest Version';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
+    </script>
+    <!-- View Source Code link -->
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const a = document.createElement('a');
+        a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/scanner.html';
+        a.textContent = 'View Source Code';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
+    </script>
+</body>
+</html>
