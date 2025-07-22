@@ -590,7 +590,7 @@
                 const contributionLocation = fileName ? `${REPO_BASE_URL}${contributionFileName}` : 'No file attached';
                 const contributorsCount = contributorNames.length;
                 const tdgValues = calculateTDG(typeName, amount, contributorsCount);
-                const tdgText = contributorNames.map((name, index) => `${name}: ${tdgValues[index]} TDG`).join(', ');
+                const tdgText = tdgValues[0];
                 const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName}\n- Amount: ${amount}\n- Description: ${description}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
