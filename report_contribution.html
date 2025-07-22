@@ -118,7 +118,7 @@
             font-weight: bold;
             font-size: 1rem;
         }
-        select, input[type="number"], input[type="file"], textarea {
+        select, input[type="number"], input[type="file"], input[type="text"], textarea {
             width: 100%;
             padding: 0.8rem;
             font-size: 1rem;
@@ -197,7 +197,6 @@
             font-size: 0.8rem;
             color: #666;
             text-align: right;
-            margin-top: -0.5rem;
             margin-bottom: 0.5rem;
         }
         @media (max-width: 600px) {
@@ -217,7 +216,7 @@
             label {
                 font-size: 0.95rem;
             }
-            select, input[type="number"], input[type="file"], textarea {
+            select, input[type="number"], input[type="file"], input[type="text"], textarea {
                 font-size: 0.95rem;
                 padding: 0.6rem;
             }
@@ -245,6 +244,10 @@
         <div id="welcome" style="display: none;"></div>
         <p id="status" class="fade-in">Verifying your digital signature...</p>
         <div id="info" style="display: none;">
+            <div class="form-row">
+                <label for="contributorFilter">Filter Contributors:</label>
+                <input type="text" id="contributorFilter" placeholder="Type to filter contributors...">
+            </div>
             <div class="form-row">
                 <label for="contributorSelect">Contributor(s):</label>
                 <select id="contributorSelect" multiple>
@@ -290,6 +293,7 @@
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
         const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
         let contributorName = '';
+        let allContributors = [];
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -359,21 +363,39 @@
             }
         }
 
+        function filterContributors() {
+            const filterInput = document.getElementById('contributorFilter').value.toLowerCase();
+            const sel = document.getElementById('contributorSelect');
+            const selectedValues = Array.from(sel.selectedOptions).map(opt => opt.value);
+            const selectedContributors = allContributors.filter(contributor => selectedValues.includes(contributor.key));
+            
+            sel.innerHTML = '';
+            const filteredContributors = allContributors.filter(contributor => 
+                contributor.name.toLowerCase().includes(filterInput) || selectedValues.includes(contributor.key)
+            );
+
+            if (filteredContributors.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'No contributors found';
+                sel.appendChild(opt);
+            } else {
+                filteredContributors.forEach(contributor => {
+                    const opt = document.createElement('option');
+                    opt.value = contributor.key;
+                    opt.textContent = contributor.name;
+                    opt.selected = selectedValues.includes(contributor.key) || contributor.name === contributorName;
+                    sel.appendChild(opt);
+                });
+            }
+            updateSubmitButtonState();
+        }
+
         async function loadContributors() {
             try {
                 const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?recipients=true');
-                const contributors = await res.json();
-                const sel = document.getElementById('contributorSelect');
-                sel.innerHTML = '';
-                contributors.forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m.key;
-                    opt.textContent = m.name;
-                    if (m.name === contributorName) {
-                        opt.selected = true;
-                    }
-                    sel.appendChild(opt);
-                });
+                allContributors = await res.json();
+                filterContributors();
             } catch (err) {
                 console.error('Error loading contributors:', err);
                 document.getElementById('outputMessage').textContent = 'Error loading contributors: ' + err.message;
@@ -488,7 +510,7 @@
 
             try {
                 const timestamp = new Date().toISOString();
-                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestamp=${encodeURIComponent(timestamp)}`);
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
                 const data = await response.json();
 
                 if (data.error) {
@@ -531,6 +553,7 @@
                     updateSubmitButtonState();
                 });
                 document.getElementById('submitButton').addEventListener('click', onSubmit);
+                document.getElementById('contributorFilter').addEventListener('input', filterContributors);
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';
