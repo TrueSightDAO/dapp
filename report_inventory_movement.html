@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="description" content="Easily the movements of a DAO inventory item to our community">
+    <meta name="description" content="Easily report the movements of a DAO inventory item to our community">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Report Inventory Movement</title>
 
     <!-- Open Graph tags for WhatsApp and social media previews -->
     <meta property="og:title" content="Report Inventory Movement">
-    <meta property="og:description" content="Easily the movements of a DAO inventory item to our community">
+    <meta property="og:description" content="Easily report the movements of a DAO inventory item to our community">
     <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
     <meta property="og:url" content="https://truesightdao.github.io/dapp/">
     <meta property="og:type" content="website">
@@ -63,11 +63,14 @@
         #video-holder {
             text-align: center;
         }
-        video, canvas {
+        video, canvas, #uploaded-file-preview {
             border: 1px solid #ccc;
             margin-bottom: 1rem;
             max-width: 100%;
             height: auto;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
         }
         .form-row {
             display: flex;
@@ -80,7 +83,7 @@
             font-weight: bold;
             font-size: 1rem;
         }
-        select, input[type="number"], input[type="text"], button {
+        select, input[type="number"], input[type="text"], input[type="file"], button {
             padding: 0.8rem;
             font-size: 1rem;
             width: 100%;
@@ -136,7 +139,7 @@
             label {
                 font-size: 0.95rem;
             }
-            select, input[type="number"], input[type="text"], button {
+            select, input[type="number"], input[type="text"], input[type="file"], button {
                 padding: 0.6rem;
                 font-size: 0.95rem;
             }
@@ -149,42 +152,52 @@
 </head>
 <body>
     <div class="container">
-    <a id="backLink" href="./index.html">Back to Home</a>        
-    <div style="text-align: center;">
-      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
-    </div>                
-    <h1>Report Inventory Movement</h1>
-    <div id="video-holder">
-    <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
-    </div>
-    <canvas id="canvas" style="display: none;"></canvas>
-
-    <div class="form-row">
-        <label for="managerSelect">Warehouse Manager:</label>
-        <select id="managerSelect">
-            <option value="">Loading managers...</option>
-        </select>
-    </div>
-    <div class="form-row">
-        <label for="itemSelect">Inventory Item:</label>
-        <select id="itemSelect" disabled>
-            <option value="">Select a manager first</option>
-        </select>
-        <div id="availableQuantity"></div>
-    </div>
-    <div class="form-row">
-        <label for="recipientSelect">Recipient:</label>
-        <select id="recipientSelect">
-            <option value="">Loading recipients...</option>
-        </select>
-    </div>
-    <div class="form-row">
-        <label for="quantityInput">Quantity to Move:</label>
-        <input type="number" id="quantityInput" min="1" disabled>
-    </div>
-    <button id="reportButton" disabled>Report Inventory Movement</button>
-    <div id="reportOutput"></div>
-
+        <a id="backLink" href="./index.html">Back to Home</a>        
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>                
+        <h1>Report Inventory Movement</h1>
+        <div class="form-row">
+            <label for="inputMethod">Input Method:</label>
+            <select id="inputMethod">
+                <option value="camera">Use Camera</option>
+                <option value="upload">Upload File or Image</option>
+            </select>
+        </div>
+        <div class="form-row" id="upload-section" style="display: none;">
+            <label for="fileInput">Upload File or Image:</label>
+            <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx,.txt">
+        </div>
+        <div id="video-holder">
+            <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
+        </div>
+        <canvas id="canvas" style="display: none;"></canvas>
+        <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
+        <div class="form-row">
+            <label for="managerSelect">Warehouse Manager:</label>
+            <select id="managerSelect">
+                <option value="">Loading managers...</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="itemSelect">Inventory Item:</label>
+            <select id="itemSelect" disabled>
+                <option value="">Select a manager first</option>
+            </select>
+            <div id="availableQuantity"></div>
+        </div>
+        <div class="form-row">
+            <label for="recipientSelect">Recipient:</label>
+            <select id="recipientSelect">
+                <option value="">Loading recipients...</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="quantityInput">Quantity to Move:</label>
+            <input type="number" id="quantityInput" min="1" disabled>
+        </div>
+        <button id="reportButton" disabled>Report Inventory Movement</button>
+        <div id="reportOutput"></div>
     </div>
     <script>
         // Register Service Worker for offline support
@@ -196,7 +209,14 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const inputMethod = document.getElementById('inputMethod');
+        const uploadSection = document.getElementById('upload-section');
+        const fileInput = document.getElementById('fileInput');
+        const videoHolder = document.getElementById('video-holder');
+        const uploadedFilePreview = document.getElementById('uploaded-file-preview');
         let assets = [];
+        let currentStream = null;
+        let uploadedFile = null;
 
         // Start camera and draw to canvas
         async function startCamera() {
@@ -212,6 +232,7 @@
                         : true
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream;
                 video.srcObject = stream;
                 video.onloadedmetadata = () => {
                     canvas.width = video.videoWidth;
@@ -221,7 +242,15 @@
                 };
             } catch (err) {
                 console.error('Error accessing camera:', err);
-                alert('Error accessing camera: ' + err.message);
+                document.getElementById('reportOutput').textContent = 'Error accessing camera: ' + err.message;
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+                video.srcObject = null;
             }
         }
 
@@ -229,6 +258,57 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             requestAnimationFrame(drawFrame);
         }
+
+        function toggleInputMethod() {
+            const method = inputMethod.value;
+            if (method === 'camera') {
+                uploadSection.style.display = 'none';
+                videoHolder.style.display = 'block';
+                uploadedFilePreview.style.display = 'none';
+                uploadedFile = null;
+                uploadedFilePreview.src = '';
+                document.getElementById('reportOutput').textContent = '';
+                startCamera();
+            } else {
+                stopCamera();
+                videoHolder.style.display = 'none';
+                uploadSection.style.display = 'block';
+                uploadedFilePreview.style.display = 'none';
+                uploadedFile = null;
+                uploadedFilePreview.src = '';
+                document.getElementById('reportOutput').textContent = '';
+            }
+            updateReportButtonState();
+        }
+
+        // Handle file upload
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                uploadedFile = fileInput.files[0];
+                const isImage = uploadedFile.type.startsWith('image/');
+                if (isImage) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        uploadedFilePreview.src = e.target.result;
+                        uploadedFilePreview.style.display = 'block';
+                    };
+                    reader.onerror = () => {
+                        document.getElementById('reportOutput').textContent = 'Error reading file. Please try uploading again.';
+                        uploadedFilePreview.style.display = 'none';
+                        uploadedFile = null;
+                    };
+                    reader.readAsDataURL(uploadedFile);
+                } else {
+                    uploadedFilePreview.style.display = 'none';
+                    uploadedFilePreview.src = '';
+                }
+            } else {
+                uploadedFile = null;
+                uploadedFilePreview.src = '';
+                uploadedFilePreview.style.display = 'none';
+            }
+            updateReportButtonState();
+        });
 
         // Populate managers
         async function loadManagers() {
@@ -245,6 +325,7 @@
                 });
             } catch (err) {
                 console.error('Error loading managers:', err);
+                document.getElementById('reportOutput').textContent = 'Failed to load managers: ' + err.message;
             }
         }
 
@@ -263,6 +344,7 @@
                 });
             } catch (err) {
                 console.error('Error loading recipients:', err);
+                document.getElementById('reportOutput').textContent = 'Failed to load recipients: ' + err.message;
             }
         }
 
@@ -292,6 +374,7 @@
                     qtyInput.disabled = true;
                 } catch (err) {
                     console.error('Error loading assets:', err);
+                    document.getElementById('reportOutput').textContent = 'Failed to load assets: ' + err.message;
                 }
             }
             updateReportButtonState();
@@ -338,18 +421,25 @@
             const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
             if (isMobile && navigator.share) {
-                canvas.toBlob(blob => {
-                    const shareData = { text };
-                    if (blob) {
-                        const file = new File([blob], 'image.png', { type: blob.type });
-                        if (navigator.canShare({ files: [file] })) {
-                            shareData.files = [file];
-                        }
-                    }
-                    navigator.share(shareData)
+                const fileToShare = inputMethod.value === 'upload' && uploadedFile ? uploadedFile : null;
+                if (fileToShare && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+                    navigator.share({ text, files: [fileToShare] })
                         .then(() => { output.textContent = 'Shared successfully.'; })
                         .catch(err => { output.textContent = 'Error sharing: ' + err; });
-                });
+                } else {
+                    canvas.toBlob(blob => {
+                        const shareData = { text };
+                        if (blob && inputMethod.value === 'camera') {
+                            const file = new File([blob], 'image.png', { type: blob.type });
+                            if (navigator.canShare({ files: [file] })) {
+                                shareData.files = [file];
+                            }
+                        }
+                        navigator.share(shareData)
+                            .then(() => { output.textContent = 'Shared successfully.'; })
+                            .catch(err => { output.textContent = 'Error sharing: ' + err; });
+                    });
+                }
             } else if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text)
                     .then(() => { output.textContent = 'Report text copied to clipboard.'; })
@@ -373,9 +463,10 @@
         }
 
         window.addEventListener('load', () => {
-            startCamera();
             loadManagers();
             loadRecipients();
+            toggleInputMethod();
+            inputMethod.addEventListener('change', toggleInputMethod);
             document.getElementById('managerSelect').addEventListener('change', onManagerChange);
             document.getElementById('itemSelect').addEventListener('change', onItemChange);
             document.getElementById('recipientSelect').addEventListener('change', updateReportButtonState);

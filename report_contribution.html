@@ -199,6 +199,27 @@
             text-align: right;
             margin-bottom: 0.5rem;
         }
+        #uploaded-file-preview {
+            border: 1px solid #ccc;
+            margin-bottom: 1rem;
+            max-width: 100%;
+            height: auto;
+            display: none;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #video-holder {
+            text-align: center;
+        }
+        video, canvas {
+            border: 1px solid #ccc;
+            margin-bottom: 1rem;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
         @media (max-width: 600px) {
             body {
                 margin: 0.5rem;
@@ -245,6 +266,22 @@
         <p id="status" class="fade-in">Verifying your digital signature...</p>
         <div id="info" style="display: none;">
             <div class="form-row">
+                <label for="inputMethod">Input Method:</label>
+                <select id="inputMethod">
+                    <option value="camera">Use Camera</option>
+                    <option value="upload">Upload File or Image</option>
+                </select>
+            </div>
+            <div class="form-row" id="upload-section" style="display: none;">
+                <label for="attachmentInput">Upload File or Image:</label>
+                <input type="file" id="attachmentInput" accept="image/*,application/pdf,.doc,.docx,.txt">
+            </div>
+            <div id="video-holder">
+                <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
+            </div>
+            <canvas id="canvas" style="display: none;"></canvas>
+            <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
+            <div class="form-row">
                 <label for="contributorFilter">Filter Contributors:</label>
                 <input type="text" id="contributorFilter" placeholder="Type to filter contributors...">
             </div>
@@ -273,8 +310,6 @@
                 <div class="char-count"><span id="charCount">0</span>/500 characters</div>
             </div>
             <div class="form-row">
-                <label for="attachmentInput">Attachment or Photo:</label>
-                <input type="file" id="attachmentInput" accept="image/*,application/pdf" capture="environment">
                 <div class="info-box">
                     <div class="info">Original File Name:</div>
                     <div class="info-location" id="originalFileName">No file selected</div>
@@ -294,6 +329,8 @@
         const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
         let contributorName = '';
         let allContributors = [];
+        let currentStream = null;
+        let uploadedFile = null;
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -414,6 +451,82 @@
             updateTDGOutput();
         }
 
+        async function startCamera() {
+            try {
+                const isMobile = isMobileDevice();
+                const constraints = {
+                    video: isMobile
+                        ? {
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                        : true
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream;
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    const canvas = document.getElementById('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    video.play();
+                    drawFrame();
+                };
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                document.getElementById('outputMessage').textContent = 'Error accessing camera: ' + err.message;
+                document.getElementById('outputMessage').className = 'error';
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+                const video = document.getElementById('video');
+                video.srcObject = null;
+            }
+        }
+
+        function drawFrame() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            requestAnimationFrame(drawFrame);
+        }
+
+        function toggleInputMethod() {
+            const inputMethod = document.getElementById('inputMethod').value;
+            const uploadSection = document.getElementById('upload-section');
+            const videoHolder = document.getElementById('video-holder');
+            const uploadedFilePreview = document.getElementById('uploaded-file-preview');
+            const attachmentInput = document.getElementById('attachmentInput');
+
+            if (inputMethod === 'camera') {
+                uploadSection.style.display = 'none';
+                videoHolder.style.display = 'block';
+                uploadedFilePreview.style.display = 'none';
+                uploadedFile = null;
+                uploadedFilePreview.src = '';
+                attachmentInput.value = '';
+                updateFileInfo('');
+                startCamera();
+            } else {
+                stopCamera();
+                uploadSection.style.display = 'block';
+                videoHolder.style.display = 'none';
+                uploadedFilePreview.style.display = 'none';
+                uploadedFile = null;
+                uploadedFilePreview.src = '';
+                attachmentInput.value = '';
+                updateFileInfo('');
+            }
+            updateSubmitButtonState();
+        }
+
         async function onSubmit() {
             const contributorSel = document.getElementById('contributorSelect');
             const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
@@ -425,6 +538,7 @@
             const output = document.getElementById('outputMessage');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
+            const inputMethod = document.getElementById('inputMethod').value;
 
             if (!publicKey || !privateKey) {
                 output.textContent = 'No digital signature found. Redirecting to create one...';
@@ -443,22 +557,45 @@
 
             let fileName = '';
             let file = null;
-            if (attachmentInput.files.length > 0) {
+            if (inputMethod === 'upload' && attachmentInput.files.length > 0) {
                 file = attachmentInput.files[0];
                 fileName = file.name;
+            } else if (inputMethod === 'camera') {
+                const canvas = document.getElementById('canvas');
+                canvas.toBlob(blob => {
+                    if (blob) {
+                        file = new File([blob], 'capture.png', { type: 'image/png' });
+                        fileName = 'capture.png';
+                    }
+                    submitReport(file, fileName);
+                }, 'image/png');
+                return;
             }
+
+            submitReport(file, fileName);
+        }
+
+        async function submitReport(file, fileName) {
+            const contributorSel = document.getElementById('contributorSelect');
+            const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
+            const typeSel = document.getElementById('typeSelect');
+            const typeName = typeSel.value;
+            const amount = document.getElementById('amountInput').value;
+            const description = document.getElementById('descriptionInput').value;
+            const output = document.getElementById('outputMessage');
+            const publicKey = localStorage.getItem('publicKey');
 
             try {
                 const contributionFileName = fileName ? generateContributionFileName(fileName) : '';
                 const contributionLocation = fileName ? `${REPO_BASE_URL}${contributionFileName}` : 'No file attached';
                 const contributorsCount = contributorNames.length;
                 const tdgValues = calculateTDG(typeName, amount, contributorsCount);
-                const tdgText = contributorNames.map((name, index) => `${name}: ${tdgValues[index]} TDG`).join(', ');
+                const tdgText = tdgValues[0];
                 const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName}\n- Amount: ${amount}\n- Description: ${description}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
-                    base64ToArrayBuffer(privateKey),
+                    base64ToArrayBuffer(localStorage.getItem('privateKey')),
                     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
                     false,
                     ["sign"]
@@ -476,7 +613,7 @@
 
                 if (isMobileDevice() && navigator.share) {
                     const shareData = { text: shareText };
-                    if (file) {
+                    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
                         shareData.files = [file];
                     }
                     await navigator.share(shareData);
@@ -527,6 +664,8 @@
                 statusElement.className = 'status fade-in';
 
                 loadContributors();
+                toggleInputMethod();
+                document.getElementById('inputMethod').addEventListener('change', toggleInputMethod);
                 document.getElementById('contributorSelect').addEventListener('change', updateSubmitButtonState);
                 document.getElementById('typeSelect').addEventListener('change', function() {
                     document.getElementById('amountInput').disabled = !this.value;
@@ -549,7 +688,34 @@
                 });
 
                 document.getElementById('attachmentInput').addEventListener('change', function() {
-                    updateFileInfo(this.files[0]?.name || '');
+                    if (this.files.length > 0) {
+                        uploadedFile = this.files[0];
+                        const isImage = uploadedFile.type.startsWith('image/');
+                        updateFileInfo(uploadedFile.name);
+                        if (isImage) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                document.getElementById('uploaded-file-preview').src = e.target.result;
+                                document.getElementById('uploaded-file-preview').style.display = 'block';
+                            };
+                            reader.onerror = () => {
+                                document.getElementById('outputMessage').textContent = 'Error reading file. Please try uploading again.';
+                                document.getElementById('outputMessage').className = 'error';
+                                document.getElementById('uploaded-file-preview').style.display = 'none';
+                                uploadedFile = null;
+                                updateFileInfo('');
+                            };
+                            reader.readAsDataURL(uploadedFile);
+                        } else {
+                            document.getElementById('uploaded-file-preview').style.display = 'none';
+                            document.getElementById('uploaded-file-preview').src = '';
+                        }
+                    } else {
+                        uploadedFile = null;
+                        updateFileInfo('');
+                        document.getElementById('uploaded-file-preview').style.display = 'none';
+                        document.getElementById('uploaded-file-preview').src = '';
+                    }
                     updateSubmitButtonState();
                 });
                 document.getElementById('submitButton').addEventListener('click', onSubmit);
