@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Easily report contributions to our DAO community">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAO Contribution Report</title>
+
+    <!-- Open Graph tags for WhatsApp and social media previews -->
+    <meta property="og:title" content="DAO Contribution Report">
+    <meta property="og:description" content="Easily report contributions to our DAO community">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #backLink {
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
+            color: #007bff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: color 0.2s;
+        }
+        #backLink:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        #backLink::before {
+            content: "←";
+            font-size: 1.2rem;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #welcome {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0.8rem 0;
+            text-align: center;
+            display: none;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info-box {
+            margin: 1rem 0;
+            background-color: #f8f9fa;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.95rem;
+        }
+        .info {
+            font-weight: bold;
+            text-align: left;
+            font-size: 1rem;
+            margin: 0.5rem 0;
+        }
+        .info-location {
+            font-weight: normal;
+            margin-left: 1.5rem;
+            line-height: 1.4;
+        }
+        .form-row {
+            margin: 1rem 0;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        select, input[type="number"], input[type="file"], input[type="text"], textarea {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1rem;
+            box-sizing: border-box;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        select:disabled, input:disabled, textarea:disabled {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+        button {
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 8px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.2s, transform 0.1s;
+            margin: 0.5rem 0;
+            width: 100%;
+            max-width: 300px;
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: scale(1.02);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #tdgOutput {
+            margin: 0.8rem 0;
+            font-weight: bold;
+            font-size: 1rem;
+            color: #333;
+        }
+        #outputMessage {
+            margin: 0.5rem 0;
+            font-size: 1rem;
+            text-align: center;
+            color: #333;
+        }
+        #telegramLink {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        textarea {
+            resize: none;
+            min-height: 80px;
+        }
+        .char-count {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: right;
+            margin-bottom: 0.5rem;
+        }
+        @media (max-width: 600px) {
+            body {
+                margin: 0.5rem;
+                padding: 0.5rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .container {
+                padding: 0.8rem;
+            }
+            .form-row {
+                text-align: center;
+            }
+            label {
+                font-size: 0.95rem;
+            }
+            select, input[type="number"], input[type="file"], input[type="text"], textarea {
+                font-size: 0.95rem;
+                padding: 0.6rem;
+            }
+            button {
+                padding: 1rem;
+                font-size: 1rem;
+            }
+            .info, .info-location {
+                font-size: 0.95rem;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a id="backLink" href="./index.html">Back to Home</a>    
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>        
+        <h1>DAO Contribution Report</h1>
+        <p id="description">
+            Submit a contribution report for DAO members.
+        </p>
+        <div id="welcome" style="display: none;"></div>
+        <p id="status" class="fade-in">Verifying your digital signature...</p>
+        <div id="info" style="display: none;">
+            <div class="form-row">
+                <label for="contributorFilter">Filter Contributors:</label>
+                <input type="text" id="contributorFilter" placeholder="Type to filter contributors...">
+            </div>
+            <div class="form-row">
+                <label for="contributorSelect">Contributor(s):</label>
+                <select id="contributorSelect" multiple>
+                    <option value="">Loading contributors...</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="typeSelect">Contribution Type:</label>
+                <select id="typeSelect">
+                    <option value="">Select a type</option>
+                    <option value="Time">Time (Hours)</option>
+                    <option value="USD">USD</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="amountInput">Contribution Amount:</label>
+                <input type="number" id="amountInput" min="0.01" step="0.01" disabled>
+                <div id="tdgOutput"></div>
+            </div>
+            <div class="form-row">
+                <label for="descriptionInput">Contribution Description:</label>
+                <textarea id="descriptionInput" maxlength="500" placeholder="Enter contribution description (alphanumeric characters, spaces, periods, and commas only)"></textarea>
+                <div class="char-count"><span id="charCount">0</span>/500 characters</div>
+            </div>
+            <div class="form-row">
+                <label for="attachmentInput">Attachment or Photo:</label>
+                <input type="file" id="attachmentInput" accept="image/*,application/pdf" capture="environment">
+                <div class="info-box">
+                    <div class="info">Original File Name:</div>
+                    <div class="info-location" id="originalFileName">No file selected</div>
+                    <div class="info">Contribution File Name:</div>
+                    <div class="info-location" id="contributionFileName">Waiting for file selection...</div>
+                    <div class="info">Contribution File Location:</div>
+                    <div class="info-location" id="contributionLocation">Waiting for file selection...</div>
+                </div>
+            </div>
+            <button id="submitButton" disabled>Submit Contribution Report</button>
+            <div id="outputMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
+        let contributorName = '';
+        let allContributors = [];
+
+        function arrayBufferToBase64(buffer) {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        function generateContributionFileName(originalFileName) {
+            const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+            const cleanContributorName = contributorName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            const cleanFileName = originalFileName.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
+            return `contribution_${timestamp}_${cleanContributorName}_${cleanFileName}`;
+        }
+
+        function updateFileInfo(fileName) {
+            const originalFileNameElement = document.getElementById('originalFileName');
+            const contributionFileNameElement = document.getElementById('contributionFileName');
+            const contributionLocationElement = document.getElementById('contributionLocation');
+
+            if (fileName) {
+                originalFileNameElement.textContent = fileName;
+                const contributionFileName = generateContributionFileName(fileName);
+                contributionFileNameElement.textContent = contributionFileName;
+                contributionLocationElement.textContent = `${REPO_BASE_URL}${contributionFileName}`;
+            } else {
+                originalFileNameElement.textContent = 'No file selected';
+                contributionFileNameElement.textContent = 'Waiting for file selection...';
+                contributionLocationElement.textContent = 'Waiting for file selection...';
+            }
+        }
+
+        function validateDescription(description) {
+            return /^[a-zA-Z0-9 .,]*$/.test(description);
+        }
+
+        function calculateTDG(type, amount, contributorsCount) {
+            if (!type || !amount || !contributorsCount) return [];
+            const tdgPerContributor = type === 'Time' ? parseFloat(amount) * 100 : parseFloat(amount);
+            return Array(contributorsCount).fill(tdgPerContributor.toFixed(2));
+        }
+
+        function updateTDGOutput() {
+            const typeSel = document.getElementById('typeSelect');
+            const amountInput = document.getElementById('amountInput');
+            const contributorSel = document.getElementById('contributorSelect');
+            const tdgOutput = document.getElementById('tdgOutput');
+            const contributorsCount = contributorSel.selectedOptions.length;
+            const type = typeSel.value;
+            const amount = amountInput.value;
+
+            if (type && amount && contributorsCount > 0) {
+                const tdgValues = calculateTDG(type, amount, contributorsCount);
+                const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
+                const tdgText = contributorNames.map((name, index) => `${name}: ${tdgValues[index]} TDG`).join(', ');
+                tdgOutput.textContent = `TDG to be issued: ${tdgText}`;
+            } else {
+                tdgOutput.textContent = '';
+            }
+        }
+
+        function filterContributors() {
+            const filterInput = document.getElementById('contributorFilter').value.toLowerCase();
+            const sel = document.getElementById('contributorSelect');
+            const selectedValues = Array.from(sel.selectedOptions).map(opt => opt.value);
+            const selectedContributors = allContributors.filter(contributor => selectedValues.includes(contributor.key));
+            
+            sel.innerHTML = '';
+            const filteredContributors = allContributors.filter(contributor => 
+                contributor.name.toLowerCase().includes(filterInput) || selectedValues.includes(contributor.key)
+            );
+
+            if (filteredContributors.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'No contributors found';
+                sel.appendChild(opt);
+            } else {
+                filteredContributors.forEach(contributor => {
+                    const opt = document.createElement('option');
+                    opt.value = contributor.key;
+                    opt.textContent = contributor.name;
+                    opt.selected = selectedValues.includes(contributor.key) || contributor.name === contributorName;
+                    sel.appendChild(opt);
+                });
+            }
+            updateSubmitButtonState();
+        }
+
+        async function loadContributors() {
+            try {
+                const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?recipients=true');
+                allContributors = await res.json();
+                filterContributors();
+            } catch (err) {
+                console.error('Error loading contributors:', err);
+                document.getElementById('outputMessage').textContent = 'Error loading contributors: ' + err.message;
+                document.getElementById('outputMessage').className = 'error';
+            }
+        }
+
+        function updateSubmitButtonState() {
+            const contributorSel = document.getElementById('contributorSelect');
+            const typeSel = document.getElementById('typeSelect');
+            const amountInput = document.getElementById('amountInput');
+            const descriptionInput = document.getElementById('descriptionInput');
+            const submitBtn = document.getElementById('submitButton');
+            const selectedContributors = Array.from(contributorSel.selectedOptions).length > 0;
+            submitBtn.disabled = !(selectedContributors && typeSel.value && amountInput.value && amountInput.value > 0 && descriptionInput.value);
+            updateTDGOutput();
+        }
+
+        async function onSubmit() {
+            const contributorSel = document.getElementById('contributorSelect');
+            const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
+            const typeSel = document.getElementById('typeSelect');
+            const typeName = typeSel.value;
+            const amount = document.getElementById('amountInput').value;
+            const description = document.getElementById('descriptionInput').value;
+            const attachmentInput = document.getElementById('attachmentInput');
+            const output = document.getElementById('outputMessage');
+            const publicKey = localStorage.getItem('publicKey');
+            const privateKey = localStorage.getItem('privateKey');
+
+            if (!publicKey || !privateKey) {
+                output.textContent = 'No digital signature found. Redirecting to create one...';
+                output.className = 'error';
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            if (!validateDescription(description)) {
+                output.textContent = 'Description contains invalid characters. Only letters, numbers, spaces, periods, and commas are allowed.';
+                output.className = 'error';
+                return;
+            }
+
+            let fileName = '';
+            let file = null;
+            if (attachmentInput.files.length > 0) {
+                file = attachmentInput.files[0];
+                fileName = file.name;
+            }
+
+            try {
+                const contributionFileName = fileName ? generateContributionFileName(fileName) : '';
+                const contributionLocation = fileName ? `${REPO_BASE_URL}${contributionFileName}` : 'No file attached';
+                const contributorsCount = contributorNames.length;
+                const tdgValues = calculateTDG(typeName, amount, contributorsCount);
+                const tdgText = contributorNames.map((name, index) => `${name}: ${tdgValues[index]} TDG`).join(', ');
+                const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName}\n- Amount: ${amount}\n- Description: ${description}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;
+
+                const privateKeyObj = await window.crypto.subtle.importKey(
+                    "pkcs8",
+                    base64ToArrayBuffer(privateKey),
+                    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+                    false,
+                    ["sign"]
+                );
+
+                const encoder = new TextEncoder();
+                const signature = await window.crypto.subtle.sign(
+                    "RSASSA-PKCS1-v1_5",
+                    privateKeyObj,
+                    encoder.encode(requestText)
+                );
+                const requestHash = arrayBufferToBase64(signature);
+                const telegramLink = 'https://t.me/TrueSightDAO';
+                const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
+
+                if (isMobileDevice() && navigator.share) {
+                    const shareData = { text: shareText };
+                    if (file) {
+                        shareData.files = [file];
+                    }
+                    await navigator.share(shareData);
+                    output.innerHTML = `Report shared successfully. Please ensure it is posted in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+                    output.className = 'status';
+                } else {
+                    await navigator.clipboard.writeText(shareText);
+                    output.innerHTML = `Report copied to clipboard. Please paste it${file ? ' with the file' : ''} in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+                    output.className = 'status';
+                }
+            } catch (err) {
+                output.innerHTML = `Error generating contribution report: ${err.message}. Please try again or contact support.`;
+                output.className = 'error';
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            const publicKey = localStorage.getItem('publicKey');
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading fade-in';
+
+            if (!publicKey) {
+                statusElement.textContent = 'No digital signature found. Redirecting...';
+                statusElement.className = 'error fade-in';
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            try {
+                const timestamp = new Date().toISOString();
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    statusElement.textContent = 'Error: ' + data.error;
+                    statusElement.className = 'error fade-in';
+                    return;
+                }
+
+                contributorName = data.contributor_name;
+                document.getElementById('info').style.display = 'block';
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+
+                loadContributors();
+                document.getElementById('contributorSelect').addEventListener('change', updateSubmitButtonState);
+                document.getElementById('typeSelect').addEventListener('change', function() {
+                    document.getElementById('amountInput').disabled = !this.value;
+                    updateSubmitButtonState();
+                });
+                document.getElementById('amountInput').addEventListener('input', updateSubmitButtonState);
+                const descriptionInput = document.getElementById('descriptionInput');
+                const charCount = document.getElementById('charCount');
+
+                descriptionInput.addEventListener('input', function() {
+                    this.value = this.value.replace(/[^a-zA-Z0-9 .,]/g, '');
+                    charCount.textContent = this.value.length;
+                    updateSubmitButtonState();
+                });
+
+                descriptionInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                    }
+                });
+
+                document.getElementById('attachmentInput').addEventListener('change', function() {
+                    updateFileInfo(this.files[0]?.name || '');
+                    updateSubmitButtonState();
+                });
+                document.getElementById('submitButton').addEventListener('click', onSubmit);
+                document.getElementById('contributorFilter').addEventListener('input', filterContributors);
+            } catch (error) {
+                statusElement.textContent = 'Error fetching data: ' + error.message;
+                statusElement.className = 'error fade-in';
+                document.getElementById('submitButton').style.display = 'none';
+            }
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { scope: './' })
+                .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+                .catch(err => console.warn('Service Worker registration failed:', err));
+        }
+    </script>
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const url = new URL(window.location.href);
+        url.searchParams.set('reload', 'true');
+        const a = document.createElement('a');
+        a.href = url.toString();
+        a.textContent = 'Reload Latest Version';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
+    </script>
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const a = document.createElement('a');
+        a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/report_dao_contribution.html';
+        a.textContent = 'View Source Code';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
+    </script>
+</body>
+</html>
