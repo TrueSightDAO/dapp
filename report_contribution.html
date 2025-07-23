@@ -296,6 +296,7 @@
                 <select id="typeSelect">
                     <option value="">Select a type</option>
                     <option value="Time">Time (Hours)</option>
+                    <option value="Minutes">Time (Minutes)</option>
                     <option value="USD">USD</option>
                 </select>
             </div>
@@ -377,8 +378,14 @@
 
         function calculateTDG(type, amount, contributorsCount) {
             if (!type || !amount || !contributorsCount) return [];
-            const tdgPerContributor = type === 'Time' ? parseFloat(amount) * 100 : parseFloat(amount);
-            return Array(contributorsCount).fill(tdgPerContributor.toFixed(2));
+            let tdgPerContributor;
+            if (type === 'Minutes') {
+                tdgPerContributor = (parseFloat(amount) * 100 / 60).toFixed(2); // 100 TDG per hour, so 100/60 TDG per minute
+            } else {
+                tdgPerContributor = type === 'Time' ? parseFloat(amount) * 100 : parseFloat(amount);
+                tdgPerContributor = tdgPerContributor.toFixed(2);
+            }
+            return Array(contributorsCount).fill(tdgPerContributor);
         }
 
         function updateTDGOutput() {
@@ -394,7 +401,8 @@
                 const tdgValues = calculateTDG(type, amount, contributorsCount);
                 const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
                 const tdgText = contributorNames.map((name, index) => `${name}: ${tdgValues[index]} TDG`).join(', ');
-                tdgOutput.textContent = `TDG to be issued: ${tdgText}`;
+                const unit = type === 'Minutes' ? 'minutes' : type === 'Time' ? 'hours' : 'USD';
+                tdgOutput.textContent = `TDG to be issued (based on ${amount} ${unit}): ${tdgText}`;
             } else {
                 tdgOutput.textContent = '';
             }
@@ -532,13 +540,16 @@
             const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
             const typeSel = document.getElementById('typeSelect');
             const typeName = typeSel.value;
-            const amount = document.getElementById('amountInput').value;
+            const amountInput = document.getElementById('amountInput');
             const description = document.getElementById('descriptionInput').value;
             const attachmentInput = document.getElementById('attachmentInput');
             const output = document.getElementById('outputMessage');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const inputMethod = document.getElementById('inputMethod').value;
+
+            // Convert minutes to hours for backend compatibility
+            const amount = typeName === 'Minutes' ? (parseFloat(amountInput.value) / 60).toFixed(2) : amountInput.value;
 
             if (!publicKey || !privateKey) {
                 output.textContent = 'No digital signature found. Redirecting to create one...';
@@ -567,20 +578,17 @@
                         file = new File([blob], 'capture.png', { type: 'image/png' });
                         fileName = 'capture.png';
                     }
-                    submitReport(file, fileName);
+                    submitReport(file, fileName, typeName, amount);
                 }, 'image/png');
                 return;
             }
 
-            submitReport(file, fileName);
+            submitReport(file, fileName, typeName, amount);
         }
 
-        async function submitReport(file, fileName) {
+        async function submitReport(file, fileName, typeName, amount) {
             const contributorSel = document.getElementById('contributorSelect');
             const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
-            const typeSel = document.getElementById('typeSelect');
-            const typeName = typeSel.value;
-            const amount = document.getElementById('amountInput').value;
             const description = document.getElementById('descriptionInput').value;
             const output = document.getElementById('outputMessage');
             const publicKey = localStorage.getItem('publicKey');
@@ -589,9 +597,9 @@
                 const contributionFileName = fileName ? generateContributionFileName(fileName) : '';
                 const contributionLocation = fileName ? `${REPO_BASE_URL}${contributionFileName}` : 'No file attached';
                 const contributorsCount = contributorNames.length;
-                const tdgValues = calculateTDG(typeName, amount, contributorsCount);
+                const tdgValues = calculateTDG(typeName, typeName === 'Minutes' ? parseFloat(amount) * 60 : amount, contributorsCount);
                 const tdgText = tdgValues[0];
-                const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName}\n- Amount: ${amount}\n- Description: ${description}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;
+                const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName === 'Minutes' ? 'Time' : typeName}\n- Amount: ${amount}\n- Description: ${description}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
@@ -669,6 +677,10 @@
                 document.getElementById('contributorSelect').addEventListener('change', updateSubmitButtonState);
                 document.getElementById('typeSelect').addEventListener('change', function() {
                     document.getElementById('amountInput').disabled = !this.value;
+                    const amountInput = document.getElementById('amountInput');
+                    amountInput.step = this.value === 'Minutes' ? '1' : '0.01';
+                    amountInput.min = this.value === 'Minutes' ? '1' : '0.01';
+                    amountInput.value = '';
                     updateSubmitButtonState();
                 });
                 document.getElementById('amountInput').addEventListener('input', updateSubmitButtonState);
