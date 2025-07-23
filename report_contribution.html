@@ -268,8 +268,8 @@
             <div class="form-row">
                 <label for="inputMethod">Input Method:</label>
                 <select id="inputMethod">
+                    <option value="upload" selected>Upload File or Image</option>                    
                     <option value="camera">Use Camera</option>
-                    <option value="upload">Upload File or Image</option>
                 </select>
             </div>
             <div class="form-row" id="upload-section" style="display: none;">
@@ -306,7 +306,7 @@
             </div>
             <div class="form-row">
                 <label for="descriptionInput">Contribution Description:</label>
-                <textarea id="descriptionInput" maxlength="500" placeholder="Enter contribution description (alphanumeric characters, spaces, periods, and commas only)"></textarea>
+                <textarea id="descriptionInput" maxlength="500" placeholder="Enter contribution description"></textarea>
                 <div class="char-count"><span id="charCount">0</span>/500 characters</div>
             </div>
             <div class="form-row">
@@ -372,7 +372,7 @@
         }
 
         function validateDescription(description) {
-            return /^[a-zA-Z0-9 .,]*$/.test(description);
+            return !/[\n\r]/.test(description);
         }
 
         function calculateTDG(type, amount, contributorsCount) {
@@ -550,7 +550,7 @@
             }
 
             if (!validateDescription(description)) {
-                output.textContent = 'Description contains invalid characters. Only letters, numbers, spaces, periods, and commas are allowed.';
+                output.textContent = 'Description contains invalid characters (newlines). Please remove any line breaks.';
                 output.className = 'error';
                 return;
             }
@@ -676,7 +676,7 @@
                 const charCount = document.getElementById('charCount');
 
                 descriptionInput.addEventListener('input', function() {
-                    this.value = this.value.replace(/[^a-zA-Z0-9 .,]/g, '');
+                    this.value = this.value.replace(/[\n\r]/g, '');
                     charCount.textContent = this.value.length;
                     updateSubmitButtonState();
                 });

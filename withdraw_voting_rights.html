@@ -545,7 +545,7 @@
 
       try {
         const timestamp = new Date().toISOString();
-        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestamp=${encodeURIComponent(timestamp)}`);
+        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestamp=${encodeURIComponent(timestamp)}&full=true`);
         const data = await response.json();
 
         if (data.error) {

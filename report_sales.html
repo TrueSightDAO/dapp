@@ -268,8 +268,8 @@
             <div class="form-row">
                 <label for="inputMethod">QR Code Input:</label>
                 <select id="inputMethod">
+                    <option value="upload" selected>Upload Image</option>                    
                     <option value="camera">Use Camera</option>
-                    <option value="upload">Upload Image</option>
                 </select>
             </div>
             <div class="form-row" id="upload-section" style="display: none;">
@@ -677,7 +677,7 @@
 
             try {
                 const timestamp = new Date().toISOString();
-                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestamp=${encodeURIComponent(timestamp)}`);
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
                 const data = await response.json();
 
                 if (data.error) {
