@@ -122,6 +122,36 @@
             max-width: 100%;
             word-wrap: break-word;
         }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info-box {
+            margin: 1rem 0;
+            background-color: #f8f9fa;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.95rem;
+        }
+        .info {
+            font-weight: bold;
+            text-align: left;
+            font-size: 1rem;
+            margin: 0.5rem 0;
+        }
+        .info-location {
+            font-weight: normal;
+            margin-left: 1.5rem;
+            line-height: 1.4;
+        }
+        #telegramLink {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
         @media (max-width: 600px) {
             body {
                 margin: 0.5rem;
@@ -167,6 +197,16 @@
         <div class="form-row" id="upload-section" style="display: none;">
             <label for="fileInput">Upload File or Image:</label>
             <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx,.txt">
+            <div class="info-box">
+                <div class="info">Original File Name:</div>
+                <div class="info-location" id="originalFileName">No file selected</div>
+                <div class="info">Inventory Report File Name:</div>
+                <div class="info-location" id="inventoryFileName">Waiting for file selection...</div>
+                <div class="info">Inventory Report Location:</div>
+                <div class="info-location" id="inventoryLocation">Waiting for file selection...</div>
+                <div class="info">Current Location:</div>
+                <div class="info-location" id="location">Waiting for geolocation...</div>
+            </div>
         </div>
         <div id="video-holder">
             <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
@@ -200,6 +240,8 @@
         <div id="reportOutput"></div>
     </div>
     <script>
+        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
         // Register Service Worker for offline support
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('service-worker.js', { scope: './' })
@@ -217,6 +259,65 @@
         let assets = [];
         let currentStream = null;
         let uploadedFile = null;
+        let latitude = null;
+        let longitude = null;
+        let contributorName = '';
+
+        function arrayBufferToBase64(buffer) {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        function generateInventoryFileName(originalFileName) {
+            const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+            const cleanContributorName = contributorName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            const cleanFileName = originalFileName.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
+            return `inventory_${timestamp}_${cleanContributorName}_${cleanFileName}`;
+        }
+
+        function updateFileInfo(fileName) {
+            const originalFileNameElement = document.getElementById('originalFileName');
+            const inventoryFileNameElement = document.getElementById('inventoryFileName');
+            const inventoryLocationElement = document.getElementById('inventoryLocation');
+
+            if (fileName) {
+                originalFileNameElement.textContent = fileName;
+                const inventoryFileName = generateInventoryFileName(fileName);
+                inventoryFileNameElement.textContent = inventoryFileName;
+                inventoryLocationElement.textContent = `${REPO_BASE_URL}${inventoryFileName}`;
+            } else {
+                originalFileNameElement.textContent = 'No file selected';
+                inventoryFileNameElement.textContent = 'Waiting for file selection...';
+                inventoryLocationElement.textContent = 'Waiting for file selection...';
+            }
+        }
+
+        function getLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation not supported on this device.'));
+                }
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        latitude = position.coords.latitude.toFixed(6);
+                        longitude = position.coords.longitude.toFixed(6);
+                        resolve({ latitude, longitude });
+                    },
+                    error => reject(new Error('Error getting location: ' + error.message)),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            });
+        }
 
         // Start camera and draw to canvas
         async function startCamera() {
@@ -268,6 +369,7 @@
                 uploadedFile = null;
                 uploadedFilePreview.src = '';
                 document.getElementById('reportOutput').textContent = '';
+                updateFileInfo('');
                 startCamera();
             } else {
                 stopCamera();
@@ -277,6 +379,7 @@
                 uploadedFile = null;
                 uploadedFilePreview.src = '';
                 document.getElementById('reportOutput').textContent = '';
+                updateFileInfo('');
             }
             updateReportButtonState();
         }
@@ -286,6 +389,7 @@
             if (fileInput.files.length > 0) {
                 uploadedFile = fileInput.files[0];
                 const isImage = uploadedFile.type.startsWith('image/');
+                updateFileInfo(uploadedFile.name);
                 if (isImage) {
                     const reader = new FileReader();
                     reader.onload = (e) => {
@@ -296,6 +400,7 @@
                         document.getElementById('reportOutput').textContent = 'Error reading file. Please try uploading again.';
                         uploadedFilePreview.style.display = 'none';
                         uploadedFile = null;
+                        updateFileInfo('');
                     };
                     reader.readAsDataURL(uploadedFile);
                 } else {
@@ -306,6 +411,7 @@
                 uploadedFile = null;
                 uploadedFilePreview.src = '';
                 uploadedFilePreview.style.display = 'none';
+                updateFileInfo('');
             }
             updateReportButtonState();
         });
@@ -403,7 +509,7 @@
             const recSel = document.getElementById('recipientSelect');
             const qtyInput = document.getElementById('quantityInput');
             const btn = document.getElementById('reportButton');
-            btn.disabled = !(managerSel.value && itemSel.value && recSel.value && qtyInput.value);
+            btn.disabled = !(managerSel.value && itemSel.value && recSel.value && qtyInput.value && (inputMethod.value === 'camera' || uploadedFile));
         }
 
         async function onReport() {
@@ -414,55 +520,84 @@
             const itemSel = document.getElementById('itemSelect');
             const itemName = itemSel.value;
             const quantity = document.getElementById('quantityInput').value;
-            const text = `[INVENTORY MOVEMENT]\nmanager name: ${managerName}\nrecipient name: ${recipientName}\ninventory item: ${itemName}\nquantity: ${quantity}\n\nThis submission was generated using ${window.location.href}`;
             const output = document.getElementById('reportOutput');
-            output.textContent = '';
-            
-            const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const publicKey = localStorage.getItem('publicKey');
+            const privateKey = localStorage.getItem('privateKey');
 
-            if (isMobile && navigator.share) {
-                const fileToShare = inputMethod.value === 'upload' && uploadedFile ? uploadedFile : null;
-                if (fileToShare && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-                    navigator.share({ text, files: [fileToShare] })
-                        .then(() => { output.textContent = 'Shared successfully.'; })
-                        .catch(err => { output.textContent = 'Error sharing: ' + err; });
-                } else {
-                    canvas.toBlob(blob => {
-                        const shareData = { text };
-                        if (blob && inputMethod.value === 'camera') {
-                            const file = new File([blob], 'image.png', { type: blob.type });
-                            if (navigator.canShare({ files: [file] })) {
-                                shareData.files = [file];
-                            }
+            if (!latitude || !longitude) {
+                output.textContent = 'Location not available. Please allow location access and try again.';
+                output.className = 'error';
+                return;
+            }
+
+            if (!publicKey || !privateKey) {
+                output.textContent = 'No digital signature found. Redirecting to create one...';
+                output.className = 'error';
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            let fileName = '';
+            let fileToShare = null;
+            if (inputMethod.value === 'upload' && uploadedFile) {
+                fileToShare = uploadedFile;
+                fileName = uploadedFile.name;
+            } else if (inputMethod.value === 'camera') {
+                fileName = 'captured_image.png';
+            }
+
+            try {
+                const inventoryFileName = generateInventoryFileName(fileName);
+                const inventoryLocation = `${REPO_BASE_URL}${inventoryFileName}`;
+                const requestText = `[INVENTORY MOVEMENT]\n- Manager Name: ${managerName}\n- Recipient Name: ${recipientName}\n- Inventory Item: ${itemName}\n- Quantity: ${quantity}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Attached Filename: ${fileName}\n- Destination Inventory File Location: ${inventoryLocation}\n- Submission Source: ${window.location.href}\n--------`;
+
+                const privateKeyObj = await window.crypto.subtle.importKey(
+                    "pkcs8",
+                    base64ToArrayBuffer(privateKey),
+                    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+                    false,
+                    ["sign"]
+                );
+
+                const encoder = new TextEncoder();
+                const signature = await window.crypto.subtle.sign(
+                    "RSASSA-PKCS1-v1_5",
+                    privateKeyObj,
+                    encoder.encode(requestText)
+                );
+                const requestHash = arrayBufferToBase64(signature);
+                const telegramLink = 'https://t.me/TrueSightDAO';
+                const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
+
+                const isMobile = isMobileDevice();
+                if (isMobile && navigator.share) {
+                    const shareData = { text: shareText };
+                    if (fileToShare && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+                        shareData.files = [fileToShare];
+                    } else if (inputMethod.value === 'camera') {
+                        const blob = await new Promise(resolve => canvas.toBlob(resolve));
+                        const file = new File([blob], 'image.png', { type: blob.type });
+                        if (navigator.canShare({ files: [file] })) {
+                            shareData.files = [file];
                         }
-                        navigator.share(shareData)
-                            .then(() => { output.textContent = 'Shared successfully.'; })
-                            .catch(err => { output.textContent = 'Error sharing: ' + err; });
-                    });
+                    }
+                    await navigator.share(shareData);
+                    output.innerHTML = `Report shared successfully. Please ensure it is posted in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+                    output.className = 'status';
+                } else {
+                    await navigator.clipboard.writeText(shareText);
+                    output.innerHTML = `Report copied to clipboard. Please paste it with the file in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+                    output.className = 'status';
                 }
-            } else if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text)
-                    .then(() => { output.textContent = 'Report text copied to clipboard.'; })
-                    .catch(err => { output.textContent = 'Failed to copy text: ' + err; });
-            } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.focus();
-                textarea.select();
-                try {
-                    document.execCommand('copy');
-                    output.textContent = 'Report text copied to clipboard.';
-                } catch (err) {
-                    output.textContent = 'Failed to copy text: ' + err;
-                }
-                document.body.removeChild(textarea);
+            } catch (err) {
+                output.innerHTML = `Error generating inventory report: ${err.message}. Please try again or contact support.`;
+                output.className = 'error';
             }
         }
 
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             loadManagers();
             loadRecipients();
             toggleInputMethod();
@@ -472,6 +607,41 @@
             document.getElementById('recipientSelect').addEventListener('change', updateReportButtonState);
             document.getElementById('quantityInput').addEventListener('input', updateReportButtonState);
             document.getElementById('reportButton').addEventListener('click', onReport);
+
+            try {
+                const location = await getLocation();
+                document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
+            } catch (error) {
+                document.getElementById('location').textContent = error.message;
+                document.getElementById('reportOutput').textContent = 'Location access denied. Please allow location permissions.';
+                document.getElementById('reportOutput').className = 'error';
+                document.getElementById('reportButton').style.display = 'none';
+            }
+
+            const publicKey = localStorage.getItem('publicKey');
+            if (!publicKey) {
+                document.getElementById('reportOutput').textContent = 'No digital signature found. Redirecting...';
+                document.getElementById('reportOutput').className = 'error';
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
+                const data = await response.json();
+                if (data.error) {
+                    document.getElementById('reportOutput').textContent = 'Error: ' + data.error;
+                    document.getElementById('reportOutput').className = 'error';
+                    return;
+                }
+                contributorName = data.contributor_name;
+            } catch (error) {
+                document.getElementById('reportOutput').textContent = 'Error fetching data: ' + error.message;
+                document.getElementById('reportOutput').className = 'error';
+                document.getElementById('reportButton').style.display = 'none';
+            }
         });
     </script>
     <!-- Reload latest version link -->
