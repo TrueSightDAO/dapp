@@ -637,7 +637,7 @@
                 const amountText = typeName === 'Time' 
                     ? `${(parseFloat(hoursInput.value || 0) * 60 + parseFloat(minutesInput.value || 0))}`
                     : amount;
-                const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName}\n- Amount: ${amountText}\n- Description: ${description}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;
+                const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName === 'Time' ? 'Time (Minutes)' : typeName}\n- Amount: ${amountText}\n- Description: ${description}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
