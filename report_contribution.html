@@ -139,9 +139,10 @@
             background-color: #007bff;
             color: white;
             transition: background-color 0.2s, transform 0.1s;
-            margin: 0.5rem 0;
+            margin: 0.5rem auto; /* Center the button */
             width: 100%;
             max-width: 300px;
+            display: block; /* Ensure block-level for centering */
         }
         button:hover {
             background-color: #0056b3;
@@ -220,6 +221,13 @@
             margin-left: auto;
             margin-right: auto;
         }
+        .time-inputs {
+            display: flex;
+            gap: 1rem;
+        }
+        .time-inputs input {
+            flex: 1;
+        }
         @media (max-width: 600px) {
             body {
                 margin: 0.5rem;
@@ -248,6 +256,10 @@
             .info, .info-location {
                 font-size: 0.95rem;
                 text-align: center;
+            }
+            .time-inputs {
+                flex-direction: column;
+                gap: 0.5rem;
             }
         }
     </style>
@@ -295,14 +307,17 @@
                 <label for="typeSelect">Contribution Type:</label>
                 <select id="typeSelect">
                     <option value="">Select a type</option>
-                    <option value="Time">Time (Hours)</option>
-                    <option value="Minutes">Time (Minutes)</option>
+                    <option value="Time">Time</option>
                     <option value="USD">USD</option>
                 </select>
             </div>
-            <div class="form-row">
-                <label for="amountInput">Contribution Amount:</label>
-                <input type="number" id="amountInput" min="0.01" step="0.01" disabled>
+            <div class="form-row" id="amountInputSection" style="display: none;">
+                <label for="hoursInput">Contribution Amount:</label>
+                <div class="time-inputs">
+                    <input type="number" id="hoursInput" min="0" step="1" placeholder="Hours" disabled>
+                    <input type="number" id="minutesInput" min="0" max="59" step="1" placeholder="Minutes" disabled>
+                </div>
+                <input type="number" id="usdInput" min="0.01" step="0.01" placeholder="USD" style="display: none;" disabled>
                 <div id="tdgOutput"></div>
             </div>
             <div class="form-row">
@@ -376,33 +391,45 @@
             return !/[\n\r]/.test(description);
         }
 
-        function calculateTDG(type, amount, contributorsCount) {
-            if (!type || !amount || !contributorsCount) return [];
+        function calculateTDG(type, hours, minutes, usd, contributorsCount) {
+            if (!type || !contributorsCount) return [];
             let tdgPerContributor;
-            if (type === 'Minutes') {
-                tdgPerContributor = (parseFloat(amount) * 100 / 60).toFixed(2); // 100 TDG per hour, so 100/60 TDG per minute
+            if (type === 'Time') {
+                const totalHours = parseFloat(hours || 0) + parseFloat(minutes || 0) / 60;
+                tdgPerContributor = (totalHours * 100).toFixed(2); // 100 TDG per hour
             } else {
-                tdgPerContributor = type === 'Time' ? parseFloat(amount) * 100 : parseFloat(amount);
-                tdgPerContributor = tdgPerContributor.toFixed(2);
+                tdgPerContributor = parseFloat(usd).toFixed(2);
             }
             return Array(contributorsCount).fill(tdgPerContributor);
         }
 
         function updateTDGOutput() {
             const typeSel = document.getElementById('typeSelect');
-            const amountInput = document.getElementById('amountInput');
+            const hoursInput = document.getElementById('hoursInput');
+            const minutesInput = document.getElementById('minutesInput');
+            const usdInput = document.getElementById('usdInput');
             const contributorSel = document.getElementById('contributorSelect');
             const tdgOutput = document.getElementById('tdgOutput');
             const contributorsCount = contributorSel.selectedOptions.length;
             const type = typeSel.value;
-            const amount = amountInput.value;
+            const hours = hoursInput.value;
+            const minutes = minutesInput.value;
+            const usd = usdInput.value;
 
-            if (type && amount && contributorsCount > 0) {
-                const tdgValues = calculateTDG(type, amount, contributorsCount);
+            if (type && contributorsCount > 0) {
+                const tdgValues = calculateTDG(type, hours, minutes, usd, contributorsCount);
                 const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
                 const tdgText = contributorNames.map((name, index) => `${name}: ${tdgValues[index]} TDG`).join(', ');
-                const unit = type === 'Minutes' ? 'minutes' : type === 'Time' ? 'hours' : 'USD';
-                tdgOutput.textContent = `TDG to be issued (based on ${amount} ${unit}): ${tdgText}`;
+                if (type === 'Time' && (hours || minutes)) {
+                    const hoursText = hours ? `${hours} hour${hours == 1 ? '' : 's'}` : '';
+                    const minutesText = minutes ? `${minutes} minute${minutes == 1 ? '' : 's'}` : '';
+                    const timeText = [hoursText, minutesText].filter(t => t).join(' and ');
+                    tdgOutput.textContent = `TDG to be issued (based on ${timeText}): ${tdgText}`;
+                } else if (type === 'USD' && usd) {
+                    tdgOutput.textContent = `TDG to be issued (based on ${usd} USD): ${tdgText}`;
+                } else {
+                    tdgOutput.textContent = '';
+                }
             } else {
                 tdgOutput.textContent = '';
             }
@@ -451,11 +478,15 @@
         function updateSubmitButtonState() {
             const contributorSel = document.getElementById('contributorSelect');
             const typeSel = document.getElementById('typeSelect');
-            const amountInput = document.getElementById('amountInput');
+            const hoursInput = document.getElementById('hoursInput');
+            const minutesInput = document.getElementById('minutesInput');
+            const usdInput = document.getElementById('usdInput');
             const descriptionInput = document.getElementById('descriptionInput');
             const submitBtn = document.getElementById('submitButton');
             const selectedContributors = Array.from(contributorSel.selectedOptions).length > 0;
-            submitBtn.disabled = !(selectedContributors && typeSel.value && amountInput.value && amountInput.value > 0 && descriptionInput.value);
+            const isTimeValid = typeSel.value === 'Time' && (hoursInput.value > 0 || minutesInput.value > 0);
+            const isUSDValid = typeSel.value === 'USD' && usdInput.value > 0;
+            submitBtn.disabled = !(selectedContributors && typeSel.value && (isTimeValid || isUSDValid) && descriptionInput.value);
             updateTDGOutput();
         }
 
@@ -540,7 +571,9 @@
             const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
             const typeSel = document.getElementById('typeSelect');
             const typeName = typeSel.value;
-            const amountInput = document.getElementById('amountInput');
+            const hoursInput = document.getElementById('hoursInput');
+            const minutesInput = document.getElementById('minutesInput');
+            const usdInput = document.getElementById('usdInput');
             const description = document.getElementById('descriptionInput').value;
             const attachmentInput = document.getElementById('attachmentInput');
             const output = document.getElementById('outputMessage');
@@ -548,8 +581,9 @@
             const privateKey = localStorage.getItem('privateKey');
             const inputMethod = document.getElementById('inputMethod').value;
 
-            // Convert minutes to hours for backend compatibility
-            const amount = typeName === 'Minutes' ? (parseFloat(amountInput.value) / 60).toFixed(2) : amountInput.value;
+            const amount = typeName === 'Time' 
+                ? (parseFloat(hoursInput.value || 0) + parseFloat(minutesInput.value || 0) / 60).toFixed(2) 
+                : usdInput.value;
 
             if (!publicKey || !privateKey) {
                 output.textContent = 'No digital signature found. Redirecting to create one...';
@@ -589,6 +623,8 @@
         async function submitReport(file, fileName, typeName, amount) {
             const contributorSel = document.getElementById('contributorSelect');
             const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
+            const hoursInput = document.getElementById('hoursInput');
+            const minutesInput = document.getElementById('minutesInput');
             const description = document.getElementById('descriptionInput').value;
             const output = document.getElementById('outputMessage');
             const publicKey = localStorage.getItem('publicKey');
@@ -597,9 +633,12 @@
                 const contributionFileName = fileName ? generateContributionFileName(fileName) : '';
                 const contributionLocation = fileName ? `${REPO_BASE_URL}${contributionFileName}` : 'No file attached';
                 const contributorsCount = contributorNames.length;
-                const tdgValues = calculateTDG(typeName, typeName === 'Minutes' ? parseFloat(amount) * 60 : amount, contributorsCount);
+                const tdgValues = calculateTDG(typeName, hoursInput.value, minutesInput.value, amount, contributorsCount);
                 const tdgText = tdgValues[0];
-                const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName === 'Minutes' ? 'Time' : typeName}\n- Amount: ${amount}\n- Description: ${description}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;
+                const amountText = typeName === 'Time' 
+                    ? `${(parseFloat(hoursInput.value || 0) * 60 + parseFloat(minutesInput.value || 0))}`
+                    : amount;
+                const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName === 'Time' ? 'Time (Minutes)' : typeName}\n- Amount: ${amountText}\n- Description: ${description}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
@@ -676,14 +715,41 @@
                 document.getElementById('inputMethod').addEventListener('change', toggleInputMethod);
                 document.getElementById('contributorSelect').addEventListener('change', updateSubmitButtonState);
                 document.getElementById('typeSelect').addEventListener('change', function() {
-                    document.getElementById('amountInput').disabled = !this.value;
-                    const amountInput = document.getElementById('amountInput');
-                    amountInput.step = this.value === 'Minutes' ? '1' : '0.01';
-                    amountInput.min = this.value === 'Minutes' ? '1' : '0.01';
-                    amountInput.value = '';
+                    const amountSection = document.getElementById('amountInputSection');
+                    const hoursInput = document.getElementById('hoursInput');
+                    const minutesInput = document.getElementById('minutesInput');
+                    const usdInput = document.getElementById('usdInput');
+                    amountSection.style.display = this.value ? 'block' : 'none';
+                    if (this.value === 'Time') {
+                        hoursInput.style.display = 'block';
+                        minutesInput.style.display = 'block';
+                        usdInput.style.display = 'none';
+                        hoursInput.disabled = false;
+                        minutesInput.disabled = false;
+                        usdInput.disabled = true;
+                    } else if (this.value === 'USD') {
+                        hoursInput.style.display = 'none';
+                        minutesInput.style.display = 'none';
+                        usdInput.style.display = 'block';
+                        hoursInput.disabled = true;
+                        minutesInput.disabled = true;
+                        usdInput.disabled = false;
+                    } else {
+                        hoursInput.style.display = 'none';
+                        minutesInput.style.display = 'none';
+                        usdInput.style.display = 'none';
+                        hoursInput.disabled = true;
+                        minutesInput.disabled = true;
+                        usdInput.disabled = true;
+                    }
+                    hoursInput.value = '';
+                    minutesInput.value = '';
+                    usdInput.value = '';
                     updateSubmitButtonState();
                 });
-                document.getElementById('amountInput').addEventListener('input', updateSubmitButtonState);
+                document.getElementById('hoursInput').addEventListener('input', updateSubmitButtonState);
+                document.getElementById('minutesInput').addEventListener('input', updateSubmitButtonState);
+                document.getElementById('usdInput').addEventListener('input', updateSubmitButtonState);
                 const descriptionInput = document.getElementById('descriptionInput');
                 const charCount = document.getElementById('charCount');
 
