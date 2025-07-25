@@ -12,8 +12,9 @@
   <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
   <meta property="og:url" content="https://truesightdao.github.io/dapp/">
   <meta property="og:type" content="website">
+
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">    
+  <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
 
   <script src="./refreshWithTimestamp.js"></script>
   <style>
@@ -343,12 +344,24 @@
         const context = canvas.getContext('2d');
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Convert to blob
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
         imageFile = new File([blob], 'tree_photo.jpg', { type: 'image/jpeg' });
 
-        // Generate report
-        const requestText = `[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n--------`;
+        // New fields
+        const treeSpecies = "Cacao";
+        const plantingTime = new Date().toISOString();
+
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        const yyyymmddhhmmss = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+        const safePublicKey = publicKey.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
+
+        const photoCaptureDestinationURL = `https://github.com/TrueSightDAO/sunmint/tree/main/images/${yyyymmddhhmmss}_${safePublicKey}.jpg`;
+
+        const requestText = `[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}\n- Planting Time: ${plantingTime}\n- Photo URL: ${photoCaptureDestinationURL}\n--------`;
+
+
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
           base64ToArrayBuffer(privateKey),
@@ -364,9 +377,16 @@
           encoder.encode(requestText)
         );
         const requestHash = arrayBufferToBase64(signature);
-        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
+        const shareText = `${requestText}
 
-        // Share or copy to clipboard
+My Digital Signature: ${publicKey}
+
+Request Transaction ID: ${requestHash}
+
+This submission was generated using ${window.location.href}
+
+Verify submission here: https://dapp.truesight.me/verify_request.html`;
+
         if (isMobileDevice() && navigator.share) {
           await navigator.share({
             text: shareText,
@@ -380,7 +400,6 @@
           actionStatus.className = 'status';
         }
 
-        // Stop camera stream
         stream.getTracks().forEach(track => track.stop());
         stream = null;
         video.style.display = 'none';
@@ -422,11 +441,9 @@
         statusElement.textContent = 'Signature verified successfully';
         statusElement.className = 'status fade-in';
 
-        // Get geolocation
         try {
           const location = await getLocation();
           document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
-          // Start camera automatically
           startCamera();
         } catch (error) {
           document.getElementById('location').textContent = error.message;
@@ -441,6 +458,7 @@
       }
     };
   </script>
+
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js', { scope: './' })
@@ -448,7 +466,7 @@
         .catch(err => console.warn('Service Worker registration failed:', err));
     }
   </script>
-  <!-- Reload Latest Version link -->
+
   <script>
     (function() {
       const div = document.createElement('div');
@@ -466,7 +484,7 @@
       document.body.appendChild(div);
     })();
   </script>
-  <!-- View Source Code link -->
+
   <script>
     (function() {
       const div = document.createElement('div');
