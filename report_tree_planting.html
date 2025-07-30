@@ -228,10 +228,10 @@
     </div>
     <h1>Report Tree Planting</h1>
     <p id="description">
-      Point the camera at the planted tree, select the tree species, and click "Submit Report" to capture the photo and share it with your location to our community.
+      Point the camera at the planted tree, select the tree species, and click "Submit Report" to capture the photo and share it with your location via WhatsApp. Register your digital wallet when online.
     </p>
     <div id="welcome" style="display: none;"></div>
-    <p id="status" class="fade-in">Verifying your digital signature...</p>
+    <p id="status" class="fade-in">Setting up your signature...</p>
     <div id="info" style="display: none;">
       <video id="cameraPreview" autoplay playsinline></video>
       <canvas id="captureCanvas" style="display: none;"></canvas>
@@ -262,6 +262,7 @@
     let longitude = null;
     let imageFile = null;
     let stream = null;
+    let newKeysGenerated = false;
 
     function arrayBufferToBase64(buffer) {
       return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -276,6 +277,33 @@
 
     function isMobileDevice() {
       return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    function isOnline() {
+      return navigator.onLine;
+    }
+
+    async function generateKeyPair() {
+      const keyPair = await window.crypto.subtle.generateKey(
+        {
+          name: "RSASSA-PKCS1-v1_5",
+          modulusLength: 2048,
+          publicExponent: new Uint8Array([1, 0, 1]),
+          hash: "SHA-256"
+        },
+        true,
+        ["sign", "verify"]
+      );
+
+      const publicKey = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+      const privateKey = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+
+      const publicKeyBase64 = arrayBufferToBase64(publicKey);
+      const privateKeyBase64 = arrayBufferToBase64(privateKey);
+
+      localStorage.setItem('publicKey', publicKeyBase64);
+      localStorage.setItem('privateKey', privateKeyBase64);
+      newKeysGenerated = true;
     }
 
     function startCamera() {
@@ -354,11 +382,8 @@
       }
 
       if (!publicKey || !privateKey) {
-        actionStatus.textContent = 'No digital signature found. Redirecting to create one...';
+        actionStatus.textContent = 'Signature setup failed. Please try again.';
         actionStatus.className = 'error';
-        setTimeout(() => {
-          window.location.href = './create_signature.html';
-        }, 2000);
         return;
       }
 
@@ -413,24 +438,33 @@ Request Transaction ID: ${requestHash}
 
 This submission was generated using ${window.location.href}
 
-Verify submission here: https://dapp.truesight.me/verify_request.html`;
+Verify submission here: https://dapp.truesight.me/verify_request.html
+
+Please register your digital wallet at https://truesightdao.github.io/dapp/create_signature.html when online.`;
 
         if (isMobileDevice() && navigator.share) {
           await navigator.share({
             text: shareText,
             files: [imageFile]
           });
-          actionStatus.textContent = 'Report shared successfully!';
+          actionStatus.textContent = 'Report shared successfully via WhatsApp!';
           actionStatus.className = 'status';
         } else {
           await navigator.clipboard.writeText(shareText);
-          actionStatus.textContent = 'Report copied to clipboard! Share it with the photo in our Telegram group.';
+          actionStatus.textContent = 'Report copied to clipboard! Share it with the photo via WhatsApp.';
           actionStatus.className = 'status';
         }
 
         stream.getTracks().forEach(track => track.stop());
         stream = null;
         video.style.display = 'none';
+
+        if (newKeysGenerated && isOnline()) {
+          actionStatus.textContent += ' Please register your digital wallet at create_signature.html.';
+          setTimeout(() => {
+            window.location.href = './create_signature.html';
+          }, 3000);
+        }
       } catch (error) {
         actionStatus.textContent = 'Error generating report: ' + error.message;
         actionStatus.className = 'error';
@@ -438,17 +472,44 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
     }
 
     window.onload = async function () {
-      const publicKey = localStorage.getItem('publicKey');
       const statusElement = document.getElementById('status');
-      statusElement.textContent = 'Verifying your digital signature...';
+      statusElement.textContent = 'Setting up your signature...';
       statusElement.className = 'loading fade-in';
 
-      if (!publicKey) {
-        statusElement.textContent = 'No digital signature found. Redirecting...';
-        statusElement.className = 'error fade-in';
-        setTimeout(() => {
-          window.location.href = './create_signature.html';
-        }, 2000);
+      let publicKey = localStorage.getItem('publicKey');
+      let privateKey = localStorage.getItem('privateKey');
+
+      if (!publicKey || !privateKey) {
+        try {
+          await generateKeyPair();
+          publicKey = localStorage.getItem('publicKey');
+          privateKey = localStorage.getItem('privateKey');
+          statusElement.textContent = 'Signature created successfully';
+          statusElement.className = 'status fade-in';
+        } catch (error) {
+          statusElement.textContent = 'Error creating signature: ' + error.message;
+          statusElement.className = 'error fade-in';
+          return;
+        }
+      }
+
+      if (!isOnline()) {
+        statusElement.textContent = 'Offline mode: Please register your digital wallet when online.';
+        statusElement.className = 'warning fade-in';
+        document.getElementById('info').style.display = 'block';
+        document.getElementById('welcome').textContent = 'Welcome! (Offline Mode)';
+        document.getElementById('welcome').style.display = 'block';
+
+        try {
+          const location = await getLocation();
+          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
+          startCamera();
+        } catch (error) {
+          document.getElementById('location').textContent = error.message;
+          statusElement.textContent = 'Location access denied. Please allow location permissions.';
+          statusElement.className = 'error fade-in';
+          document.getElementById('submitButton').style.display = 'none';
+        }
         return;
       }
 
@@ -458,16 +519,16 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
         const data = await response.json();
 
         if (data.error) {
-          statusElement.textContent = 'Error: ' + data.error;
-          statusElement.className = 'error fade-in';
-          return;
+          statusElement.textContent = 'Signature not registered. Please register your digital wallet.';
+          statusElement.className = 'warning fade-in';
+        } else {
+          statusElement.textContent = 'Signature verified successfully';
+          statusElement.className = 'status fade-in';
+          document.getElementById('welcome').textContent = `Welcome back, ${data.contributor_name}!`;
         }
 
         document.getElementById('info').style.display = 'block';
-        document.getElementById('welcome').textContent = `Welcome back, ${data.contributor_name}!`;
         document.getElementById('welcome').style.display = 'block';
-        statusElement.textContent = 'Signature verified successfully';
-        statusElement.className = 'status fade-in';
 
         try {
           const location = await getLocation();
@@ -480,9 +541,22 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
           document.getElementById('submitButton').style.display = 'none';
         }
       } catch (error) {
-        statusElement.textContent = 'Error fetching data: ' + error.message;
-        statusElement.className = 'error fade-in';
-        document.getElementById('submitButton').style.display = 'none';
+        statusElement.textContent = 'Offline mode: Please register your digital wallet when online.';
+        statusElement.className = 'warning fade-in';
+        document.getElementById('info').style.display = 'block';
+        document.getElementById('welcome').textContent = 'Welcome! (Offline Mode)';
+        document.getElementById('welcome').style.display = 'block';
+
+        try {
+          const location = await getLocation();
+          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
+          startCamera();
+        } catch (error) {
+          document.getElementById('location').textContent = error.message;
+          statusElement.textContent = 'Location access denied. Please allow location permissions.';
+          statusElement.className = 'error fade-in';
+          document.getElementById('submitButton').style.display = 'none';
+        }
       }
     };
   </script>
