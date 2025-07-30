@@ -228,7 +228,7 @@
     </div>
     <h1>Report Tree Planting</h1>
     <p id="description">
-      Point the camera at the planted tree, select the tree species, and click "Submit Report" to capture the photo and share it with your location via WhatsApp. Register your digital wallet when online.
+      Point the camera at the planted tree, select the tree species, and click "Submit Report" to capture the photo and share it with your location via WhatsApp. Register your account at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a> when online.
     </p>
     <div id="welcome" style="display: none;"></div>
     <p id="status" class="fade-in">Setting up your signature...</p>
@@ -440,18 +440,18 @@ This submission was generated using ${window.location.href}
 
 Verify submission here: https://dapp.truesight.me/verify_request.html
 
-Please register your digital wallet at https://truesightdao.github.io/dapp/create_signature.html when online.`;
+<a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> when online.`;
 
         if (isMobileDevice() && navigator.share) {
           await navigator.share({
             text: shareText,
             files: [imageFile]
           });
-          actionStatus.textContent = 'Report shared successfully via WhatsApp!';
+          actionStatus.innerHTML = 'Report shared successfully via WhatsApp!' + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
           actionStatus.className = 'status';
         } else {
           await navigator.clipboard.writeText(shareText);
-          actionStatus.textContent = 'Report copied to clipboard! Share it with the photo via WhatsApp.';
+          actionStatus.innerHTML = 'Report copied to clipboard! Share it with the photo via WhatsApp.' + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
           actionStatus.className = 'status';
         }
 
@@ -460,7 +460,7 @@ Please register your digital wallet at https://truesightdao.github.io/dapp/creat
         video.style.display = 'none';
 
         if (newKeysGenerated && isOnline()) {
-          actionStatus.textContent += ' Please register your digital wallet at create_signature.html.';
+          actionStatus.innerHTML += ' Redirecting to register your account...';
           setTimeout(() => {
             window.location.href = './create_signature.html';
           }, 3000);
@@ -494,7 +494,7 @@ Please register your digital wallet at https://truesightdao.github.io/dapp/creat
       }
 
       if (!isOnline()) {
-        statusElement.textContent = 'Offline mode: Please register your digital wallet when online.';
+        statusElement.innerHTML = 'Offline mode: <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> when online.';
         statusElement.className = 'warning fade-in';
         document.getElementById('info').style.display = 'block';
         document.getElementById('welcome').textContent = 'Welcome! (Offline Mode)';
@@ -519,7 +519,7 @@ Please register your digital wallet at https://truesightdao.github.io/dapp/creat
         const data = await response.json();
 
         if (data.error) {
-          statusElement.textContent = 'Signature not registered. Please register your digital wallet.';
+          statusElement.innerHTML = 'Account not registered. <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.';
           statusElement.className = 'warning fade-in';
         } else {
           statusElement.textContent = 'Signature verified successfully';
@@ -541,7 +541,7 @@ Please register your digital wallet at https://truesightdao.github.io/dapp/creat
           document.getElementById('submitButton').style.display = 'none';
         }
       } catch (error) {
-        statusElement.textContent = 'Offline mode: Please register your digital wallet when online.';
+        statusElement.innerHTML = 'Offline mode: <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> when online.';
         statusElement.className = 'warning fade-in';
         document.getElementById('info').style.display = 'block';
         document.getElementById('welcome').textContent = 'Welcome! (Offline Mode)';
