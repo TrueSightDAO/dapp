@@ -168,6 +168,20 @@
       margin: 1rem 0;
       display: none;
     }
+    label {
+      display: block;
+      margin: 0.5rem 0 0.2rem;
+      font-size: 0.95rem;
+      color: #333;
+    }
+    select {
+      margin-bottom: 0.8rem;
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      font-size: 0.95rem;
+    }
     @media (max-width: 600px) {
       body {
         margin: 0.5rem;
@@ -214,7 +228,7 @@
     </div>
     <h1>Report Tree Planting</h1>
     <p id="description">
-      Point the camera at the planted tree and click "Submit Report" to capture the photo and share it with your location to our community.
+      Point the camera at the planted tree, select the tree species, and click "Submit Report" to capture the photo and share it with your location to our community.
     </p>
     <div id="welcome" style="display: none;"></div>
     <p id="status" class="fade-in">Verifying your digital signature...</p>
@@ -224,6 +238,16 @@
       <div class="info-box">
         <div class="info">Current Location:</div>
         <div class="info-location" id="location">Waiting for geolocation...</div>
+        <label for="treeSpecies">Tree Species Planted:</label>
+        <select id="treeSpecies" name="treeSpecies" required>
+          <option value="" disabled selected>Select a species</option>
+          <option value="Cacao (Native)">Cacao (Native)</option>
+          <option value="Brazil Nut (Native)">Brazil Nut (Native)</option>
+          <option value="Acai (Native)">Acai (Native)</option>
+          <option value="Mahogany (Native)">Mahogany (Native)</option>
+          <option value="Jatoba (Native)">Jatoba (Native)</option>
+          <option value="Other">Other (specify)</option>
+        </select>
       </div>
       <div class="button-container">
         <button id="submitButton" onclick="submitReport()">Submit Report</button>
@@ -315,6 +339,7 @@
       const actionStatus = document.getElementById('action-status');
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
+      const treeSpecies = document.getElementById('treeSpecies').value;
 
       if (!stream) {
         actionStatus.textContent = 'Camera not started. Please ensure camera access is allowed.';
@@ -337,6 +362,12 @@
         return;
       }
 
+      if (!treeSpecies) {
+        actionStatus.textContent = 'Please select a tree species.';
+        actionStatus.className = 'error';
+        return;
+      }
+
       try {
         // Capture photo
         canvas.width = video.videoWidth;
@@ -347,8 +378,6 @@
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
         imageFile = new File([blob], 'tree_photo.jpg', { type: 'image/jpeg' });
 
-        // New fields
-        const treeSpecies = "Cacao";
         const plantingTime = new Date().toISOString();
 
         const now = new Date();
@@ -360,7 +389,6 @@
         const photoCaptureDestinationURL = `https://github.com/TrueSightDAO/sunmint/tree/main/images/${yyyymmddhhmmss}_${safePublicKey}.jpg`;
 
         const requestText = `[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}\n- Planting Time: ${plantingTime}\n- Photo URL: ${photoCaptureDestinationURL}\n--------`;
-
 
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
