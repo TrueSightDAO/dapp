@@ -26,11 +26,15 @@
     select.style.fontSize = '1rem';
     select.style.marginBottom = '1rem';
     // Populate options
+    // Determine current page filename
+    var currentPage = location.pathname.split('/').pop();
     window.menuItems.forEach(function(item) {
       var option = document.createElement('option');
       option.value = item.url;
       option.textContent = item.title;
-      if (location.pathname.endsWith(item.url)) {
+      // Select the option matching the current page
+      var itemPage = item.url.split('/').pop();
+      if (currentPage === itemPage) {
         option.selected = true;
       }
       select.appendChild(option);
