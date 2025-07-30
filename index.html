@@ -182,6 +182,7 @@
   </style>
 </head>
 <body>
+  <div id="google_translate_element" style="text-align: right; margin: 1rem;"></div>
   <div class="container">
     <div style="text-align: center;">
       <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
@@ -440,5 +441,15 @@
         .catch(err => console.warn('Service Worker registration failed:', err));
     }
   </script>
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'en,pt',
+        layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+      }, 'google_translate_element');
+    }
+  </script>
+  <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 </body>
 </html>
