@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="description" content="Report a tree planting event with a photo and location">
+  <meta name="description" content="Register your farm for tree planting and carbon credit programs">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Report Tree Planting</title>
+  <title>Register Farm</title>
 
   <!-- Open Graph tags for WhatsApp and social media previews -->
-  <meta property="og:title" content="Report Tree Planting">
-  <meta property="og:description" content="Report a tree planting event with a photo and location">
+  <meta property="og:title" content="Register Farm">
+  <meta property="og:description" content="Register your farm for tree planting and carbon credit programs">
   <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
   <meta property="og:url" content="https://truesightdao.github.io/dapp/">
   <meta property="og:type" content="website">
@@ -174,13 +174,16 @@
       font-size: 0.95rem;
       color: #333;
     }
-    select {
+    input, select {
       margin-bottom: 0.8rem;
       width: 100%;
       padding: 0.5rem;
       border-radius: 5px;
       border: 1px solid #ddd;
       font-size: 0.95rem;
+    }
+    select[multiple] {
+      height: 100px;
     }
     @media (max-width: 600px) {
       body {
@@ -217,6 +220,9 @@
       #cameraPreview {
         max-width: 100%;
       }
+      select[multiple] {
+        height: 80px;
+      }
     }
   </style>
 </head>
@@ -226,9 +232,9 @@
     <div style="text-align: center;">
       <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSightDAO Logo"/>
     </div>
-    <h1>Report Tree Planting</h1>
+    <h1>Register Your Farm</h1>
     <p id="description">
-      Point the camera at the planted tree, select the tree species, and click "Submit Report" to capture the photo and share it with your location via WhatsApp. Register your account at <a href="./create_signature.html">create_signature.html</a> when online.
+      Fill in your farm name and details, including the area you plan to plant with trees, select one or more tree species (hold Ctrl or tap multiple options), take a photo, and click "Submit Farm Registration" to share it via WhatsApp. Use a unique farm name (e.g., Fazenda São João or João’s Farm). Register your account at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a> when online.
     </p>
     <div id="welcome" style="display: none;"></div>
     <p id="status" class="fade-in">Setting up your signature...</p>
@@ -236,11 +242,32 @@
       <video id="cameraPreview" autoplay playsinline></video>
       <canvas id="captureCanvas" style="display: none;"></canvas>
       <div class="info-box">
-        <div class="info">Current Location:</div>
+        <div class="info">Farm Details:</div>
+        <label for="farmName">Farm Name:</label>
+        <input type="text" id="farmName" name="farmName" required placeholder="e.g., Fazenda São João or João’s Farm">
+        <label for="farmLocation">Farm Location (e.g., near which village or town):</label>
+        <input type="text" id="farmLocation" name="farmLocation" required placeholder="e.g., near São Félix village">
+        <div class="info">Current Location (auto-detected):</div>
         <div class="info-location" id="location">Waiting for geolocation...</div>
-        <label for="treeSpecies">Tree Species Planted:</label>
-        <select id="treeSpecies" name="treeSpecies" required>
-          <option value="" disabled selected>Select a species</option>
+        <label for="plantingArea">Area for Tree Planting (hectares):</label>
+        <input type="number" id="plantingArea" name="plantingArea" required placeholder="e.g., 2" min="0.1" step="0.1">
+        <label for="landUse">Current Land Use:</label>
+        <select id="landUse" name="landUse" required>
+          <option value="" disabled selected>Select current land use</option>
+          <option value="Degraded Land">Degraded Land</option>
+          <option value="Pasture">Pasture</option>
+          <option value="Cropland">Cropland</option>
+          <option value="Other">Other</option>
+        </select>
+        <label for="ownership">Do You Own or Have Rights to Use the Land?</label>
+        <select id="ownership" name="ownership" required>
+          <option value="" disabled selected>Select ownership status</option>
+          <option value="Own">I own the land</option>
+          <option value="Lease">I lease the land</option>
+          <option value="Community">Community or shared land</option>
+        </select>
+        <label for="treeSpecies">Planned Tree Species (select all that apply):</label>
+        <select id="treeSpecies" name="treeSpecies" multiple required>
           <option value="Cacao (Native)">Cacao (Native)</option>
           <option value="Brazil Nut (Native)">Brazil Nut (Native)</option>
           <option value="Acai (Native)">Acai (Native)</option>
@@ -248,9 +275,11 @@
           <option value="Jatoba (Native)">Jatoba (Native)</option>
           <option value="Other">Other (specify)</option>
         </select>
+        <label for="treeCount">Estimated Number of Trees to Plant:</label>
+        <input type="number" id="treeCount" name="treeCount" required placeholder="e.g., 100" min="1" step="1">
       </div>
       <div class="button-container">
-        <button id="submitButton" onclick="submitReport()">Submit Report</button>
+        <button id="submitButton" onclick="submitFarmRegistration()">Submit Farm Registration</button>
       </div>
       <p id="action-status"></p>
     </div>
@@ -283,27 +312,115 @@
       return navigator.onLine;
     }
 
+    function encodeSignature(signature) {
+      try {
+        let encoded = encodeURIComponent(signature);
+        encoded = encoded.replace(/%20/g, '+')
+                        .replace(/'/g, '%27')
+                        .replace(/"/g, '%22');
+        return encoded;
+      } catch (e) {
+        console.error('Error encoding signature:', e);
+        return signature;
+      }
+    }
+
+    function isValidSignature(signature) {
+      if (!signature) return false;
+      const regex = /^[A-Za-z0-9+/=]+$/;
+      if (!regex.test(signature)) {
+        console.error('Invalid signature format - contains non-Base64 characters');
+        return false;
+      }
+      if (signature.length < 100 || signature.length > 5000) {
+        console.error('Invalid signature length');
+        return false;
+      }
+      return true;
+    }
+
+    async function checkSignatureRegistration(publicKey) {
+      const statusElement = document.getElementById('status');
+      
+      if (!isValidSignature(publicKey)) {
+        statusElement.textContent = 'Invalid digital signature format';
+        statusElement.className = 'error fade-in';
+        return null;
+      }
+      
+      try {
+        const encodedSignature = encodeSignature(publicKey);
+        const timestamp = new Date().toISOString();
+        const url = `${API_ENDPOINT}?signature=${encodedSignature}&timestamp=${encodeURIComponent(timestamp)}`;
+        console.log('Making request to:', url);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Error checking registration:', error);
+        statusElement.textContent = 'Error verifying signature: ' + error.message;
+        statusElement.className = 'error fade-in';
+        return { error: error.message };
+      }
+    }
+
     async function generateKeyPair() {
-      const keyPair = await window.crypto.subtle.generateKey(
-        {
-          name: "RSASSA-PKCS1-v1_5",
-          modulusLength: 2048,
-          publicExponent: new Uint8Array([1, 0, 1]),
-          hash: "SHA-256"
-        },
-        true,
-        ["sign", "verify"]
-      );
+      const statusElement = document.getElementById('status');
+      const welcomeElement = document.getElementById('welcome');
+      statusElement.textContent = 'Generating new digital signature...';
+      statusElement.className = 'loading fade-in';
+      welcomeElement.style.display = 'none';
 
-      const publicKey = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
-      const privateKey = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+      try {
+        const keyPair = await window.crypto.subtle.generateKey(
+          {
+            name: "RSASSA-PKCS1-v1_5",
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256"
+          },
+          true,
+          ["sign", "verify"]
+        );
 
-      const publicKeyBase64 = arrayBufferToBase64(publicKey);
-      const privateKeyBase64 = arrayBufferToBase64(privateKey);
+        const publicKey = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+        const privateKey = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
 
-      localStorage.setItem('publicKey', publicKeyBase64);
-      localStorage.setItem('privateKey', privateKeyBase64);
-      newKeysGenerated = true;
+        const publicKeyBase64 = arrayBufferToBase64(publicKey);
+        const privateKeyBase64 = arrayBufferToBase64(privateKey);
+
+        localStorage.setItem('publicKey', publicKeyBase64);
+        localStorage.setItem('privateKey', privateKeyBase64);
+        newKeysGenerated = true;
+
+        statusElement.textContent = 'Signature created successfully';
+        statusElement.className = 'status fade-in';
+
+        // Check registration status after generating keys
+        const data = await checkSignatureRegistration(publicKeyBase64);
+        if (data && !data.error) {
+          welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
+          welcomeElement.style.display = 'block';
+          statusElement.textContent = 'Signature verified successfully';
+          statusElement.className = 'status fade-in';
+        } else if (data && data.error) {
+          statusElement.textContent = data.error.includes('No matching') ? 
+            'Your digital signature is not registered yet.' : 
+            data.error;
+          statusElement.className = data.error.includes('No matching') ? 
+            'prompt fade-in' : 'error fade-in';
+          welcomeElement.style.display = 'none';
+        }
+      } catch (error) {
+        statusElement.textContent = 'Error creating signature: ' + error.message;
+        statusElement.className = 'error fade-in';
+        welcomeElement.style.display = 'none';
+      }
     }
 
     function startCamera() {
@@ -334,7 +451,7 @@
           video.srcObject = stream;
           video.style.display = 'block';
           submitButton.style.display = 'block';
-          actionStatus.textContent = 'Camera started. Point at the tree and click "Submit Report".';
+          actionStatus.textContent = 'Camera started. Point at your farm and click "Submit Farm Registration".';
           actionStatus.className = 'status';
         })
         .catch(function(error) {
@@ -361,13 +478,20 @@
       });
     }
 
-    async function submitReport() {
+    async function submitFarmRegistration() {
       const video = document.getElementById('cameraPreview');
       const canvas = document.getElementById('captureCanvas');
       const actionStatus = document.getElementById('action-status');
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
-      const treeSpecies = document.getElementById('treeSpecies').value;
+      const farmName = document.getElementById('farmName').value.trim();
+      const farmLocation = document.getElementById('farmLocation').value.trim();
+      const plantingArea = document.getElementById('plantingArea').value;
+      const landUse = document.getElementById('landUse').value;
+      const ownership = document.getElementById('ownership').value;
+      const treeSpeciesSelect = document.getElementById('treeSpecies');
+      const treeSpecies = Array.from(treeSpeciesSelect.selectedOptions).map(option => option.value).join(', ');
+      const treeCount = document.getElementById('treeCount').value;
 
       if (!stream) {
         actionStatus.textContent = 'Camera not started. Please ensure camera access is allowed.';
@@ -387,8 +511,8 @@
         return;
       }
 
-      if (!treeSpecies) {
-        actionStatus.textContent = 'Please select a tree species.';
+      if (!farmName || !farmLocation || !plantingArea || !landUse || !ownership || !treeSpecies || !treeCount) {
+        actionStatus.textContent = 'Please fill in all fields and select at least one tree species.';
         actionStatus.className = 'error';
         return;
       }
@@ -401,9 +525,9 @@
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
-        imageFile = new File([blob], 'tree_photo.jpg', { type: 'image/jpeg' });
+        imageFile = new File([blob], 'farm_photo.jpg', { type: 'image/jpeg' });
 
-        const plantingTime = new Date().toISOString();
+        const registrationTime = new Date().toISOString();
 
         const now = new Date();
         const pad = (n) => n.toString().padStart(2, '0');
@@ -411,9 +535,9 @@
 
         const safePublicKey = publicKey.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
 
-        const photoCaptureDestinationURL = `https://github.com/TrueSightDAO/sunmint/tree/main/images/${yyyymmddhhmmss}_${safePublicKey}.jpg`;
+        const photoCaptureDestinationURL = `https://github.com/TrueSightDAO/sunmint/tree/main/images/farm_${yyyymmddhhmmss}_${safePublicKey}.jpg`;
 
-        const requestText = `[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}\n- Planting Time: ${plantingTime}\n- Photo URL: ${photoCaptureDestinationURL}\n--------`;
+        const requestText = `[FARM REGISTRATION]\n- Farm Name: ${farmName}\n- Farm Location: ${farmLocation}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Area for Tree Planting (hectares): ${plantingArea}\n- Current Land Use: ${landUse}\n- Ownership Status: ${ownership}\n- Planned Tree Species: ${treeSpecies}\n- Estimated Trees: ${treeCount}\n- Registration Time: ${registrationTime}\n- Photo URL: ${photoCaptureDestinationURL}\n--------`;
 
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
@@ -440,18 +564,18 @@ This submission was generated using ${window.location.href}
 
 Verify submission here: https://dapp.truesight.me/verify_request.html
 
-<a href="./create_signature.html">Register your account</a> when online.`;
+<a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> when online.`;
 
         if (isMobileDevice() && navigator.share) {
           await navigator.share({
             text: shareText,
             files: [imageFile]
           });
-        actionStatus.innerHTML = 'Report shared successfully via WhatsApp!' + (newKeysGenerated ? ' <a href="./create_signature.html">Register your account</a>.' : '');
+          actionStatus.innerHTML = 'Farm registration shared successfully via WhatsApp!' + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
           actionStatus.className = 'status';
         } else {
           await navigator.clipboard.writeText(shareText);
-        actionStatus.innerHTML = 'Report copied to clipboard! Share it with the photo via WhatsApp.' + (newKeysGenerated ? ' <a href="./create_signature.html">Register your account</a>.' : '');
+          actionStatus.innerHTML = 'Farm registration copied to clipboard! Share it with the photo via WhatsApp.' + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
           actionStatus.className = 'status';
         }
 
@@ -466,7 +590,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
           }, 3000);
         }
       } catch (error) {
-        actionStatus.textContent = 'Error generating report: ' + error.message;
+        actionStatus.textContent = 'Error generating registration: ' + error.message;
         actionStatus.className = 'error';
       }
     }
@@ -484,8 +608,6 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
           await generateKeyPair();
           publicKey = localStorage.getItem('publicKey');
           privateKey = localStorage.getItem('privateKey');
-          statusElement.textContent = 'Signature created successfully';
-          statusElement.className = 'status fade-in';
         } catch (error) {
           statusElement.textContent = 'Error creating signature: ' + error.message;
           statusElement.className = 'error fade-in';
@@ -494,7 +616,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
       }
 
       if (!isOnline()) {
-        statusElement.innerHTML = 'Offline mode: <a href="./create_signature.html">Register your account</a> when online.';
+        statusElement.innerHTML = 'Offline mode: <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> when online.';
         statusElement.className = 'warning fade-in';
         document.getElementById('info').style.display = 'block';
         document.getElementById('welcome').textContent = 'Welcome! (Offline Mode)';
@@ -502,7 +624,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
 
         try {
           const location = await getLocation();
-          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
+          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${longitude}`;
           startCamera();
         } catch (error) {
           document.getElementById('location').textContent = error.message;
@@ -514,17 +636,16 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
       }
 
       try {
-        const timestamp = new Date().toISOString();
-        const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}&timestamp=${encodeURIComponent(timestamp)}`);
-        const data = await response.json();
-
-        if (data.error) {
-          statusElement.innerHTML = 'Account not registered. <a href="./create_signature.html">Register your account</a>.';
-          statusElement.className = 'warning fade-in';
-        } else {
+        const data = await checkSignatureRegistration(publicKey);
+        if (data && !data.error) {
           statusElement.textContent = 'Signature verified successfully';
           statusElement.className = 'status fade-in';
           document.getElementById('welcome').textContent = `Welcome back, ${data.contributor_name}!`;
+        } else if (data && data.error) {
+          statusElement.innerHTML = data.error.includes('No matching') ? 
+            'Your digital signature is not registered yet. <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : 
+            data.error;
+          statusElement.className = data.error.includes('No matching') ? 'warning fade-in' : 'error fade-in';
         }
 
         document.getElementById('info').style.display = 'block';
@@ -532,7 +653,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
 
         try {
           const location = await getLocation();
-          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
+          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${longitude}`;
           startCamera();
         } catch (error) {
           document.getElementById('location').textContent = error.message;
@@ -541,7 +662,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
           document.getElementById('submitButton').style.display = 'none';
         }
       } catch (error) {
-        statusElement.innerHTML = 'Offline mode: <a href="./create_signature.html">Register your account</a> when online.';
+        statusElement.innerHTML = 'Offline mode: <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> when online.';
         statusElement.className = 'warning fade-in';
         document.getElementById('info').style.display = 'block';
         document.getElementById('welcome').textContent = 'Welcome! (Offline Mode)';
@@ -549,7 +670,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
 
         try {
           const location = await getLocation();
-          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
+          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${longitude}`;
           startCamera();
         } catch (error) {
           document.getElementById('location').textContent = error.message;
@@ -593,7 +714,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
       div.style.textAlign = 'center';
       div.style.marginTop = '1rem';
       const a = document.createElement('a');
-      a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/report_tree_planting.html';
+      a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/register_farm.html';
       a.textContent = 'View Source Code';
       a.style.fontSize = '0.8rem';
       a.style.color = '#007bff';
