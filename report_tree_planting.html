@@ -175,7 +175,7 @@
       font-size: 0.95rem;
       color: #333;
     }
-    select {
+    select, input[type="number"], input[type="text"] {
       margin-bottom: 0.8rem;
       width: 100%;
       padding: 0.5rem;
@@ -230,9 +230,9 @@
       <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSightDAO Logo"/>
     </div>
     <h1>Report Tree Planting</h1>
-<p id="description">
-  Take a photo at the exact location where the tree is planted, ensuring it includes both the planted tree and a clear, legible copy of the receipt for the tree purchase. Select the tree species and click "Submit Report" to share the photo with your location via WhatsApp to our program administrator at <a href="https://wa.me/14153000019">+1 415 300 0019</a> for reimbursement of planting costs. Register your account at <a href="./create_signature.html">create_signature.html</a> when online.
-</p>
+    <p id="description">
+      Take a photo at the exact location where the tree is planted, ensuring it includes both the planted tree and a clear, legible copy of the receipt for the tree purchase. Select the tree species, enter the cost of the tree and its currency, and click "Submit Report" to share the photo with your location and cost details via WhatsApp to our program administrator at <a href="https://wa.me/14153000019">+1 415 300 0019</a> for reimbursement of planting costs. Register your account at <a href="./create_signature.html">create_signature.html</a> when online.
+    </p>
     <div id="welcome" style="display: none;"></div>
     <p id="status" class="fade-in">Setting up your signature...</p>
     <div id="info" style="display: none;">
@@ -251,6 +251,17 @@
           <option value="Jatoba (Native)">Jatoba (Native)</option>
           <option value="Other">Other (specify)</option>
         </select>
+        <label for="treeCost">Cost of Tree:</label>
+        <input type="number" id="treeCost" name="treeCost" min="0" step="0.01" placeholder="Enter cost (e.g., 10.50)" required>
+        <label for="currency">Currency:</label>
+        <select id="currency" name="currency" required>
+          <option value="" disabled selected>Select currency</option>
+          <option value="USD">USD (US Dollar)</option>
+          <option value="BRL">BRL (Brazilian Real)</option>
+          <option value="EUR">EUR (Euro)</option>
+          <option value="Other">Other (specify)</option>
+        </select>
+        <input type="text" id="otherCurrency" name="otherCurrency" placeholder="Specify currency" style="display: none;" maxlength="10">
       </div>
       <div class="button-container">
         <button id="submitButton" onclick="submitReport()">Submit Report</button>
@@ -364,6 +375,17 @@
       });
     }
 
+    document.getElementById('currency').addEventListener('change', function() {
+      const otherCurrencyInput = document.getElementById('otherCurrency');
+      if (this.value === 'Other') {
+        otherCurrencyInput.style.display = 'block';
+        otherCurrencyInput.setAttribute('required', 'true');
+      } else {
+        otherCurrencyInput.style.display = 'none';
+        otherCurrencyInput.removeAttribute('required');
+      }
+    });
+
     async function submitReport() {
       const video = document.getElementById('cameraPreview');
       const canvas = document.getElementById('captureCanvas');
@@ -371,6 +393,10 @@
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
       const treeSpecies = document.getElementById('treeSpecies').value;
+      const treeCost = document.getElementById('treeCost').value;
+      const currency = document.getElementById('currency').value;
+      const otherCurrency = document.getElementById('otherCurrency').value;
+      const finalCurrency = currency === 'Other' ? (otherCurrency || 'Unknown') : currency;
 
       if (!stream) {
         actionStatus.textContent = 'Camera not started. Please ensure camera access is allowed.';
@@ -396,8 +422,19 @@
         return;
       }
 
+      if (!treeCost || treeCost <= 0) {
+        actionStatus.textContent = 'Please enter a valid tree cost greater than 0.';
+        actionStatus.className = 'error';
+        return;
+      }
+
+      if (!currency || (currency === 'Other' && !otherCurrency)) {
+        actionStatus.textContent = 'Please select a currency or specify one for "Other".';
+        actionStatus.className = 'error';
+        return;
+      }
+
       try {
-        // Capture photo
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         const context = canvas.getContext('2d');
@@ -416,7 +453,7 @@
 
         const photoCaptureDestinationURL = `https://github.com/TrueSightDAO/sunmint/tree/main/images/${yyyymmddhhmmss}_${safePublicKey}.jpg`;
 
-        const requestText = `[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}\n- Planting Time: ${plantingTime}\n- Photo URL: ${photoCaptureDestinationURL}\n--------`;
+        const requestText = `[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}\n- Cost: ${treeCost} ${finalCurrency}\n- Planting Time: ${plantingTime}\n- Photo URL: ${photoCaptureDestinationURL}\n--------`;
 
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
@@ -450,11 +487,11 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
             text: shareText,
             files: [imageFile]
           });
-        actionStatus.innerHTML = 'Report shared successfully via WhatsApp!' + (newKeysGenerated ? ' <a href="./create_signature.html">Register your account</a>.' : '');
+          actionStatus.innerHTML = 'Report shared successfully via WhatsApp!' + (newKeysGenerated ? ' <a href="./create_signature.html">Register your account</a>.' : '');
           actionStatus.className = 'status';
         } else {
           await navigator.clipboard.writeText(shareText);
-        actionStatus.innerHTML = 'Report copied to clipboard! Share it with the photo via WhatsApp.' + (newKeysGenerated ? ' <a href="./create_signature.html">Register your account</a>.' : '');
+          actionStatus.innerHTML = 'Report copied to clipboard! Share it with the photo via WhatsApp.' + (newKeysGenerated ? ' <a href="./create_signature.html">Register your account</a>.' : '');
           actionStatus.className = 'status';
         }
 
@@ -607,27 +644,22 @@ Verify submission here: https://dapp.truesight.me/verify_request.html
   </script>
   <script type="text/javascript">
 function googleTranslateElementInit() {
-  // Initialize Google Translate widget
   new google.translate.TranslateElement({
     pageLanguage: 'en',
     includedLanguages: 'en,pt',
     layout: google.translate.TranslateElement.InlineLayout.SIMPLE
   }, 'google_translate_element');
 
-  // Detect user's locale
   const userLanguage = navigator.language || navigator.userLanguage || 'en';
-  let targetLanguage = 'en'; // Default to English
+  let targetLanguage = 'en';
 
-  // Check if the locale is Brazilian Portuguese or general Portuguese
   if (userLanguage.toLowerCase().startsWith('pt')) {
     targetLanguage = 'pt';
   } else {
-    // Fallback: Use geolocation to check if the user is in Brazil
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         position => {
           const { latitude, longitude } = position.coords;
-          // Approximate coordinates for Brazil (rough bounding box)
           const isInBrazil = latitude >= -33.75 && latitude <= 5.27 && longitude >= -73.99 && longitude <= -34.79;
           if (isInBrazil) {
             targetLanguage = 'pt';
@@ -636,37 +668,34 @@ function googleTranslateElementInit() {
         },
         error => {
           console.warn('Geolocation error:', error.message);
-          setLanguage(targetLanguage); // Proceed with default or locale-based language
+          setLanguage(targetLanguage);
         },
         { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
     } else {
-      setLanguage(targetLanguage); // No geolocation, use default or locale-based language
+      setLanguage(targetLanguage);
     }
-    return; // Exit to wait for geolocation callback
+    return;
   }
 
   setLanguage(targetLanguage);
 }
 
 function setLanguage(language) {
-  // Restore saved language from localStorage or use detected language
   const savedLanguage = localStorage.getItem('selectedLanguage');
   const finalLanguage = savedLanguage && ['en', 'pt'].includes(savedLanguage) ? savedLanguage : language;
 
   console.log('Selected language:', finalLanguage);
 
-  // Set the language in the Google Translate widget
   setTimeout(() => {
     const select = document.querySelector('.goog-te-combo');
     if (select) {
       select.value = finalLanguage;
       select.dispatchEvent(new Event('change'));
     }
-  }, 1000); // Delay to ensure widget is fully loaded
+  }, 1000);
 }
 
-// Function to save language selection
 function saveLanguageSelection() {
   const select = document.querySelector('.goog-te-combo');
   if (select) {
@@ -674,16 +703,14 @@ function saveLanguageSelection() {
       const selectedLanguage = select.value;
       if (['en', 'pt'].includes(selectedLanguage)) {
         localStorage.setItem('selectedLanguage', selectedLanguage);
-        // Update googtrans cookie for consistency
         document.cookie = `googtrans=/en/${selectedLanguage}; path=/`;
       }
     });
   }
 }
 
-// Call saveLanguageSelection after widget initialization
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(saveLanguageSelection, 1500); // Delay to ensure widget is loaded
+  setTimeout(saveLanguageSelection, 1500);
 });
 </script>
   <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
