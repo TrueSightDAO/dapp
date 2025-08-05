@@ -1,8 +1,30 @@
 const CACHE_NAME = 'qr-scanner-cache-v1';
 const URLS_TO_CACHE = [
+  // HTML pages
+  './',
+  './index.html',
+  './create_signature.html',
+  './notarize.html',
+  './register_farm.html',
+  './report_contribution.html',
+  './report_dao_expenses.html',
+  './report_inventory_movement.html',
+  './report_sales.html',
+  './report_tree_planting.html',
   './scanner.html',
+  './verify_request.html',
+  './withdraw_voting_rights.html',
+  // Scripts
+  './menu.js',
   './service-worker.js',
-  'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'
+  // External libraries
+  'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js',
+  // Assets
+  './assets/brazil.png',
+  './assets/usa.png',
+  // Google Apps Script API endpoints (dynamic data)                                                                           │
+  'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec',          │
+  'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec'
 ];
 
 // Install event: cache essential assets
@@ -37,7 +59,20 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
-  // Default: network-first strategy, fallback to cache if offline
+  // Handle Google Apps Script API calls: network-first with cache fallback
+  if (url.origin === 'https://script.google.com' && url.pathname.startsWith('/macros/s/')) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, responseClone));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+  // Default: network-first strategy for all other requests, fallback to cache if offline
   event.respondWith(
     fetch(request)
       .then(response => {
