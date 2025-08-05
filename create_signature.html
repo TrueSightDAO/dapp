@@ -349,8 +349,7 @@
       
       try {
         const encodedSignature = encodeSignature(publicKey);
-        const timestamp = new Date().toISOString();
-        const url = `${API_ENDPOINT}?signature=${encodedSignature}&timestamp=${encodeURIComponent(timestamp)}`;
+        const url = `${API_ENDPOINT}?signature=${encodedSignature}`;
         console.log('Making request to:', url);
         
         const response = await fetch(url);
