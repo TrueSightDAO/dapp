@@ -140,10 +140,10 @@
             background-color: #007bff;
             color: white;
             transition: background-color 0.2s, transform 0.1s;
-            margin: 0.5rem auto; /* Center the button */
+            margin: 0.5rem auto;
             width: 100%;
             max-width: 300px;
-            display: block; /* Ensure block-level for centering */
+            display: block;
         }
         button:hover {
             background-color: #0056b3;
@@ -268,7 +268,6 @@
 <body>
     <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
     <div class="container">
-        
         <div style="text-align: center;">
             <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>        
@@ -582,6 +581,7 @@
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const inputMethod = document.getElementById('inputMethod').value;
+            const submitBtn = document.getElementById('submitButton');
 
             const amount = typeName === 'Time' 
                 ? (parseFloat(hoursInput.value || 0) + parseFloat(minutesInput.value || 0) / 60).toFixed(2) 
@@ -619,7 +619,14 @@
                 return;
             }
 
-            submitReport(file, fileName, typeName, amount);
+            // Disable submit button and show submitting message for desktop submissions
+            if (!isMobileDevice()) {
+                submitBtn.disabled = true;
+                output.textContent = 'Submitting...';
+                output.className = 'loading';
+            }
+
+            await submitReport(file, fileName, typeName, amount);
         }
 
         async function submitReport(file, fileName, typeName, amount) {
@@ -630,6 +637,7 @@
             const description = document.getElementById('descriptionInput').value;
             const output = document.getElementById('outputMessage');
             const publicKey = localStorage.getItem('publicKey');
+            const submitBtn = document.getElementById('submitButton');
 
             try {
                 const contributionFileName = fileName ? generateContributionFileName(fileName) : '';
@@ -669,13 +677,34 @@
                     output.innerHTML = `Report shared successfully. Please ensure it is posted in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
                     output.className = 'status';
                 } else {
-                    await navigator.clipboard.writeText(shareText);
-                    output.innerHTML = `Report copied to clipboard. Please paste it${file ? ' with the file' : ''} in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+                    const formData = new FormData();
+                    formData.append('text', shareText);
+
+                    if (file) {
+                        console.log('File Name:', file.name, 'Size:', file.size, 'Type:', file.type);
+                        formData.append('attachment', file, fileName);
+                        for (let [key, value] of formData.entries()) {
+                            console.log(`FormData Entry: ${key}`, value);
+                        }
+                    }
+
+                    const resp = await fetch("http://localhost:3000/dao/submit_contribution", {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!resp.ok) throw new Error(await resp.text());
+
+                    output.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
                 }
             } catch (err) {
                 output.innerHTML = `Error generating contribution report: ${err.message}. Please try again or contact support.`;
                 output.className = 'error';
+            } finally {
+                if (!isMobileDevice()) {
+                    submitBtn.disabled = false;
+                }
             }
         }
 
