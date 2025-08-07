@@ -22,8 +22,8 @@ const URLS_TO_CACHE = [
   // Assets
   './assets/brazil.png',
   './assets/usa.png',
-  // Google Apps Script API endpoints (dynamic data)                                                                           │
-  'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec',          │
+  // Google Apps Script API endpoints (dynamic data)                                                                 
+  'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec',
   'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec'
 ];
 
