@@ -479,25 +479,11 @@
 
         statusElement.textContent = 'Signature created successfully';
         statusElement.className = 'status fade-in';
-
-        const data = await checkSignatureRegistration(publicKeyBase64);
-        if (data && !data.error) {
-          welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
-          welcomeElement.style.display = 'block';
-          statusElement.textContent = 'Signature verified successfully';
-          statusElement.className = 'status fade-in';
-        } else if (data && data.error) {
-          statusElement.textContent = data.error.includes('No matching') ? 
-            'Your digital signature is not registered yet.' : 
-            data.error;
-          statusElement.className = data.error.includes('No matching') ? 
-            'prompt fade-in' : 'error fade-in';
-          welcomeElement.style.display = 'none';
-        }
       } catch (error) {
         statusElement.textContent = 'Error creating signature: ' + error.message;
         statusElement.className = 'error fade-in';
         welcomeElement.style.display = 'none';
+        throw error;
       }
     }
 
@@ -740,13 +726,14 @@
       actionStatus.className = 'loading';
 
       if (!publicKey || !privateKey) {
-        actionStatus.textContent = 'No digital signature found. Redirecting to create one...';
-        actionStatus.className = 'error';
-        setTimeout(() => {
-          window.location.href = './create_signature.html';
-        }, 2000);
-        document.getElementById('submitButton').disabled = false;
-        return;
+        try {
+          await generateKeyPair();
+        } catch (error) {
+          actionStatus.textContent = 'Error creating signature: ' + error.message;
+          actionStatus.className = 'error';
+          document.getElementById('submitButton').disabled = false;
+          return;
+        }
       }
 
       await submitFarmRegistration();
@@ -842,7 +829,7 @@
           encoder.encode(requestText)
         );
         const requestHash = arrayBufferToBase64(signature);
-        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html\n\n<a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> when online.`;
+        const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html\n\n<a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> to complete your digital signature registration.`;
 
         if (await isOnline()) {
           const formData = new FormData();
@@ -856,17 +843,17 @@
 
           if (!resp.ok) throw new Error(await resp.text());
 
-          actionStatus.innerHTML = `Farm registration sent to Edgar successfully via API. View: <a href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
+          actionStatus.innerHTML = `Farm registration sent to Edgar successfully via API. View: <a href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> to complete your digital signature registration.' : '');
           actionStatus.className = 'status';
         } else {
           if (isMobileDevice()) {
             if (navigator.share) {
               const shareData = { text: shareText, files: [imageFile] };
               await navigator.share(shareData);
-              actionStatus.innerHTML = `Internet or server not available. Please share the registration to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
+              actionStatus.innerHTML = `Internet or server not available. Please share the registration to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> to complete your digital signature registration.' : '');
               actionStatus.className = 'error';
             } else {
-              actionStatus.innerHTML = `Internet or server not available and share API is not supported. Please copy the registration below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
+              actionStatus.innerHTML = `Internet or server not available and share API is not supported. Please copy the registration below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> to complete your digital signature registration.' : '');
               actionStatus.className = 'error';
               if (await copyToClipboard(shareText)) {
                 actionStatus.innerHTML += '<br>Copied to clipboard!';
@@ -874,10 +861,10 @@
             }
           } else {
             if (await copyToClipboard(shareText)) {
-              actionStatus.innerHTML = `Internet or server not available. Registration copied to clipboard. Please paste it into our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
+              actionStatus.innerHTML = `Internet or server not available. Registration copied to clipboard. Please paste it into our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> to complete your digital signature registration.' : '');
               actionStatus.className = 'error';
             } else {
-              actionStatus.innerHTML = `Internet or server not available and clipboard copy failed. Please manually copy the registration below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
+              actionStatus.innerHTML = `Internet or server not available and clipboard copy failed. Please manually copy the registration below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> to complete your digital signature registration.' : '');
               actionStatus.className = 'error';
             }
           }
@@ -886,15 +873,8 @@
         stream.getTracks().forEach(track => track.stop());
         stream = null;
         video.style.display = 'none';
-
-        if (newKeysGenerated && await isOnline()) {
-          actionStatus.innerHTML += ' Redirecting to register your account...';
-          setTimeout(() => {
-            window.location.href = './create_signature.html';
-          }, 3000);
-        }
       } catch (error) {
-        actionStatus.textContent = `Error generating registration: ${error.message}. Please try again or contact support.` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : '');
+        actionStatus.textContent = `Error generating registration: ${error.message}. Please try again or contact support.` + (newKeysGenerated ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> to complete your digital signature registration.' : '');
         actionStatus.className = 'error';
       } finally {
         document.getElementById('submitButton').disabled = false;
@@ -922,7 +902,7 @@
       }
 
       if (!await isOnline()) {
-        statusElement.innerHTML = 'Offline mode: <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> when online.';
+        statusElement.innerHTML = 'Offline mode: Please register your digital signature later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.';
         statusElement.className = 'warning fade-in';
         document.getElementById('info').style.display = 'block';
         document.getElementById('welcome').textContent = 'Welcome! (Offline Mode)';
@@ -951,7 +931,7 @@
           document.getElementById('welcome').textContent = `Welcome back, ${data.contributor_name}!`;
         } else if (data && data.error) {
           statusElement.innerHTML = data.error.includes('No matching') ? 
-            'Your digital signature is not registered yet. <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a>.' : 
+            'Your digital signature is not registered yet. Please register it later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.' : 
             data.error;
           statusElement.className = data.error.includes('No matching') ? 'warning fade-in' : 'error fade-in';
         }
@@ -972,7 +952,7 @@
         document.getElementById('reimbursementMethod').addEventListener('change', updateReimbursementDetails);
         document.getElementById('submitButton').addEventListener('click', onSubmitFarmRegistration);
       } catch (error) {
-        statusElement.innerHTML = 'Offline mode: <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> when online.';
+        statusElement.innerHTML = 'Offline mode: Please register your digital signature later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.';
         statusElement.className = 'warning fade-in';
         document.getElementById('info').style.display = 'block';
         document.getElementById('welcome').textContent = 'Welcome! (Offline Mode)';
