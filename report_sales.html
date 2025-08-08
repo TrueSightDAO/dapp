@@ -320,6 +320,10 @@
             return bytes.buffer;
         }
 
+        function isMobileDevice() {
+            return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+
         // Get DOM elements
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
@@ -386,7 +390,7 @@
                 videoHolder.style.display = 'none';
                 scanButtonRow.style.display = 'none';
                 uploadSection.style.display = 'block';
-                uploadedImage.style.display = 'none'; // Hide by default
+                uploadedImage.style.display = 'none';
                 output.textContent = 'Upload an image containing a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
                 lastQrParam = null;
                 qrParamDisplay.textContent = '';
@@ -398,7 +402,7 @@
 
         async function startCamera() {
             try {
-                const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                const isMobile = isMobileDevice();
                 const constraints = {
                     video: isMobile
                         ? {
@@ -476,7 +480,6 @@
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    // Scale image to a maximum dimension of 1024 pixels
                     let width = img.width;
                     let height = img.height;
                     const maxDimension = 1024;
@@ -489,7 +492,7 @@
                     canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
                     uploadedImage.src = e.target.result;
-                    uploadedImage.style.display = 'block'; // Show image after loading
+                    uploadedImage.style.display = 'block';
 
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     console.log('Image dimensions:', canvas.width, 'x', canvas.height);
@@ -530,7 +533,7 @@
                     output.textContent = 'Unable to load image. Please upload a valid image file (e.g., PNG or JPEG).';
                     qrParamDisplay.textContent = '';
                     reportButton.disabled = true;
-                    uploadedImage.style.display = 'none'; // Hide on error
+                    uploadedImage.style.display = 'none';
                 };
                 img.src = e.target.result;
             };
@@ -539,9 +542,31 @@
                 output.textContent = 'Error reading file. Please try uploading again.';
                 qrParamDisplay.textContent = '';
                 reportButton.disabled = true;
-                uploadedImage.style.display = 'none'; // Hide on error
+                uploadedImage.style.display = 'none';
             };
             reader.readAsDataURL(file);
+        }
+
+        // Add helper function for connectivity check
+        async function isOnline() {
+            if (!navigator.onLine) return false;
+            try {
+                const response = await fetch('https://edgar.truesight.me/ping', { method: 'HEAD', timeout: 5000 });
+                return response.ok;
+            } catch {
+                return false;
+            }
+        }
+
+        // Add helper function for clipboard copying
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                console.error('Failed to copy to clipboard:', err);
+                return false;
+            }
         }
 
         scan_button.addEventListener('click', () => {
@@ -565,7 +590,7 @@
             } else {
                 uploadedFile = null;
                 uploadedImage.src = '';
-                uploadedImage.style.display = 'none'; // Hide when no file selected
+                uploadedImage.style.display = 'none';
                 lastQrParam = null;
                 qrParamDisplay.textContent = '';
                 reportButton.disabled = true;
@@ -575,12 +600,21 @@
 
         // Handle report sold button click
         reportButton.addEventListener('click', async () => {
+            await onReport();
+        });
+
+        async function onReport() {
             if (!lastQrParam) return;
             const selectedMemberKey = memberSelect.value;
             const selectedMember = members.find(m => m.key === selectedMemberKey);
             const memberName = selectedMember ? selectedMember.name : contributorName;
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
+            const inputMethodVal = inputMethod.value;
+
+            reportButton.disabled = true;
+            reportOutput.textContent = 'Submitting...';
+            reportOutput.className = 'loading';
 
             if (!publicKey || !privateKey) {
                 reportOutput.textContent = 'No digital signature found. Redirecting to create one...';
@@ -588,13 +622,37 @@
                 setTimeout(() => {
                     window.location.href = './create_signature.html';
                 }, 2000);
+                reportButton.disabled = false;
                 return;
             }
 
-            const requestText = `[SALES EVENT]\n- Item: ${lastQrParam}\n- Sales price: $25\n- Sold by: ${memberName}\n--------`;
+            let fileToShare = null;
+            let fileName = '';
+            if (inputMethodVal === 'upload' && uploadedFile) {
+                fileToShare = uploadedFile;
+                fileName = uploadedFile.name;
+            } else if (inputMethodVal === 'camera') {
+                fileName = 'scan.png';
+                canvas.toBlob(blob => {
+                    if (blob) {
+                        fileToShare = new File([blob], 'scan.png', { type: 'image/png' });
+                    }
+                    submitSalesReport(fileToShare, fileName, lastQrParam, memberName);
+                }, 'image/png');
+                return;
+            }
+
+            await submitSalesReport(fileToShare, fileName, lastQrParam, memberName);
+        }
+
+        async function submitSalesReport(file, fileName, qrParam, memberName) {
+            const publicKey = localStorage.getItem('publicKey');
+            const privateKey = localStorage.getItem('privateKey');
             const telegramLink = 'https://t.me/TrueSightDAO';
+            const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(`[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $25\n- Sold by: ${memberName}\n--------`);
 
             try {
+                const requestText = `[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $25\n- Sold by: ${memberName}\n- Attached Filename: ${fileName || 'None'}\n- Submission Source: ${window.location.href}\n--------`;
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
                     base64ToArrayBuffer(privateKey),
@@ -610,58 +668,58 @@
                     encoder.encode(requestText)
                 );
                 const requestHash = arrayBufferToBase64(signature);
-                const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}`;
-                const telegramSuggestion = `Please paste or share this report in the TrueSight DAO Telegram channel: <a id="telegram_link" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
+                const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
 
-                reportOutput.innerHTML = '';
-                const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-                if (isMobile && navigator.share) {
-                    const fileToShare = inputMethod.value === 'upload' && uploadedFile ? uploadedFile : null;
-                    if (fileToShare && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-                        navigator.share({ text: shareText, files: [fileToShare] })
-                            .then(() => { reportOutput.innerHTML = `Shared successfully. ${telegramSuggestion}`; })
-                            .catch((error) => { reportOutput.innerHTML = `Error sharing: ${error}. ${telegramSuggestion}`; });
-                    } else {
-                        canvas.toBlob(blob => {
-                            if (blob) {
-                                const file = new File([blob], 'scan.png', { type: blob.type });
-                                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                                    navigator.share({ text: shareText, files: [file] })
-                                        .then(() => { reportOutput.innerHTML = `Shared successfully. ${telegramSuggestion}`; })
-                                        .catch((error) => { reportOutput.innerHTML = `Error sharing: ${error}. ${telegramSuggestion}`; });
-                                    return;
-                                }
-                            }
-                            navigator.share({ text: shareText })
-                                .then(() => { reportOutput.innerHTML = `Shared successfully. ${telegramSuggestion}`; })
-                                .catch((error) => { reportOutput.innerHTML = `Error sharing: ${error}. ${telegramSuggestion}`; });
-                        });
+                if (await isOnline()) {
+                    const formData = new FormData();
+                    formData.append('text', shareText);
+                    if (file) {
+                        formData.append('attachment', file, fileName);
                     }
-                } else if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(shareText)
-                        .then(() => { reportOutput.innerHTML = `Report copied to clipboard. ${telegramSuggestion}`; })
-                        .catch((err) => { reportOutput.innerHTML = `Failed to copy report: ${err}. ${telegramSuggestion}`; });
+
+                    const resp = await fetch("https://edgar.truesight.me/dao/submit_contribution", {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!resp.ok) throw new Error(await resp.text());
+
+                    reportOutput.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegram_link" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
+                    reportOutput.className = 'status';
                 } else {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = shareText;
-                    textarea.style.position = 'fixed';
-                    textarea.style.opacity = '0';
-                    document.body.appendChild(textarea);
-                    textarea.focus();
-                    textarea.select();
-                    try {
-                        document.execCommand('copy');
-                        reportOutput.innerHTML = `Report copied to clipboard. ${telegramSuggestion}`;
-                    } catch (err) {
-                        reportOutput.innerHTML = `Failed to copy report: ${err}. ${telegramSuggestion}`;
+                    if (isMobileDevice()) {
+                        if (navigator.share) {
+                            const shareData = { text: shareText };
+                            if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+                                shareData.files = [file];
+                            }
+                            await navigator.share(shareData);
+                            reportOutput.innerHTML = `Internet or server not available. Please share the report to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
+                            reportOutput.className = 'error';
+                        } else {
+                            reportOutput.innerHTML = `Internet or server not available and share API is not supported. Please copy the report below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>`;
+                            reportOutput.className = 'error';
+                            if (await copyToClipboard(shareText)) {
+                                reportOutput.innerHTML += '<br>Copied to clipboard!';
+                            }
+                        }
+                    } else {
+                        if (await copyToClipboard(shareText)) {
+                            reportOutput.innerHTML = `Internet or server not available. Report copied to clipboard. Please paste it into our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
+                            reportOutput.className = 'error';
+                        } else {
+                            reportOutput.innerHTML = `Internet or server not available and clipboard copy failed. Please manually copy the report below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>`;
+                            reportOutput.className = 'error';
+                        }
                     }
-                    document.body.removeChild(textarea);
                 }
             } catch (err) {
-                reportOutput.innerHTML = `Error generating report: ${err.message}. ${telegramSuggestion}`;
+                reportOutput.innerHTML = `Error generating report: ${err.message}. Please try again or contact support.`;
                 reportOutput.className = 'error';
+            } finally {
+                reportButton.disabled = false;
             }
-        });
+        }
 
         // Initialize on page load
         window.onload = async function() {
@@ -678,7 +736,6 @@
             }
 
             try {
-                const timestamp = new Date().toISOString();
                 const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
                 const data = await response.json();
 

@@ -363,6 +363,28 @@
             return !/[\n\r]/.test(description);
         }
 
+        // Add helper function for connectivity check
+        async function isOnline() {
+            if (!navigator.onLine) return false;
+            try {
+                const response = await fetch('https://edgar.truesight.me/ping', { method: 'HEAD', timeout: 5000 });
+                return response.ok;
+            } catch {
+                return false;
+            }
+        }
+
+        // Add helper function for clipboard copying
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                console.error('Failed to copy to clipboard:', err);
+                return false;
+            }
+        }
+
         async function loadMembers() {
             try {
                 const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?list=true');
@@ -437,8 +459,9 @@
             const resourceSel = document.getElementById('resourceSelect');
             const qtyInput = document.getElementById('quantityInput');
             const descriptionInput = document.getElementById('descriptionInput');
+            const attachmentInput = document.getElementById('attachmentInput');
             const submitBtn = document.getElementById('submitButton');
-            submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0 && descriptionInput.value);
+            submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0 && descriptionInput.value && attachmentInput.files.length > 0);
         }
 
         async function onSubmit() {
@@ -486,11 +509,18 @@
                 return;
             }
 
-            if (!isMobileDevice()) {
-                submitBtn.disabled = true;
-                output.textContent = 'Submitting...';
-                output.className = 'loading';
-            }
+            submitBtn.disabled = true;
+            output.textContent = 'Submitting...';
+            output.className = 'loading';
+
+            await submitExpenseReport(file, fileName, memberName, resourceName, quantity, description);
+        }
+
+        async function submitExpenseReport(file, fileName, memberName, resourceName, quantity, description) {
+            const output = document.getElementById('outputMessage');
+            const publicKey = localStorage.getItem('publicKey');
+            const privateKey = localStorage.getItem('privateKey');
+            const submitBtn = document.getElementById('submitButton');
 
             try {
                 const expenseFileName = generateExpenseFileName(fileName);
@@ -513,16 +543,10 @@
                 );
                 const requestHash = arrayBufferToBase64(signature);
                 const telegramLink = 'https://t.me/TrueSightDAO';
+                const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(requestText);
                 const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
 
-                if (isMobileDevice() && navigator.share) {
-                    await navigator.share({
-                        text: shareText,
-                        files: [file]
-                    });
-                    output.innerHTML = `Report shared successfully. Please ensure it is posted in the TrueSightDAO Telegram channel: <a id="telegramLink" href="${telegramLink}" target="_blank">${telegramLink}</a>`;
-                    output.className = 'status';
-                } else {
+                if (await isOnline()) {
                     const formData = new FormData();
                     formData.append('text', shareText);
                     formData.append('attachment', file, fileName);
@@ -536,14 +560,35 @@
 
                     output.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
+                } else {
+                    if (isMobileDevice()) {
+                        if (navigator.share) {
+                            const shareData = { text: shareText, files: [file] };
+                            await navigator.share(shareData);
+                            output.innerHTML = `Internet or server not available. Please share the report to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
+                            output.className = 'error';
+                        } else {
+                            output.innerHTML = `Internet or server not available and share API is not supported. Please copy the report below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>`;
+                            output.className = 'error';
+                            if (await copyToClipboard(shareText)) {
+                                output.innerHTML += '<br>Copied to clipboard!';
+                            }
+                        }
+                    } else {
+                        if (await copyToClipboard(shareText)) {
+                            output.innerHTML = `Internet or server not available. Report copied to clipboard. Please paste it into our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
+                            output.className = 'error';
+                        } else {
+                            output.innerHTML = `Internet or server not available and clipboard copy failed. Please manually copy the report below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>`;
+                            output.className = 'error';
+                        }
+                    }
                 }
             } catch (err) {
                 output.innerHTML = `Error generating expense report: ${err.message}. Please try again or contact support.`;
                 output.className = 'error';
             } finally {
-                if (!isMobileDevice()) {
-                    submitBtn.disabled = false;
-                }
+                submitBtn.disabled = false;
             }
         }
 
