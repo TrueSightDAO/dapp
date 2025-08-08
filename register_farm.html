@@ -256,8 +256,8 @@
       <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSightDAO Logo"/>
     </div>
     <h1>Register Your Farm</h1>
-    <p id="description">
-      Fill in your farm details, select tree species (hold Ctrl or tap multiple options), choose a reimbursement method, take a photo at the entrance of the farm where the trees will be planted, and click "Submit Farm Registration" to share via WhatsApp to our program administrator at <a href="https://wa.me/14153000019">+1 415 300 0019</a>. Use a unique farm name (e.g., Fazenda São João). Register your account at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a> when online.
+    <p id="description" class="fade-in">
+      Checking connection to update instructions...
     </p>
     <div id="welcome" style="display: none;"></div>
     <p id="status" class="fade-in">Setting up your signature...</p>
@@ -712,6 +712,25 @@
       return !hasError;
     }
 
+    async function updateDescription() {
+      const descriptionElement = document.getElementById('description');
+      const telegramLink = 'https://t.me/TrueSightDAO';
+      const whatsappLink = 'https://wa.me/14153000019';
+      const baseText = `Fill in your farm details, select tree species (hold Ctrl or tap multiple options), choose a reimbursement method, take a photo at the entrance of the farm where the trees will be planted, and click "Submit Farm Registration"`;
+      const signatureText = `Use a unique farm name (e.g., Fazenda São João). If your digital signature is not registered, please register it later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.`;
+
+      try {
+        if (await isOnline()) {
+          descriptionElement.innerHTML = `${baseText} to submit to our program via our API. ${signatureText}`;
+        } else {
+          descriptionElement.innerHTML = `${baseText} to share via <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> to our program administrator. ${signatureText}`;
+        }
+      } catch (error) {
+        descriptionElement.innerHTML = `${baseText} to share via <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> to our program administrator. ${signatureText}`;
+      }
+      descriptionElement.className = 'fade-in';
+    }
+
     async function onSubmitFarmRegistration() {
       if (!validateInputs()) {
         return;
@@ -885,6 +904,8 @@
       const statusElement = document.getElementById('status');
       statusElement.textContent = 'Setting up your signature...';
       statusElement.className = 'loading fade-in';
+
+      await updateDescription();
 
       let publicKey = localStorage.getItem('publicKey');
       let privateKey = localStorage.getItem('privateKey');
