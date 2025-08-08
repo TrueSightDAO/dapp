@@ -567,9 +567,15 @@
             updateSubmitButtonState();
         }
 
-        // Add helper function for offline detection
-        function isOnline() {
-            return navigator.onLine;
+        // Add helper function for connectivity check
+        async function isOnline() {
+            if (!navigator.onLine) return false;
+            try {
+                const response = await fetch('https://edgar.truesight.me/ping', { method: 'HEAD', timeout: 5000 });
+                return response.ok;
+            } catch {
+                return false;
+            }
         }
 
         // Add helper function for clipboard copying
