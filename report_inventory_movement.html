@@ -189,6 +189,13 @@
                 font-size: 1rem;
             }
         }
+        /* Custom styling for reset button */
+        #resetButton {
+            background-color: #6c757d;
+        }
+        #resetButton:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -248,6 +255,7 @@
             <input type="number" id="quantityInput" min="1" disabled>
         </div>
         <button id="reportButton" disabled>Report Inventory Movement</button>
+        <button id="resetButton" type="button">Reset Form</button>
         <div id="reportOutput"></div>
     </div>
 
@@ -681,6 +689,31 @@
             }
         }
 
+        // Reset form to initial state
+        function resetForm() {
+            const inputMethodEl = document.getElementById('inputMethod');
+            inputMethodEl.value = 'upload';
+            toggleInputMethod();
+            const fileInputEl = document.getElementById('fileInput');
+            fileInputEl.value = '';
+            updateFileInfo('');
+            const managerSel = document.getElementById('managerSelect');
+            managerSel.selectedIndex = 0;
+            const itemSel = document.getElementById('itemSelect');
+            itemSel.innerHTML = '<option value="">Select a manager first</option>';
+            itemSel.disabled = true;
+            const recSel = document.getElementById('recipientSelect');
+            recSel.selectedIndex = 0;
+            const qtyInputEl = document.getElementById('quantityInput');
+            qtyInputEl.value = '';
+            qtyInputEl.disabled = true;
+            document.getElementById('availableQuantity').textContent = '';
+            const outputEl = document.getElementById('reportOutput');
+            outputEl.textContent = '';
+            outputEl.className = '';
+            updateReportButtonState();
+        }
+
         window.addEventListener('load', async () => {
             loadManagers();
             loadRecipients();
@@ -691,6 +724,7 @@
             document.getElementById('recipientSelect').addEventListener('change', updateReportButtonState);
             document.getElementById('quantityInput').addEventListener('input', updateReportButtonState);
             document.getElementById('reportButton').addEventListener('click', onReport);
+            document.getElementById('resetButton').addEventListener('click', resetForm);
 
             try {
                 const location = await getLocation();
