@@ -235,6 +235,13 @@
                 text-align: center;
             }
         }
+        /* Custom styling for reset button */
+        #resetButton {
+            background-color: #6c757d;
+        }
+        #resetButton:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -289,6 +296,7 @@
             </div>
             <div id="submitButtonHolder">
                 <button id="submitButton" disabled>Submit Expense Report</button>
+                <button id="resetButton" type="button">Reset Form</button>
             </div>
             
             <div id="outputMessage"></div>
@@ -591,7 +599,34 @@
                 submitBtn.disabled = false;
             }
         }
+        
+        // Reset form to initial state
+        function resetForm() {
+            const memberSel = document.getElementById('memberSelect');
+            const resourceSel = document.getElementById('resourceSelect');
+            const qtyInput = document.getElementById('quantityInput');
+            const descriptionInput = document.getElementById('descriptionInput');
+            const attachmentInput = document.getElementById('attachmentInput');
+            const availableQtyElem = document.getElementById('availableQuantity');
+            const output = document.getElementById('outputMessage');
+            const charCount = document.getElementById('charCount');
 
+            // Reset form fields
+            memberSel.selectedIndex = 0;
+            resourceSel.innerHTML = '<option value="">Select a member first</option>';
+            resourceSel.disabled = true;
+            qtyInput.value = '';
+            qtyInput.disabled = true;
+            descriptionInput.value = '';
+            charCount.textContent = '0';
+            attachmentInput.value = '';
+            updateFileInfo('');
+            output.textContent = '';
+            output.className = '';
+            availableQtyElem.textContent = '';
+            updateSubmitButtonState();
+        }
+        
         window.addEventListener('load', async () => {
             const publicKey = localStorage.getItem('publicKey');
             const statusElement = document.getElementById('status');
@@ -658,6 +693,7 @@
                     updateSubmitButtonState();
                 });
                 document.getElementById('submitButton').addEventListener('click', onSubmit);
+                document.getElementById('resetButton').addEventListener('click', resetForm);
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';
