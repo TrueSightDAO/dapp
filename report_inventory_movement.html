@@ -325,7 +325,9 @@
         function getLocation() {
             return new Promise((resolve, reject) => {
                 if (!navigator.geolocation) {
-                    reject(new Error('Geolocation not supported on this device.'));
+                    latitude = 'NA';
+                    longitude = 'NA';
+                    resolve({ latitude, longitude });
                 }
                 navigator.geolocation.getCurrentPosition(
                     position => {
@@ -333,7 +335,11 @@
                         longitude = position.coords.longitude.toFixed(6);
                         resolve({ latitude, longitude });
                     },
-                    error => reject(new Error('Error getting location: ' + error.message)),
+                    error => {
+                        latitude = 'NA';
+                        longitude = 'NA';
+                        resolve({ latitude, longitude });
+                    },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             });
