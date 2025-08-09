@@ -131,10 +131,10 @@
             background-color: #f0f0f0;
             cursor: not-allowed;
         }
-       button {
-            padding: 0.8rem 1.5rem;
+        button {
+            padding: 0.8rem 1rem; /* Adjusted padding for longer text */
             cursor: pointer;
-            font-size: 1.1rem;
+            font-size: 1rem; /* Slightly smaller font size for better fit */
             border: none;
             border-radius: 8px;
             background-color: #007bff;
@@ -144,6 +144,9 @@
             width: 100%;
             max-width: 300px;
             display: block;
+            white-space: nowrap; /* Prevent text wrapping */
+            overflow: hidden; /* Handle overflow */
+            text-overflow: ellipsis; /* Add ellipsis for very small screens */
         }
         button:hover {
             background-color: #0056b3;
@@ -263,13 +266,6 @@
                 gap: 0.5rem;
             }
         }
-        /* Custom styling for reset button */
-        #resetButton {
-            background-color: #6c757d;
-        }
-        #resetButton:hover {
-            background-color: #5a6268;
-        }
     </style>
 </head>
 <body>
@@ -344,12 +340,21 @@
                 </div>
             </div>
             <button id="submitButton" disabled>Submit Contribution Report</button>
-            <button id="resetButton" type="button">Reset Form</button>
             <div id="outputMessage"></div>
         </div>
     </div>
 
     <script>
+
+        // Add at the top of the <script> section, after other variable declarations
+        let isPostSubmission = false;
+
+        // New function to update button text
+        function updateButtonText() {
+            const submitBtn = document.getElementById('submitButton');
+            submitBtn.textContent = isPostSubmission ? 'Submit Another Contribution' : 'Submit Contribution Report';
+        }        
+
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
         const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
         let contributorName = '';
@@ -597,7 +602,19 @@
             }
         }
 
+        // Modify the onSubmit function
         async function onSubmit() {
+            const submitBtn = document.getElementById('submitButton');
+            const output = document.getElementById('outputMessage');
+
+            if (isPostSubmission) {
+                // Reset form and revert button text
+                resetForm();
+                isPostSubmission = false;
+                updateButtonText();
+                return;
+            }
+
             const contributorSel = document.getElementById('contributorSelect');
             const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
             const typeSel = document.getElementById('typeSelect');
@@ -607,11 +624,9 @@
             const usdInput = document.getElementById('usdInput');
             const description = document.getElementById('descriptionInput').value;
             const attachmentInput = document.getElementById('attachmentInput');
-            const output = document.getElementById('outputMessage');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const inputMethod = document.getElementById('inputMethod').value;
-            const submitBtn = document.getElementById('submitButton');
 
             const amount = typeName === 'Time' 
                 ? (parseFloat(hoursInput.value || 0) + parseFloat(minutesInput.value || 0) / 60).toFixed(2) 
@@ -656,6 +671,8 @@
             await submitReport(file, fileName, typeName, amount);
         }
 
+
+        // Modify the submitReport function
         async function submitReport(file, fileName, typeName, amount) {
             const contributorSel = document.getElementById('contributorSelect');
             const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
@@ -696,7 +713,7 @@
                 const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(requestText);
                 const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
 
-                if (isOnline()) {
+                if (await isOnline()) {
                     const formData = new FormData();
                     formData.append('text', shareText);
                     if (file) {
@@ -712,6 +729,8 @@
 
                     output.innerHTML = `Report sent to Edgar successfully. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
+                    isPostSubmission = true; // Set flag to indicate successful submission
+                    updateButtonText(); // Update button text to "Submit Another Contribution"
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
@@ -748,7 +767,6 @@
         }
 
         window.addEventListener('load', async () => {
-            document.getElementById('resetButton').addEventListener('click', resetForm);
             const publicKey = localStorage.getItem('publicKey');
             const statusElement = document.getElementById('status');
             statusElement.textContent = 'Verifying your digital signature...';
@@ -876,6 +894,7 @@
             }
         });
 
+        // Update resetForm to ensure camera state is preserved
         function resetForm() {
             const contributorSel = document.getElementById('contributorSelect');
             const typeSel = document.getElementById('typeSelect');
@@ -921,8 +940,11 @@
             // Reset TDG output
             document.getElementById('tdgOutput').textContent = '';
 
-            // Refresh contributor list without affecting camera
+            // Refresh contributor list
             filterContributors();
+
+            // Preserve camera state
+            toggleInputMethod();
 
             // Update submit button state
             updateSubmitButtonState();
