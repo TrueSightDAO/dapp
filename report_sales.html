@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="description" content="Easily report item sales by scanning or uploading a QR code in the TrueSight DAO community, with support for future submission methods.">
+    <meta name="description" content="Easily report item sales by scanning, uploading, or selecting a QR code in the TrueSight DAO community.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales Reporter</title>
 
     <!-- Open Graph tags for WhatsApp and social media previews -->
     <meta property="og:title" content="Sales Reporter">
-    <meta property="og:description" content="Easily report item sales by scanning or uploading a QR code in the TrueSight DAO community, with support for future submission methods.">
+    <meta property="og:description" content="Easily report item sales by scanning, uploading, or selecting a QR code in the TrueSight DAO community.">
     <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
     <meta property="og:url" content="https://truesightdao.github.io/dapp/">
     <meta property="og:type" content="website">
@@ -105,7 +105,7 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
-        input[type="file"] {
+        input[type="file"], input[type="text"] {
             width: 100%;
             padding: 0.8rem;
             font-size: 1rem;
@@ -130,10 +130,10 @@
             text-align: center;
         }
         #report_output {
-            margin: 1rem 0;
-            max-width: 90%;
+            margin: 0.5rem 0;
             font-size: 1rem;
             text-align: center;
+            color: #333;
         }
         #telegram_link {
             color: #007bff;
@@ -224,7 +224,7 @@
                 width: 100%;
                 max-width: 400px;
             }
-            input[type="button"], input[type="file"] {
+            input[type="button"], input[type="file"], input[type="text"] {
                 padding: 1rem;
                 font-size: 1.1rem;
                 width: 100%;
@@ -260,23 +260,26 @@
         <p id="status" class="fade-in">Verifying your digital signature...</p>
         <div id="welcome" style="display: none;"></div>
         <div id="info" style="display: none;">
-            <p id="intro">Report an item sale by selecting a DAO member, choosing a QR code input method, scanning or uploading the QR code, and submitting the sale to TrueSight DAO's Town Hall.</p>
-            <div class="form-row">
-                <label for="memberSelect">Sold by DAO Member:</label>
-                <select id="memberSelect">
-                    <option value="">Loading members...</option>
-                </select>
-            </div>
+            <p id="intro">Report an item sale by selecting a QR code input method, scanning, uploading, or selecting a QR code, and submitting the sale to TrueSight DAO's Town Hall.</p>
             <div class="form-row">
                 <label for="inputMethod">QR Code Input:</label>
                 <select id="inputMethod">
                     <option value="upload" selected>Upload Image</option>                    
                     <option value="camera">Use Camera</option>
+                    <option value="list">Select from List</option>
                 </select>
             </div>
             <div class="form-row" id="upload-section" style="display: none;">
                 <label for="imageInput">Upload QR Code Image:</label>
                 <input type="file" id="imageInput" accept="image/*">
+            </div>
+            <div class="form-row" id="list-section" style="display: none;">
+                <label for="qrFilter">Filter QR Codes:</label>
+                <input type="text" id="qrFilter" placeholder="Type to filter QR codes...">
+                <label for="qrSelect" style="margin-top: 0.5rem;">Select QR Code:</label>
+                <select id="qrSelect">
+                    <option value="">Loading QR codes...</option>
+                </select>
             </div>
             <div id="video-holder">
                 <video id="video" width="400" height="300" autoplay playsinline muted></video>
@@ -288,10 +291,10 @@
                 <input type="button" id="scan_button" value="Scan QR Code" disabled>
             </div>
             <div id="qr_param_display"></div>
-            <div id="report_output"></div>
             <div class="button-row">
                 <input type="button" id="report_button" value="Report Sold" disabled>
             </div>
+            <div id="report_output"></div>            
         </div>
     </div>
     <!-- Include jsQR library via CDN -->
@@ -305,10 +308,14 @@
         }
 
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const QR_CODE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec?list=true';
         let contributorName = '';
-        let members = [];
+        let qrCodes = [];
+        let filteredQrCodes = [];
         let currentStream = null;
-        let isPostSubmission = false; // Flag to track post-submission state
+        let isPostSubmission = false;
+        let lastQrParam = null;
+        let uploadedFile = null;
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -335,41 +342,53 @@
         const reportButton = document.getElementById('report_button');
         const reportOutput = document.getElementById('report_output');
         const statusElement = document.getElementById('status');
-        const memberSelect = document.getElementById('memberSelect');
         const inputMethod = document.getElementById('inputMethod');
         const uploadSection = document.getElementById('upload-section');
+        const listSection = document.getElementById('list-section');
+        const qrFilter = document.getElementById('qrFilter');
+        const qrSelect = document.getElementById('qrSelect');
         const imageInput = document.getElementById('imageInput');
         const videoHolder = document.getElementById('video-holder');
         const uploadedImage = document.getElementById('uploaded-image');
         const scanButtonRow = document.getElementById('scan-button-row');
         let scanning = false;
-        let lastQrParam = null;
-        let uploadedFile = null;
 
-        async function loadMembers() {
+        async function loadQrCodes() {
             try {
-                const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?list=true');
-                members = await res.json();
-                memberSelect.innerHTML = '<option value="">Select a DAO member</option>';
-                members.forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m.key;
-                    opt.textContent = m.name;
-                    if (m.name === contributorName) {
-                        opt.selected = true;
-                    }
-                    memberSelect.appendChild(opt);
-                });
-                updateReportButtonState();
+                const res = await fetch(QR_CODE_ENDPOINT);
+                const data = await res.json();
+                if (data.status === 'error') {
+                    throw new Error(data.message);
+                }
+                qrCodes = data.qr_codes.map(qr => ({ key: qr, name: qr }));
+                filteredQrCodes = [...qrCodes];
+                updateQrCodeDropdown();
             } catch (err) {
-                console.error('Error loading members:', err);
-                reportOutput.textContent = 'Failed to load DAO members. Please try again later.';
+                console.error('Error loading QR codes:', err);
+                reportOutput.textContent = 'Failed to load QR codes. Please try again later.';
                 reportOutput.className = 'error';
             }
         }
 
+        function updateQrCodeDropdown() {
+            qrSelect.innerHTML = '<option value="">Select a QR code</option>';
+            filteredQrCodes.forEach(qr => {
+                const opt = document.createElement('option');
+                opt.value = qr.key;
+                opt.textContent = qr.name;
+                qrSelect.appendChild(opt);
+            });
+            updateReportButtonState();
+        }
+
+        function filterQrCodes() {
+            const filterText = qrFilter.value.toLowerCase();
+            filteredQrCodes = qrCodes.filter(qr => qr.name.toLowerCase().includes(filterText));
+            updateQrCodeDropdown();
+        }
+
         function updateReportButtonState() {
-            reportButton.disabled = !lastQrParam || !memberSelect.value;
+            reportButton.disabled = !lastQrParam;
         }
 
         function resetForm() {
@@ -382,8 +401,10 @@
             lastQrParam = null;
             qrParamDisplay.textContent = '';
             reportOutput.textContent = '';
+            qrFilter.value = '';
+            filteredQrCodes = [...qrCodes];
+            updateQrCodeDropdown();
             output.textContent = 'Upload an image containing a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
-            memberSelect.selectedIndex = members.findIndex(m => m.name === contributorName) + 1;
             scan_button.value = 'Scan QR Code';
             scanning = false;
             video.classList.remove('scanning');
@@ -392,30 +413,37 @@
 
         function toggleInputMethod() {
             const method = inputMethod.value;
+            lastQrParam = null;
+            qrParamDisplay.textContent = '';
+            reportButton.disabled = true;
+            uploadedFile = null;
+            uploadedImage.src = '';
+            uploadedImage.style.display = 'none';
+            scan_button.value = 'Scan QR Code';
+            scanning = false;
+            video.classList.remove('scanning');
+
             if (method === 'camera') {
                 uploadSection.style.display = 'none';
+                listSection.style.display = 'none';
                 videoHolder.style.display = 'block';
-                uploadedImage.style.display = 'none';
                 scanButtonRow.style.display = 'block';
                 output.textContent = 'Scan a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
-                lastQrParam = null;
-                qrParamDisplay.textContent = '';
-                reportButton.disabled = true;
-                uploadedFile = null;
-                uploadedImage.src = '';
                 startCamera();
+            } else if (method === 'list') {
+                stopCamera();
+                uploadSection.style.display = 'none';
+                videoHolder.style.display = 'none';
+                scanButtonRow.style.display = 'none';
+                listSection.style.display = 'block';
+                output.textContent = 'Filter and select a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
             } else {
                 stopCamera();
                 videoHolder.style.display = 'none';
                 scanButtonRow.style.display = 'none';
+                listSection.style.display = 'none';
                 uploadSection.style.display = 'block';
-                uploadedImage.style.display = 'none';
                 output.textContent = 'Upload an image containing a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
-                lastQrParam = null;
-                qrParamDisplay.textContent = '';
-                reportButton.disabled = true;
-                uploadedFile = null;
-                uploadedImage.src = '';
             }
         }
 
@@ -600,6 +628,14 @@
 
         inputMethod.addEventListener('change', toggleInputMethod);
 
+        qrFilter.addEventListener('input', filterQrCodes);
+
+        qrSelect.addEventListener('change', () => {
+            lastQrParam = qrSelect.value;
+            qrParamDisplay.textContent = lastQrParam ? `QR Code: ${lastQrParam}` : '';
+            updateReportButtonState();
+        });
+
         imageInput.addEventListener('change', () => {
             if (imageInput.files.length > 0) {
                 uploadedFile = imageInput.files[0];
@@ -624,15 +660,12 @@
                 resetForm();
                 isPostSubmission = false;
                 reportButton.value = 'Report Sold';
-                reportOutput.textContent = 'Form cleared. Please scan or upload a QR code to report a new sale.';
+                reportOutput.textContent = 'Form cleared. Please scan, upload, or select a QR code to report a new sale.';
                 reportOutput.className = 'status';
                 return;
             }
 
             if (!lastQrParam) return;
-            const selectedMemberKey = memberSelect.value;
-            const selectedMember = members.find(m => m.key === selectedMemberKey);
-            const memberName = selectedMember ? selectedMember.name : contributorName;
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const inputMethodVal = inputMethod.value;
@@ -662,12 +695,12 @@
                     if (blob) {
                         fileToShare = new File([blob], 'scan.png', { type: 'image/png' });
                     }
-                    submitSalesReport(fileToShare, fileName, lastQrParam, memberName);
+                    submitSalesReport(fileToShare, fileName, lastQrParam, contributorName);
                 }, 'image/png');
                 return;
             }
 
-            await submitSalesReport(fileToShare, fileName, lastQrParam, memberName);
+            await submitSalesReport(fileToShare, fileName, lastQrParam, contributorName);
         }
 
         async function submitSalesReport(file, fileName, qrParam, memberName) {
@@ -780,9 +813,8 @@
                 statusElement.textContent = 'Signature verified successfully';
                 statusElement.className = 'status fade-in';
 
-                await loadMembers();
+                await loadQrCodes();
                 toggleInputMethod();
-                memberSelect.addEventListener('change', updateReportButtonState);
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';
