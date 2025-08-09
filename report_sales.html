@@ -148,6 +148,7 @@
             margin-bottom: 1rem;
             width: 100%;
             max-width: 600px;
+            text-align: center;
         }
         .form-row {
             margin: 1rem 0;
@@ -252,7 +253,6 @@
 <body>
     <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
     <div class="container">
-            
         <div style="text-align: center;">
             <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>            
@@ -308,6 +308,7 @@
         let contributorName = '';
         let members = [];
         let currentStream = null;
+        let isPostSubmission = false; // Flag to track post-submission state
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -369,6 +370,24 @@
 
         function updateReportButtonState() {
             reportButton.disabled = !lastQrParam || !memberSelect.value;
+        }
+
+        function resetForm() {
+            inputMethod.value = 'upload';
+            toggleInputMethod();
+            imageInput.value = '';
+            uploadedFile = null;
+            uploadedImage.src = '';
+            uploadedImage.style.display = 'none';
+            lastQrParam = null;
+            qrParamDisplay.textContent = '';
+            reportOutput.textContent = '';
+            output.textContent = 'Upload an image containing a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
+            memberSelect.selectedIndex = members.findIndex(m => m.name === contributorName) + 1;
+            scan_button.value = 'Scan QR Code';
+            scanning = false;
+            video.classList.remove('scanning');
+            updateReportButtonState();
         }
 
         function toggleInputMethod() {
@@ -547,7 +566,6 @@
             reader.readAsDataURL(file);
         }
 
-        // Add helper function for connectivity check
         async function isOnline() {
             if (!navigator.onLine) return false;
             try {
@@ -558,7 +576,6 @@
             }
         }
 
-        // Add helper function for clipboard copying
         async function copyToClipboard(text) {
             try {
                 await navigator.clipboard.writeText(text);
@@ -598,12 +615,20 @@
             }
         });
 
-        // Handle report sold button click
         reportButton.addEventListener('click', async () => {
             await onReport();
         });
 
         async function onReport() {
+            if (isPostSubmission) {
+                resetForm();
+                isPostSubmission = false;
+                reportButton.value = 'Report Sold';
+                reportOutput.textContent = 'Form cleared. Please scan or upload a QR code to report a new sale.';
+                reportOutput.className = 'status';
+                return;
+            }
+
             if (!lastQrParam) return;
             const selectedMemberKey = memberSelect.value;
             const selectedMember = members.find(m => m.key === selectedMemberKey);
@@ -686,6 +711,9 @@
 
                     reportOutput.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegram_link" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     reportOutput.className = 'status';
+                    isPostSubmission = true;
+                    reportButton.value = 'Report Another Sale';
+                    updateReportButtonState();
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
@@ -718,10 +746,10 @@
                 reportOutput.className = 'error';
             } finally {
                 reportButton.disabled = false;
+                updateReportButtonState();
             }
         }
 
-        // Initialize on page load
         window.onload = async function() {
             statusElement.textContent = 'Verifying your digital signature...';
             statusElement.className = 'loading fade-in';
@@ -763,7 +791,6 @@
             }
         }
     </script>
-    <!-- Reload latest version link -->
     <script>
       (function() {
         const div = document.createElement('div');
@@ -781,7 +808,6 @@
         document.body.appendChild(div);
       })();
     </script>
-    <!-- View Source Code link -->
     <script>
       (function() {
         const div = document.createElement('div');
