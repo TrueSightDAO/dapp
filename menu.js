@@ -3,17 +3,17 @@
   // List of pages for navigation, grouped by section matching index.html
   window.menuItems = [
     { title: 'Home', url: './index.html', section: '' },
+    { title: 'DAO Contribution Reporter', url: './report_contribution.html', section: 'Community Contributions' },
+    { title: 'Inventory Expense Reporter', url: './report_dao_expenses.html', section: 'Inventory & Sales' },
+    { title: 'Inventory Movement Reporter', url: './report_inventory_movement.html', section: 'Inventory & Sales' },
+    { title: 'Report Tree Planting', url: './report_tree_planting.html', section: 'Sunmint Tree Planting Program' },
     { title: 'Digital Signature Creator', url: './create_signature.html', section: 'Identity & Governance' },
     { title: 'Voting Rights Cash Out', url: './withdraw_voting_rights.html', section: 'Identity & Governance' },
+    { title: 'Notarize Official Document', url: './notarize.html', section: 'Identity & Governance' }    
     { title: 'Verify Signed Request', url: './verify_request.html', section: 'Identity & Governance' },
     { title: 'Cacao Bag Scanner', url: './scanner.html', section: 'Inventory & Sales' },
     { title: 'Sales Reporter', url: './report_sales.html', section: 'Inventory & Sales' },
-    { title: 'Inventory Expense Reporter', url: './report_dao_expenses.html', section: 'Inventory & Sales' },
-    { title: 'Inventory Movement Reporter', url: './report_inventory_movement.html', section: 'Inventory & Sales' },
     { title: 'Register Your Farm', url: './register_farm.html', section: 'Sunmint Tree Planting Program' },
-    { title: 'Report Tree Planting', url: './report_tree_planting.html', section: 'Sunmint Tree Planting Program' },
-    { title: 'Notarize Supply Chain Document', url: './notarize.html', section: 'Community Contributions' },
-    { title: 'DAO Contribution Reporter', url: './report_contribution.html', section: 'Community Contributions' }
   ];
 
   // Render dropdown menu if placeholder is present
