@@ -131,14 +131,13 @@
             background-color: #f0f0f0;
             cursor: not-allowed;
         }
-
         #submitButtonHolder {
             text-align: center;
         }
         button {
-            padding: 0.8rem 1.5rem;
+            padding: 0.8rem 1rem; /* Adjusted for longer text */
             cursor: pointer;
-            font-size: 1.1rem;
+            font-size: 1rem; /* Slightly smaller for better fit */
             border: none;
             border-radius: 8px;
             background-color: #007bff;
@@ -147,6 +146,9 @@
             margin: 0.5rem 0;
             width: 100%;
             max-width: 300px;
+            white-space: nowrap; /* Prevent text wrapping */
+            overflow: hidden; /* Handle overflow */
+            text-overflow: ellipsis; /* Ellipsis for small screens */
         }
         button:hover {
             background-color: #0056b3;
@@ -228,26 +230,18 @@
             }
             button {
                 padding: 1rem;
-                font-size: 1rem;
+                font-size: 0.95rem; /* Adjusted for mobile */
             }
             .info, .info-location {
                 font-size: 0.95rem;
                 text-align: center;
             }
         }
-        /* Custom styling for reset button */
-        #resetButton {
-            background-color: #6c757d;
-        }
-        #resetButton:hover {
-            background-color: #5a6268;
-        }
     </style>
 </head>
 <body>
     <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
     <div class="container">
-        
         <div style="text-align: center;">
             <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>        
@@ -295,11 +289,9 @@
                 </div>
             </div>
             <div id="submitButtonHolder">
-                <button id="submitButton" disabled>Submit Expense Report</button>
-                <button id="resetButton" type="button">Reset Form</button>
+                <button id="submitButton" disabled aria-label="Submit Expense Report">Submit Expense Report</button>
             </div>
-            
-            <div id="outputMessage"></div>
+            <div id="outputMessage" aria-live="polite"></div>
         </div>
     </div>
 
@@ -310,6 +302,7 @@
         let latitude = null;
         let longitude = null;
         let contributorName = '';
+        let isPostSubmission = false; // New flag to track post-submission state
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -377,7 +370,6 @@
             return !/[\n\r]/.test(description);
         }
 
-        // Add helper function for connectivity check
         async function isOnline() {
             if (!navigator.onLine) return false;
             try {
@@ -388,7 +380,6 @@
             }
         }
 
-        // Add helper function for clipboard copying
         async function copyToClipboard(text) {
             try {
                 await navigator.clipboard.writeText(text);
@@ -397,6 +388,38 @@
                 console.error('Failed to copy to clipboard:', err);
                 return false;
             }
+        }
+
+        function resetForm() {
+            const memberSel = document.getElementById('memberSelect');
+            const resourceSel = document.getElementById('resourceSelect');
+            const qtyInput = document.getElementById('quantityInput');
+            const descriptionInput = document.getElementById('descriptionInput');
+            const attachmentInput = document.getElementById('attachmentInput');
+            const availableQtyElem = document.getElementById('availableQuantity');
+            const output = document.getElementById('outputMessage');
+            const charCount = document.getElementById('charCount');
+
+            // Reset form fields
+            memberSel.selectedIndex = 0;
+            resourceSel.innerHTML = '<option value="">Select a member first</option>';
+            resourceSel.disabled = true;
+            qtyInput.value = '';
+            qtyInput.disabled = true;
+            descriptionInput.value = '';
+            charCount.textContent = '0';
+            attachmentInput.value = '';
+            updateFileInfo('');
+            output.textContent = '';
+            output.className = '';
+            availableQtyElem.textContent = '';
+            updateSubmitButtonState();
+        }
+
+        function updateButtonText() {
+            const submitBtn = document.getElementById('submitButton');
+            submitBtn.textContent = isPostSubmission ? 'Submit Another Expense' : 'Submit Expense Report';
+            submitBtn.setAttribute('aria-label', submitBtn.textContent);
         }
 
         async function loadMembers() {
@@ -479,6 +502,18 @@
         }
 
         async function onSubmit() {
+            const submitBtn = document.getElementById('submitButton');
+            const output = document.getElementById('outputMessage');
+
+            if (isPostSubmission) {
+                resetForm();
+                isPostSubmission = false;
+                updateButtonText();
+                output.textContent = 'Form cleared. Please fill in the details for the new expense report.';
+                output.className = 'status';
+                return;
+            }
+
             const memberSel = document.getElementById('memberSelect');
             const memberName = memberSel.options[memberSel.selectedIndex].text;
             const resourceSel = document.getElementById('resourceSelect');
@@ -486,10 +521,8 @@
             const quantity = document.getElementById('quantityInput').value;
             const description = document.getElementById('descriptionInput').value;
             const attachmentInput = document.getElementById('attachmentInput');
-            const output = document.getElementById('outputMessage');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
-            const submitBtn = document.getElementById('submitButton');
 
             if (!latitude || !longitude) {
                 output.textContent = 'Location not available. Please allow location access and try again.';
@@ -574,6 +607,9 @@
 
                     output.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
+                    isPostSubmission = true; // Set flag after successful submission
+                    updateButtonText();
+                    updateSubmitButtonState(); 
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
@@ -603,36 +639,10 @@
                 output.className = 'error';
             } finally {
                 submitBtn.disabled = false;
+                updateSubmitButtonState();
             }
         }
-        
-        // Reset form to initial state
-        function resetForm() {
-            const memberSel = document.getElementById('memberSelect');
-            const resourceSel = document.getElementById('resourceSelect');
-            const qtyInput = document.getElementById('quantityInput');
-            const descriptionInput = document.getElementById('descriptionInput');
-            const attachmentInput = document.getElementById('attachmentInput');
-            const availableQtyElem = document.getElementById('availableQuantity');
-            const output = document.getElementById('outputMessage');
-            const charCount = document.getElementById('charCount');
 
-            // Reset form fields
-            memberSel.selectedIndex = 0;
-            resourceSel.innerHTML = '<option value="">Select a member first</option>';
-            resourceSel.disabled = true;
-            qtyInput.value = '';
-            qtyInput.disabled = true;
-            descriptionInput.value = '';
-            charCount.textContent = '0';
-            attachmentInput.value = '';
-            updateFileInfo('');
-            output.textContent = '';
-            output.className = '';
-            availableQtyElem.textContent = '';
-            updateSubmitButtonState();
-        }
-        
         window.addEventListener('load', async () => {
             const publicKey = localStorage.getItem('publicKey');
             const statusElement = document.getElementById('status');
@@ -699,7 +709,7 @@
                     updateSubmitButtonState();
                 });
                 document.getElementById('submitButton').addEventListener('click', onSubmit);
-                document.getElementById('resetButton').addEventListener('click', resetForm);
+                updateButtonText();
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';

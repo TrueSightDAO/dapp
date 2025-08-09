@@ -119,9 +119,9 @@
       gap: 0.5rem;
     }
     button {
-      padding: 0.8rem 1.5rem;
+      padding: 0.8rem 1rem; /* Adjusted padding for longer text */
       cursor: pointer;
-      font-size: 1.1rem;
+      font-size: 1rem; /* Slightly smaller font for better fit */
       border: none;
       border-radius: 8px;
       background-color: #4CAF50;
@@ -130,6 +130,9 @@
       margin: 0.5rem 0;
       width: 100%;
       max-width: 300px;
+      white-space: nowrap; /* Prevent text wrapping */
+      overflow: hidden; /* Handle overflow */
+      text-overflow: ellipsis; /* Add ellipsis for small screens */
     }
     button:hover {
       background-color: #45a049;
@@ -220,7 +223,7 @@
       }
       button {
         padding: 1rem;
-        font-size: 1rem;
+        font-size: 0.95rem; /* Adjusted for mobile */
       }
       #cameraPreview {
         max-width: 100%;
@@ -270,9 +273,9 @@
         <input type="text" id="otherCurrency" name="otherCurrency" placeholder="Specify currency" style="display: none;" maxlength="10">
       </div>
       <div class="button-container">
-        <button id="submitButton">Submit Report</button>
+        <button id="submitButton" aria-label="Submit Report">Submit Report</button>
       </div>
-      <p id="action-status"></p>
+      <div id="action-status" aria-live="polite"></div>
     </div>
   </div>
 
@@ -284,6 +287,7 @@
     let stream = null;
     let newKeysGenerated = false;
     let isSignatureRegistered = false;
+    let isPostSubmission = false; // New flag to track post-submission state
 
     function arrayBufferToBase64(buffer) {
       return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -424,7 +428,7 @@
         actionStatus.textContent = 'Camera not supported on this device.';
         actionStatus.className = 'error';
         submitButton.style.display = 'none';
-        return;
+        return false;
       }
 
       const constraints = {
@@ -437,7 +441,7 @@
           : true
       };
 
-      navigator.mediaDevices.getUserMedia(constraints)
+      return navigator.mediaDevices.getUserMedia(constraints)
         .then(function(s) {
           stream = s;
           video.srcObject = stream;
@@ -445,12 +449,24 @@
           submitButton.style.display = 'block';
           actionStatus.textContent = 'Camera started. Point at the planted tree and receipt, then click "Submit Report".';
           actionStatus.className = 'status';
+          return true;
         })
         .catch(function(error) {
           actionStatus.textContent = 'Error accessing camera: ' + error.message;
           actionStatus.className = 'error';
           submitButton.style.display = 'none';
+          return false;
         });
+    }
+
+    function stopCamera() {
+      if (stream && stream.getTracks) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+        const video = document.getElementById('cameraPreview');
+        video.srcObject = null;
+        video.style.display = 'none';
+      }
     }
 
     function getLocation() {
@@ -468,6 +484,39 @@
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       });
+    }
+
+    function resetForm() {
+      const treeSpecies = document.getElementById('treeSpecies');
+      const treeCost = document.getElementById('treeCost');
+      const currency = document.getElementById('currency');
+      const otherCurrency = document.getElementById('otherCurrency');
+      const actionStatus = document.getElementById('action-status');
+
+      // Reset form fields
+      treeSpecies.value = '';
+      treeCost.value = '';
+      currency.value = '';
+      otherCurrency.value = '';
+      otherCurrency.style.display = 'none';
+      otherCurrency.removeAttribute('required');
+      imageFile = null;
+
+      // Clear validation styles
+      [treeSpecies, treeCost, currency, otherCurrency].forEach(input => {
+        if (input) input.classList.remove('invalid');
+      });
+      actionStatus.textContent = '';
+      actionStatus.className = '';
+
+      // Update button state
+      updateButtonText();
+    }
+
+    function updateButtonText() {
+      const submitButton = document.getElementById('submitButton');
+      submitButton.textContent = isPostSubmission ? 'Report Another Tree' : 'Submit Report';
+      submitButton.setAttribute('aria-label', submitButton.textContent);
     }
 
     function validateInputs() {
@@ -535,12 +584,38 @@
     }
 
     async function submitReport() {
+      const submitButton = document.getElementById('submitButton');
+      const actionStatus = document.getElementById('action-status');
+
+      if (isPostSubmission) {
+        resetForm();
+        isPostSubmission = false;
+        updateButtonText();
+        actionStatus.textContent = 'Fetching new location...';
+        actionStatus.className = 'loading';
+        try {
+          const location = await getLocation();
+          document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${longitude}`;
+          if (await startCamera()) {
+            actionStatus.textContent = 'Camera restarted. Point at the planted tree and receipt, then click "Submit Report".';
+            actionStatus.className = 'status';
+          } else {
+            actionStatus.textContent = 'Failed to restart camera. Please allow camera access and try again.';
+            actionStatus.className = 'error';
+            submitButton.style.display = 'none';
+          }
+        } catch (error) {
+          actionStatus.textContent = 'Error getting location: ' + error.message;
+          actionStatus.className = 'error';
+          submitButton.style.display = 'none';
+        }
+        return;
+      }
+
       if (!validateInputs()) {
         return;
       }
 
-      const actionStatus = document.getElementById('action-status');
-      const submitButton = document.getElementById('submitButton');
       let isSubmitting = false;
 
       if (isSubmitting) return;
@@ -647,6 +722,8 @@
 
           actionStatus.innerHTML = `Report sent successfully via API. View: <a href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>` + (newKeysGenerated && !isSignatureRegistered ? ' <a href="https://truesightdao.github.io/dapp/create_signature.html">Register your account</a> to complete your digital signature registration.' : '');
           actionStatus.className = 'status';
+          isPostSubmission = true; // Set flag after successful submission
+          updateButtonText();
         } else {
           if (isMobileDevice() && navigator.share) {
             const shareData = { text: shareText, files: [imageFile] };
@@ -665,14 +742,7 @@
         }
 
         try {
-          if (stream && stream.getTracks) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-            video.srcObject = null;
-            video.style.display = 'none';
-          } else {
-            console.warn('Stream is null or invalid before stopping tracks.');
-          }
+          stopCamera();
         } catch (error) {
           console.error('Error stopping camera stream:', error);
         }
@@ -733,6 +803,7 @@
           }
         });
         document.getElementById('submitButton').addEventListener('click', submitReport);
+        updateButtonText();
         return;
       }
 
@@ -776,6 +847,7 @@
           }
         });
         document.getElementById('submitButton').addEventListener('click', submitReport);
+        updateButtonText();
       } catch (error) {
         statusElement.innerHTML = newKeysGenerated ? 'New signature created. Please register your digital signature later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.' : 'Offline mode: Please register your digital signature later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.';
         statusElement.className = 'warning fade-in';
@@ -806,19 +878,16 @@
           }
         });
         document.getElementById('submitButton').addEventListener('click', submitReport);
+        updateButtonText();
       }
     };
-  </script>
 
-  <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js', { scope: './' })
         .then(reg => console.log('Service Worker registered with scope:', reg.scope))
         .catch(err => console.warn('Service Worker registration failed:', err));
     }
-  </script>
 
-  <script>
     (function() {
       const div = document.createElement('div');
       div.style.textAlign = 'center';
@@ -834,9 +903,7 @@
       div.appendChild(a);
       document.body.appendChild(div);
     })();
-  </script>
 
-  <script>
     (function() {
       const div = document.createElement('div');
       div.style.textAlign = 'center';

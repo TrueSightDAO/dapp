@@ -98,6 +98,9 @@
             color: white;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
+            white-space: nowrap; /* Prevent text wrapping */
+            overflow: hidden; /* Handle overflow */
+            text-overflow: ellipsis; /* Ellipsis for small screens */
         }
         button:hover {
             background-color: #0056b3;
@@ -185,16 +188,9 @@
                 font-size: 0.95rem;
             }
             button {
-                padding: 1rem;
-                font-size: 1rem;
+                padding: 0.8rem; /* Adjusted for longer text */
+                font-size: 0.95rem; /* Adjusted for mobile */
             }
-        }
-        /* Custom styling for reset button */
-        #resetButton {
-            background-color: #6c757d;
-        }
-        #resetButton:hover {
-            background-color: #5a6268;
         }
     </style>
 </head>
@@ -254,9 +250,8 @@
             <label for="quantityInput">Quantity to Move:</label>
             <input type="number" id="quantityInput" min="1" disabled>
         </div>
-        <button id="reportButton" disabled>Report Inventory Movement</button>
-        <button id="resetButton" type="button">Reset Form</button>
-        <div id="reportOutput"></div>
+        <button id="reportButton" disabled aria-label="Report Inventory Movement">Report Inventory Movement</button>
+        <div id="reportOutput" aria-live="polite"></div>
     </div>
 
 <script>
@@ -282,6 +277,7 @@
         let latitude = null;
         let longitude = null;
         let contributorName = '';
+        let isPostSubmission = false; // New flag to track post-submission state
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -369,6 +365,7 @@
             } catch (err) {
                 console.error('Error accessing camera:', err);
                 document.getElementById('reportOutput').textContent = 'Error accessing camera: ' + err.message;
+                document.getElementById('reportOutput').className = 'error';
             }
         }
 
@@ -409,6 +406,36 @@
             updateReportButtonState();
         }
 
+        function resetForm() {
+            const inputMethodEl = document.getElementById('inputMethod');
+            inputMethodEl.value = 'upload';
+            toggleInputMethod();
+            const fileInputEl = document.getElementById('fileInput');
+            fileInputEl.value = '';
+            updateFileInfo('');
+            const managerSel = document.getElementById('managerSelect');
+            managerSel.selectedIndex = 0;
+            const itemSel = document.getElementById('itemSelect');
+            itemSel.innerHTML = '<option value="">Select a manager first</option>';
+            itemSel.disabled = true;
+            const recSel = document.getElementById('recipientSelect');
+            recSel.selectedIndex = 0;
+            const qtyInputEl = document.getElementById('quantityInput');
+            qtyInputEl.value = '';
+            qtyInputEl.disabled = true;
+            document.getElementById('availableQuantity').textContent = '';
+            const outputEl = document.getElementById('reportOutput');
+            outputEl.textContent = '';
+            outputEl.className = '';
+            updateReportButtonState();
+        }
+
+        function updateButtonText() {
+            const reportBtn = document.getElementById('reportButton');
+            reportBtn.textContent = isPostSubmission ? 'Report Another Movement' : 'Report Inventory Movement';
+            reportBtn.setAttribute('aria-label', reportBtn.textContent);
+        }
+
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
                 uploadedFile = fileInput.files[0];
@@ -422,6 +449,7 @@
                     };
                     reader.onerror = () => {
                         document.getElementById('reportOutput').textContent = 'Error reading file. Please try uploading again.';
+                        document.getElementById('reportOutput').className = 'error';
                         uploadedFilePreview.style.display = 'none';
                         uploadedFile = null;
                         updateFileInfo('');
@@ -455,6 +483,7 @@
             } catch (err) {
                 console.error('Error loading managers:', err);
                 document.getElementById('reportOutput').textContent = 'Failed to load managers: ' + err.message;
+                document.getElementById('reportOutput').className = 'error';
             }
         }
 
@@ -473,6 +502,7 @@
             } catch (err) {
                 console.error('Error loading recipients:', err);
                 document.getElementById('reportOutput').textContent = 'Failed to load recipients: ' + err.message;
+                document.getElementById('reportOutput').className = 'error';
             }
         }
 
@@ -502,6 +532,7 @@
                 } catch (err) {
                     console.error('Error loading assets:', err);
                     document.getElementById('reportOutput').textContent = 'Failed to load assets: ' + err.message;
+                    document.getElementById('reportOutput').className = 'error';
                 }
             }
             updateReportButtonState();
@@ -533,7 +564,6 @@
             btn.disabled = !(managerSel.value && itemSel.value && recSel.value && qtyInput.value && (inputMethod.value === 'camera' || uploadedFile));
         }
 
-        // Add helper function for connectivity check
         async function isOnline() {
             if (!navigator.onLine) return false;
             try {
@@ -544,7 +574,6 @@
             }
         }
 
-        // Add helper function for clipboard copying
         async function copyToClipboard(text) {
             try {
                 await navigator.clipboard.writeText(text);
@@ -556,6 +585,18 @@
         }
 
         async function onReport() {
+            const reportBtn = document.getElementById('reportButton');
+            const output = document.getElementById('reportOutput');
+
+            if (isPostSubmission) {
+                resetForm();
+                isPostSubmission = false;
+                updateButtonText();
+                output.textContent = 'Form cleared. Please fill in the details for the new inventory report.';
+                output.className = 'status';
+                return;
+            }
+
             const managerSel = document.getElementById('managerSelect');
             const managerName = managerSel.options[managerSel.selectedIndex].text;
             const recSel = document.getElementById('recipientSelect');
@@ -563,10 +604,8 @@
             const itemSel = document.getElementById('itemSelect');
             const itemName = itemSel.value;
             const quantity = document.getElementById('quantityInput').value;
-            const output = document.getElementById('reportOutput');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
-            const reportBtn = document.getElementById('reportButton');
             const inputMethodVal = inputMethod.value;
 
             if (!latitude || !longitude) {
@@ -594,8 +633,13 @@
                 canvas.toBlob(async blob => {
                     if (blob) {
                         fileToShare = new File([blob], 'captured_image.png', { type: 'image/png' });
+                        await submitInventoryReport(fileToShare, fileName, managerName, recipientName, itemName, quantity);
+                    } else {
+                        output.textContent = 'Error capturing image. Please try again.';
+                        output.className = 'error';
+                        reportBtn.disabled = false;
+                        updateReportButtonState();
                     }
-                    await submitInventoryReport(fileToShare, fileName);
                 }, 'image/png');
                 return;
             }
@@ -604,17 +648,10 @@
             output.textContent = 'Submitting...';
             output.className = 'loading';
 
-            await submitInventoryReport(fileToShare, fileName);
+            await submitInventoryReport(fileToShare, fileName, managerName, recipientName, itemName, quantity);
         }
 
-        async function submitInventoryReport(file, fileName) {
-            const managerSel = document.getElementById('managerSelect');
-            const managerName = managerSel.options[managerSel.selectedIndex].text;
-            const recSel = document.getElementById('recipientSelect');
-            const recipientName = recSel.options[recSel.selectedIndex].text;
-            const itemSel = document.getElementById('itemSelect');
-            const itemName = itemSel.value;
-            const quantity = document.getElementById('quantityInput').value;
+        async function submitInventoryReport(file, fileName, managerName, recipientName, itemName, quantity) {
             const output = document.getElementById('reportOutput');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
@@ -660,6 +697,9 @@
 
                     output.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
+                    isPostSubmission = true; // Set flag after successful submission
+                    updateButtonText();
+                    updateReportButtonState(); 
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
@@ -692,32 +732,8 @@
                 output.className = 'error';
             } finally {
                 reportBtn.disabled = false;
+                updateReportButtonState();
             }
-        }
-
-        // Reset form to initial state
-        function resetForm() {
-            const inputMethodEl = document.getElementById('inputMethod');
-            inputMethodEl.value = 'upload';
-            toggleInputMethod();
-            const fileInputEl = document.getElementById('fileInput');
-            fileInputEl.value = '';
-            updateFileInfo('');
-            const managerSel = document.getElementById('managerSelect');
-            managerSel.selectedIndex = 0;
-            const itemSel = document.getElementById('itemSelect');
-            itemSel.innerHTML = '<option value="">Select a manager first</option>';
-            itemSel.disabled = true;
-            const recSel = document.getElementById('recipientSelect');
-            recSel.selectedIndex = 0;
-            const qtyInputEl = document.getElementById('quantityInput');
-            qtyInputEl.value = '';
-            qtyInputEl.disabled = true;
-            document.getElementById('availableQuantity').textContent = '';
-            const outputEl = document.getElementById('reportOutput');
-            outputEl.textContent = '';
-            outputEl.className = '';
-            updateReportButtonState();
         }
 
         window.addEventListener('load', async () => {
@@ -730,7 +746,7 @@
             document.getElementById('recipientSelect').addEventListener('change', updateReportButtonState);
             document.getElementById('quantityInput').addEventListener('input', updateReportButtonState);
             document.getElementById('reportButton').addEventListener('click', onReport);
-            document.getElementById('resetButton').addEventListener('click', resetForm);
+            updateButtonText();
 
             try {
                 const location = await getLocation();
