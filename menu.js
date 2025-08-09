@@ -9,11 +9,11 @@
     { title: 'Report Tree Planting', url: './report_tree_planting.html', section: 'Sunmint Tree Planting Program' },
     { title: 'Digital Signature Creator', url: './create_signature.html', section: 'Identity & Governance' },
     { title: 'Voting Rights Cash Out', url: './withdraw_voting_rights.html', section: 'Identity & Governance' },
-    { title: 'Notarize Official Document', url: './notarize.html', section: 'Identity & Governance' }    
+    { title: 'Notarize Official Document', url: './notarize.html', section: 'Identity & Governance' },
     { title: 'Verify Signed Request', url: './verify_request.html', section: 'Identity & Governance' },
     { title: 'Cacao Bag Scanner', url: './scanner.html', section: 'Inventory & Sales' },
     { title: 'Sales Reporter', url: './report_sales.html', section: 'Inventory & Sales' },
-    { title: 'Register Your Farm', url: './register_farm.html', section: 'Sunmint Tree Planting Program' },
+    { title: 'Register Your Farm', url: './register_farm.html', section: 'Sunmint Tree Planting Program' }
   ];
 
   // Render dropdown menu if placeholder is present
