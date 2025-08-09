@@ -337,6 +337,7 @@
                 </div>
             </div>
             <button id="submitButton" disabled>Submit Contribution Report</button>
+            <button id="resetButton" type="button">Reset Form</button>
             <div id="outputMessage"></div>
         </div>
     </div>
@@ -740,6 +741,7 @@
         }
 
         window.addEventListener('load', async () => {
+            document.getElementById('resetButton').addEventListener('click', resetForm);
             const publicKey = localStorage.getItem('publicKey');
             const statusElement = document.getElementById('status');
             statusElement.textContent = 'Verifying your digital signature...';
@@ -866,6 +868,58 @@
                 document.getElementById('submitButton').style.display = 'none';
             }
         });
+
+        function resetForm() {
+            const contributorSel = document.getElementById('contributorSelect');
+            const typeSel = document.getElementById('typeSelect');
+            const hoursInput = document.getElementById('hoursInput');
+            const minutesInput = document.getElementById('minutesInput');
+            const usdInput = document.getElementById('usdInput');
+            const descriptionInput = document.getElementById('descriptionInput');
+            const attachmentInput = document.getElementById('attachmentInput');
+            const uploadedFilePreview = document.getElementById('uploaded-file-preview');
+            const output = document.getElementById('outputMessage');
+            const charCount = document.getElementById('charCount');
+            const contributorFilter = document.getElementById('contributorFilter');
+            const inputMethod = document.getElementById('inputMethod');
+
+            // Reset form fields
+            contributorSel.selectedIndex = -1;
+            typeSel.value = '';
+            hoursInput.value = '';
+            minutesInput.value = '';
+            usdInput.value = '';
+            descriptionInput.value = '';
+            attachmentInput.value = '';
+            contributorFilter.value = '';
+            uploadedFilePreview.src = '';
+            uploadedFilePreview.style.display = 'none';
+            output.textContent = '';
+            output.className = '';
+            charCount.textContent = '0';
+            uploadedFile = null;
+
+            // Reset file info
+            updateFileInfo('');
+
+            // Reset amount input section visibility
+            document.getElementById('amountInputSection').style.display = 'none';
+            hoursInput.style.display = 'none';
+            minutesInput.style.display = 'none';
+            usdInput.style.display = 'none';
+            hoursInput.disabled = true;
+            minutesInput.disabled = true;
+            usdInput.disabled = true;
+
+            // Reset TDG output
+            document.getElementById('tdgOutput').textContent = '';
+
+            // Refresh contributor list without affecting camera
+            filterContributors();
+
+            // Update submit button state
+            updateSubmitButtonState();
+        }
 
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('service-worker.js', { scope: './' })
