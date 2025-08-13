@@ -352,15 +352,16 @@
                 }
                 navigator.geolocation.getCurrentPosition(
                     position => {
-                        latitude = position.coords.latitude.toFixed(6);
-                        longitude = position.coords.longitude.toFixed(6);
-                        resolve({ latitude, longitude });
+                        resolve({
+                            latitude: position.coords.latitude.toFixed(6),
+                            longitude: position.coords.longitude.toFixed(6)
+                        });
                     },
                     error => {
                         latitude = 'NA';
                         longitude = 'NA';
                         resolve({ latitude, longitude });
-                    },
+                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             });
@@ -649,12 +650,20 @@
             statusElement.textContent = 'Verifying your digital signature...';
             statusElement.className = 'loading fade-in';
 
+            // If no signature exists, redirect to create one
             if (!publicKey) {
-                statusElement.textContent = 'No digital signature found. Redirecting...';
+                let seconds = 2;
+                statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
                 statusElement.className = 'error fade-in';
-                setTimeout(() => {
-                    window.location.href = './create_signature.html';
-                }, 2000);
+                const countdown = setInterval(() => {
+                    seconds--;
+                    if (seconds > 0) {
+                        statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                    } else {
+                        clearInterval(countdown);
+                        window.location.href = './create_signature.html';
+                    }
+                }, 1000);
                 return;
             }
 
@@ -663,11 +672,18 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    statusElement.textContent = 'Error: ' + data.error;
-                    statusElement.className = 'error fade-in';
-                    return;
+                    if (data.error.includes('No matching')) {
+                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                        statusElement.className = 'error fade-in';
+                        return;
+                    } else {
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error fade-in';
+                        return;
+                    }
                 }
 
+                // Only show form if signature is verified
                 contributorName = data.contributor_name;
                 document.getElementById('info').style.display = 'block';
                 document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
@@ -679,10 +695,10 @@
                     const location = await getLocation();
                     document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
                 } catch (error) {
-                    document.getElementById('location').textContent = error.message;
-                    statusElement.textContent = 'Location access denied. Please allow location permissions.';
+                    document.getElementById('location').textContent = 'Location access denied. Please allow location permissions.';
+                    statusElement.textContent = 'Location access denied. Please allow location permissions to submit.';
                     statusElement.className = 'error fade-in';
-                    document.getElementById('submitButton').style.display = 'none';
+                    document.getElementById('submitButton').disabled = true;
                 }
 
                 loadMembers();
@@ -710,6 +726,7 @@
                 });
                 document.getElementById('submitButton').addEventListener('click', onSubmit);
                 updateButtonText();
+
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';
