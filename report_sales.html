@@ -257,7 +257,7 @@
             <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>            
         <h1>Sales Reporter</h1>
-        <p id="status" class="fade-in">Verifying your digital signature...</p>
+        <p id="status" class="fade-in" aria-live="polite">Verifying your digital signature...</p>
         <div id="welcome" style="display: none;"></div>
         <div id="info" style="display: none;">
             <p id="intro">Report an item sale by selecting a QR code input method, scanning, uploading, or selecting a QR code, and submitting the sale to TrueSight DAO's Town Hall.</p>
@@ -294,7 +294,7 @@
             <div class="button-row">
                 <input type="button" id="report_button" value="Report Sold" disabled>
             </div>
-            <div id="report_output"></div>            
+            <div id="report_output" aria-live="polite"></div>            
         </div>
     </div>
     <!-- Include jsQR library via CDN -->
@@ -788,7 +788,7 @@
             statusElement.className = 'loading fade-in';
             const publicKey = localStorage.getItem('publicKey');
             if (!publicKey) {
-                statusElement.textContent = 'No digital signature found. Redirecting...';
+                statusElement.textContent = 'No digital signature found. Redirecting to create one...';
                 statusElement.className = 'error fade-in';
                 setTimeout(() => {
                     window.location.href = './create_signature.html';
@@ -801,9 +801,15 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    statusElement.textContent = 'Error: ' + data.error;
-                    statusElement.className = 'error fade-in';
-                    return;
+                    if (data.error.includes('No matching')) {
+                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                        statusElement.className = 'error fade-in';
+                        return;
+                    } else {
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error fade-in';
+                        return;
+                    }
                 }
 
                 contributorName = data.contributor_name;
