@@ -61,6 +61,51 @@
             margin: 0.5rem 0 1.5rem;
             text-align: center;
         }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #welcome {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0.8rem 0;
+            text-align: center;
+            display: none;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
         #video-holder {
             text-align: center;
         }
@@ -90,6 +135,10 @@
             width: 100%;
             box-sizing: border-box;
         }
+        select:disabled, input:disabled {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
         button {
             margin-top: 1rem;
             border: none;
@@ -98,9 +147,9 @@
             color: white;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
-            white-space: nowrap; /* Prevent text wrapping */
-            overflow: hidden; /* Handle overflow */
-            text-overflow: ellipsis; /* Ellipsis for small screens */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         button:hover {
             background-color: #0056b3;
@@ -126,12 +175,6 @@
             max-width: 100%;
             word-wrap: break-word;
         }
-        .status {
-            color: #28a745;
-        }
-        .error {
-            color: #dc3545;
-        }
         .info-box {
             margin: 1rem 0;
             background-color: #f8f9fa;
@@ -156,16 +199,6 @@
             text-decoration: underline;
             cursor: pointer;
         }
-        .loading {
-            color: #6c757d;
-            font-style: italic;
-            animation: pulse 2s infinite ease-in-out;
-        }
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
-        }
         @media (max-width: 600px) {
             body {
                 margin: 0.5rem;
@@ -188,8 +221,8 @@
                 font-size: 0.95rem;
             }
             button {
-                padding: 0.8rem; /* Adjusted for longer text */
-                font-size: 0.95rem; /* Adjusted for mobile */
+                padding: 0.8rem;
+                font-size: 0.95rem;
             }
         }
     </style>
@@ -201,60 +234,65 @@
             <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>                
         <h1>Report Inventory Movement</h1>
-        <div class="form-row">
-            <label for="inputMethod">Input Method:</label>
-            <select id="inputMethod">
-                <option value="upload" selected>Upload File or Image</option>                
-                <option value="camera">Use Camera</option>
-            </select>
-        </div>
-        <div class="form-row" id="upload-section" style="display: none;">
-            <label for="fileInput">Upload File or Image:</label>
-            <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx,.txt">
-            <div class="info-box">
-                <div class="info">Original File Name:</div>
-                <div class="info-location" id="originalFileName">No file selected</div>
-                <div class="info">Inventory Report File Name:</div>
-                <div class="info-location" id="inventoryFileName">Waiting for file selection...</div>
-                <div class="info">Inventory Report Location:</div>
-                <div class="info-location" id="inventoryLocation">Waiting for file selection...</div>
-                <div class="info">Current Location:</div>
-                <div class="info-location" id="location">Waiting for geolocation...</div>
+        <p id="description">Report the movement of DAO inventory items to our community.</p>
+        <div id="welcome" style="display: none;"></div>
+        <p id="status" class="fade-in" aria-live="polite">Verifying your digital signature...</p>
+        <div id="info" style="display: none;">
+            <div class="form-row">
+                <label for="inputMethod">Input Method:</label>
+                <select id="inputMethod">
+                    <option value="upload" selected>Upload File or Image</option>                
+                    <option value="camera">Use Camera</option>
+                </select>
             </div>
+            <div class="form-row" id="upload-section" style="display: none;">
+                <label for="fileInput">Upload File or Image:</label>
+                <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx,.txt">
+                <div class="info-box">
+                    <div class="info">Original File Name:</div>
+                    <div class="info-location" id="originalFileName">No file selected</div>
+                    <div class="info">Inventory Report File Name:</div>
+                    <div class="info-location" id="inventoryFileName">Waiting for file selection...</div>
+                    <div class="info">Inventory Report Location:</div>
+                    <div class="info-location" id="inventoryLocation">Waiting for file selection...</div>
+                    <div class="info">Current Location:</div>
+                    <div class="info-location" id="location">Waiting for geolocation...</div>
+                </div>
+            </div>
+            <div id="video-holder">
+                <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
+            </div>
+            <canvas id="canvas" style="display: none;"></canvas>
+            <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
+            <div class="form-row">
+                <label for="managerSelect">Warehouse Manager:</label>
+                <select id="managerSelect">
+                    <option value="">Loading managers...</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="itemSelect">Inventory Item:</label>
+                <select id="itemSelect" disabled>
+                    <option value="">Select a manager first</option>
+                </select>
+                <div id="availableQuantity"></div>
+            </div>
+            <div class="form-row">
+                <label for="recipientSelect">Recipient:</label>
+                <select id="recipientSelect">
+                    <option value="">Loading recipients...</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="quantityInput">Quantity to Move:</label>
+                <input type="number" id="quantityInput" min="1" disabled>
+            </div>
+            <button id="reportButton" disabled aria-label="Report Inventory Movement">Report Inventory Movement</button>
+            <div id="reportOutput" aria-live="polite"></div>
         </div>
-        <div id="video-holder">
-            <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
-        </div>
-        <canvas id="canvas" style="display: none;"></canvas>
-        <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
-        <div class="form-row">
-            <label for="managerSelect">Warehouse Manager:</label>
-            <select id="managerSelect">
-                <option value="">Loading managers...</option>
-            </select>
-        </div>
-        <div class="form-row">
-            <label for="itemSelect">Inventory Item:</label>
-            <select id="itemSelect" disabled>
-                <option value="">Select a manager first</option>
-            </select>
-            <div id="availableQuantity"></div>
-        </div>
-        <div class="form-row">
-            <label for="recipientSelect">Recipient:</label>
-            <select id="recipientSelect">
-                <option value="">Loading recipients...</option>
-            </select>
-        </div>
-        <div class="form-row">
-            <label for="quantityInput">Quantity to Move:</label>
-            <input type="number" id="quantityInput" min="1" disabled>
-        </div>
-        <button id="reportButton" disabled aria-label="Report Inventory Movement">Report Inventory Movement</button>
-        <div id="reportOutput" aria-live="polite"></div>
     </div>
 
-<script>
+    <script>
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
         const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
         // Register Service Worker for offline support
@@ -277,7 +315,7 @@
         let latitude = null;
         let longitude = null;
         let contributorName = '';
-        let isPostSubmission = false; // New flag to track post-submission state
+        let isPostSubmission = false;
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -697,9 +735,9 @@
 
                     output.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
-                    isPostSubmission = true; // Set flag after successful submission
+                    isPostSubmission = true;
                     updateButtonText();
-                    updateReportButtonState(); 
+                    updateReportButtonState();
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
@@ -737,31 +775,14 @@
         }
 
         window.addEventListener('load', async () => {
-            loadManagers();
-            loadRecipients();
-            toggleInputMethod();
-            inputMethod.addEventListener('change', toggleInputMethod);
-            document.getElementById('managerSelect').addEventListener('change', onManagerChange);
-            document.getElementById('itemSelect').addEventListener('change', onItemChange);
-            document.getElementById('recipientSelect').addEventListener('change', updateReportButtonState);
-            document.getElementById('quantityInput').addEventListener('input', updateReportButtonState);
-            document.getElementById('reportButton').addEventListener('click', onReport);
-            updateButtonText();
-
-            try {
-                const location = await getLocation();
-                document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
-            } catch (error) {
-                document.getElementById('location').textContent = error.message;
-                document.getElementById('reportOutput').textContent = 'Location access denied. Please allow location permissions.';
-                document.getElementById('reportOutput').className = 'error';
-                document.getElementById('reportButton').style.display = 'none';
-            }
-
             const publicKey = localStorage.getItem('publicKey');
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading fade-in';
+
             if (!publicKey) {
-                document.getElementById('reportOutput').textContent = 'No digital signature found. Redirecting...';
-                document.getElementById('reportOutput').className = 'error';
+                statusElement.textContent = 'No digital signature found. Redirecting to create one...';
+                statusElement.className = 'error fade-in';
                 setTimeout(() => {
                     window.location.href = './create_signature.html';
                 }, 2000);
@@ -771,15 +792,49 @@
             try {
                 const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
                 const data = await response.json();
+
                 if (data.error) {
-                    document.getElementById('reportOutput').textContent = 'Error: ' + data.error;
-                    document.getElementById('reportOutput').className = 'error';
-                    return;
+                    if (data.error.includes('No matching')) {
+                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                        statusElement.className = 'error fade-in';
+                        return;
+                    } else {
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error fade-in';
+                        return;
+                    }
                 }
+
                 contributorName = data.contributor_name;
+                document.getElementById('info').style.display = 'block';
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+
+                try {
+                    const location = await getLocation();
+                    document.getElementById('location').innerHTML = `Latitude: ${location.latitude},<br>Longitude: ${location.longitude}`;
+                } catch (error) {
+                    document.getElementById('location').textContent = 'Location access denied. Please allow location permissions.';
+                    statusElement.textContent = 'Location access denied. Please allow location permissions to submit.';
+                    statusElement.className = 'error fade-in';
+                    document.getElementById('reportButton').disabled = true;
+                }
+
+                loadManagers();
+                loadRecipients();
+                toggleInputMethod();
+                inputMethod.addEventListener('change', toggleInputMethod);
+                document.getElementById('managerSelect').addEventListener('change', onManagerChange);
+                document.getElementById('itemSelect').addEventListener('change', onItemChange);
+                document.getElementById('recipientSelect').addEventListener('change', updateReportButtonState);
+                document.getElementById('quantityInput').addEventListener('input', updateReportButtonState);
+                document.getElementById('reportButton').addEventListener('click', onReport);
+                updateButtonText();
             } catch (error) {
-                document.getElementById('reportOutput').textContent = 'Error fetching data: ' + error.message;
-                document.getElementById('reportOutput').className = 'error';
+                statusElement.textContent = 'Error fetching data: ' + error.message;
+                statusElement.className = 'error fade-in';
                 document.getElementById('reportButton').style.display = 'none';
             }
         });

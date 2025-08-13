@@ -239,7 +239,6 @@
 <body>
   <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
   <div class="container">
-
     <div style="text-align: center;">
       <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSightDAO Logo"/>
     </div>
@@ -247,8 +246,8 @@
     <p id="description">
       Upload a document or capture a photo to notarize your supply chain transparency proof.
     </p>
+    <p id="status" class="fade-in" aria-live="polite">Verifying your digital signature...</p>
     <div id="welcome" style="display: none;"></div>
-    <p id="status" class="fade-in">Verifying your digital signature...</p>
     <div id="info" style="display: none;">
       <select id="inputType" onchange="toggleInputMethod()">
         <option value="file">Upload Document</option>
@@ -269,11 +268,9 @@
           <option value="Freighting document">Freighting Document</option>
           <option value="In person physical verification">In Person Physical Verification</option>
         </select>
-        
         <div class="info">Description:</div>
         <textarea id="descriptionField" maxlength="500" placeholder="Enter a brief description (alphanumeric characters, spaces, periods, and commas only)"></textarea>
         <div class="char-count"><span id="charCount">0</span>/500 characters</div>
-        
         <div class="info">Current Location:</div>
         <div class="info-location" id="location">Waiting for geolocation...</div>
         <div class="info">Original File Name:</div>
@@ -285,8 +282,9 @@
       </div>
       <div class="button-container">
         <button id="submitButton" onclick="submitReport()">Submit Notarization</button>
+        <button id="resetButton" style="display: none;" onclick="resetForm()">Submit Another Notarization</button>
       </div>
-      <p id="action-status"></p>
+      <p id="action-status" aria-live="polite"></p>
     </div>
   </div>
 
@@ -298,6 +296,7 @@
     let file = null;
     let stream = null;
     let contributorName = '';
+    let isPostSubmission = false;
 
     function arrayBufferToBase64(buffer) {
       return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -319,6 +318,24 @@
       const cleanContributorName = contributorName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
       const cleanFileName = originalFileName.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
       return `${timestamp}_${cleanContributorName}_${cleanFileName}`;
+    }
+
+    function resetForm() {
+      document.getElementById('inputType').value = 'file';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('docType').value = 'FDA prior notice';
+      document.getElementById('descriptionField').value = '';
+      document.getElementById('charCount').textContent = '0';
+      document.getElementById('originalFileName').textContent = 'No file selected';
+      document.getElementById('notarizedFileName').textContent = 'Waiting for file selection...';
+      document.getElementById('notarizationLocation').textContent = 'Waiting for file selection...';
+      document.getElementById('action-status').textContent = 'Form cleared. Please select a new document or photo to notarize.';
+      document.getElementById('action-status').className = 'status';
+      document.getElementById('submitButton').style.display = 'block';
+      document.getElementById('resetButton').style.display = 'none';
+      stopCamera();
+      toggleInputMethod();
+      isPostSubmission = false;
     }
 
     function startCamera() {
@@ -407,35 +424,38 @@
     }
 
     function getLocation() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                latitude = 'NA';
-                longitude = 'NA';
-                resolve({ latitude, longitude });
-            }
-            navigator.geolocation.getCurrentPosition(
-                position => {
-                    latitude = position.coords.latitude.toFixed(6);
-                    longitude = position.coords.longitude.toFixed(6);
-                    resolve({ latitude, longitude });
-                },
-                error => {
-                    latitude = 'NA';
-                    longitude = 'NA';
-                    resolve({ latitude, longitude });
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        });
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          latitude = 'NA';
+          longitude = 'NA';
+          resolve({ latitude, longitude });
+        }
+        navigator.geolocation.getCurrentPosition(
+          position => {
+            latitude = position.coords.latitude.toFixed(6);
+            longitude = position.coords.longitude.toFixed(6);
+            resolve({ latitude, longitude });
+          },
+          error => {
+            latitude = 'NA';
+            longitude = 'NA';
+            resolve({ latitude, longitude });
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
     }
 
-
     function validateDescription(description) {
-      // Only allow alphanumeric, spaces, periods, and commas
       return /^[a-zA-Z0-9 .,]*$/.test(description);
     }
 
     async function submitReport() {
+      if (isPostSubmission) {
+        resetForm();
+        return;
+      }
+
       const inputType = document.getElementById('inputType').value;
       const fileInput = document.getElementById('fileInput');
       const video = document.getElementById('cameraPreview');
@@ -443,12 +463,19 @@
       const docType = document.getElementById('docType').value;
       const description = document.getElementById('descriptionField').value;
       const actionStatus = document.getElementById('action-status');
+      const submitButton = document.getElementById('submitButton');
+      const resetButton = document.getElementById('resetButton');
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
+
+      submitButton.disabled = true;
+      actionStatus.textContent = 'Submitting...';
+      actionStatus.className = 'loading';
 
       if (!latitude || !longitude) {
         actionStatus.textContent = 'Location not available. Please allow location access and try again.';
         actionStatus.className = 'error';
+        submitButton.disabled = false;
         return;
       }
 
@@ -458,12 +485,14 @@
         setTimeout(() => {
           window.location.href = './create_signature.html';
         }, 2000);
+        submitButton.disabled = false;
         return;
       }
 
       if (!validateDescription(description)) {
         actionStatus.textContent = 'Description contains invalid characters. Only letters, numbers, spaces, periods, and commas are allowed.';
         actionStatus.className = 'error';
+        submitButton.disabled = false;
         return;
       }
 
@@ -473,6 +502,7 @@
           if (!fileInput.files[0]) {
             actionStatus.textContent = 'No file selected. Please upload a file.';
             actionStatus.className = 'error';
+            submitButton.disabled = false;
             return;
           }
           file = fileInput.files[0];
@@ -481,6 +511,7 @@
           if (!stream) {
             actionStatus.textContent = 'Camera not started. Please ensure camera access is allowed.';
             actionStatus.className = 'error';
+            submitButton.disabled = false;
             return;
           }
           canvas.width = video.videoWidth;
@@ -494,7 +525,7 @@
 
         const notarizedFileName = generateNotarizedFileName(fileName);
         const notarizationLocation = `${REPO_BASE_URL}${notarizedFileName}`;
-        const requestText = `[NOTARIZATION EVENT]\n- Submitter Name: ${contributorName}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Document Type: ${docType}\n- Description: ${description}\n- Attached Filename: ${fileName}\n- Destination Notarized File Location: ${notarizationLocation}\n- Submission Source: ${window.location.href}\n--------`;
+        const requestText = `[NOTARIZATION EVENT]\nSubmitter: ${contributorName}\nLatitude: ${latitude}\nLongitude: ${longitude}\nDocument Type: ${docType}\nDescription: ${description}\nAttached Filename: ${fileName}\nDestination Notarized File Location: ${notarizationLocation}\nSubmission Source: ${window.location.href}\n--------`;
 
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
@@ -518,18 +549,25 @@
             text: shareText,
             files: [file]
           });
-          actionStatus.textContent = 'Notarization shared successfully!';
+          actionStatus.textContent = 'Notarization shared successfully! Please submit another notarization or edit the current one.';
           actionStatus.className = 'status';
+          isPostSubmission = true;
+          submitButton.style.display = 'none';
+          resetButton.style.display = 'block';
         } else {
           await navigator.clipboard.writeText(shareText);
-          actionStatus.textContent = 'Notarization details copied to clipboard! Share it with the file in our community.';
+          actionStatus.textContent = 'Notarization details copied to clipboard! Share it with the file in our community to submit another notarization or edit the current one.';
           actionStatus.className = 'status';
+          isPostSubmission = true;
+          submitButton.style.display = 'none';
+          resetButton.style.display = 'block';
         }
 
         stopCamera();
       } catch (error) {
-        actionStatus.textContent = 'Error generating notarization: ' + error.message;
+        actionStatus.textContent = `Error generating notarization: ${error.message}`;
         actionStatus.className = 'error';
+        submitButton.disabled = false;
       }
     }
 
@@ -540,7 +578,7 @@
       statusElement.className = 'loading fade-in';
 
       if (!publicKey) {
-        statusElement.textContent = 'No digital signature found. Redirecting...';
+        statusElement.textContent = 'No digital signature found. Redirecting to create one...';
         statusElement.className = 'error fade-in';
         setTimeout(() => {
           window.location.href = './create_signature.html';
@@ -553,9 +591,15 @@
         const data = await response.json();
 
         if (data.error) {
-          statusElement.textContent = 'Error: ' + data.error;
-          statusElement.className = 'error fade-in';
-          return;
+          if (data.error.includes('No matching')) {
+            statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+            statusElement.className = 'error fade-in';
+            return;
+          } else {
+            statusElement.textContent = 'Error: ' + data.error;
+            statusElement.className = 'error fade-in';
+            return;
+          }
         }
 
         contributorName = data.contributor_name;
@@ -579,17 +623,14 @@
           updateFileInfo(this.files[0]?.name || '');
         });
 
-        // Add character count functionality for description field
         const descriptionField = document.getElementById('descriptionField');
         const charCount = document.getElementById('charCount');
         
         descriptionField.addEventListener('input', function() {
-          // Filter out any invalid characters
           this.value = this.value.replace(/[^a-zA-Z0-9 .,]/g, '');
           charCount.textContent = this.value.length;
         });
 
-        // Prevent line breaks in description field
         descriptionField.addEventListener('keydown', function(e) {
           if (e.key === 'Enter') {
             e.preventDefault();

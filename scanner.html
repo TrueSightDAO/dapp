@@ -37,23 +37,23 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         #backLink {
-          top: 1rem;
-          left: 1rem;
-          font-size: 1rem;
-          color: #007bff;
-          text-decoration: none;
-          display: flex;
-          align-items: center;
-          gap: 0.3rem;
-          transition: color 0.2s;
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
+            color: #007bff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: color 0.2s;
         }
         #backLink:hover {
-          color: #0056b3;
-          text-decoration: underline;
+            color: #0056b3;
+            text-decoration: underline;
         }
         #backLink::before {
-          content: "←";
-          font-size: 1.2rem;
+            content: "←";
+            font-size: 1.2rem;
         }            
         h1 {
             font-size: 1.8rem;
@@ -75,7 +75,7 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, transform 0.1s;
         }
         input[type="button"]:active {
             transform: scale(0.98);
@@ -138,6 +138,43 @@
             height: 8px;
             margin: 0.5rem 0;
         }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #welcome {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0.8rem 0;
+            text-align: center;
+            display: none;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
         @media (max-width: 600px) {
             body {
                 margin: 0.5rem;
@@ -175,31 +212,30 @@
 <body>
     <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
     <div class="container">
-        
-    <div style="text-align: center;">
-      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
-    </div>            
-    <h1>QR Code Reader</h1>
-    <div id="video-holder">
-        <video id="video" width="400" height="300" autoplay playsinline muted></video>
-    </div>
-    <canvas id="canvas" style="display: none;"></canvas>
-    <!-- Zoom control for digital zoom (when supported) -->
-    <label id="zoom_label" hidden>Zoom: <span id="zoom_value">1</span>x</label>
-    <input type="range" id="zoom_slider" hidden disabled min="1" max="1" step="0.1">
-
-    <div id="output">Scan the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO's Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!</div>    
-
-    <div class="button-row">
-        <input type="button" id="scan_button" value="Start Scanning" disabled>
-        <input type="button" id="report_button" value="Report Sold" disabled>
-    </div>
-
-    <!-- Display extracted qr_code param -->
-    <div id="qr_param_display"></div>
-
-    <div id="report_output"></div>
-
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>            
+        <h1>QR Code Reader</h1>
+        <p id="status" class="fade-in" aria-live="polite">Verifying your digital signature...</p>
+        <div id="welcome" style="display: none;"></div>
+        <div id="info" style="display: none;">
+            <div id="video-holder">
+                <video id="video" width="400" height="300" autoplay playsinline muted></video>
+            </div>
+            <canvas id="canvas" style="display: none;"></canvas>
+            <!-- Zoom control for digital zoom (when supported) -->
+            <label id="zoom_label" hidden>Zoom: <span id="zoom_value">1</span>x</label>
+            <input type="range" id="zoom_slider" hidden disabled min="1" max="1" step="0.1">
+            <div id="output">Scan the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO's Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!</div>    
+            <div class="button-row">
+                <input type="button" id="scan_button" value="Start Scanning" disabled>
+                <input type="button" id="report_button" value="Report Sold" disabled>
+                <input type="button" id="reset_button" value="Report Another Sale" style="display: none;">
+            </div>
+            <!-- Display extracted qr_code param -->
+            <div id="qr_param_display"></div>
+            <div id="report_output" aria-live="polite"></div>
+        </div>
     </div>
     <!-- Include jsQR library via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
@@ -211,17 +247,12 @@
                 .catch(err => console.warn('Service Worker registration failed:', err));
         }
 
-        // Get DOM elements
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const output = document.getElementById('output');
-        const scan_button = document.getElementById('scan_button');
-        const qrParamDisplay = document.getElementById('qr_param_display');
-        const reportButton = document.getElementById('report_button');
-        const reportOutput = document.getElementById('report_output');
+        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        let contributorName = '';
         let scanning = false;
         let lastQrParam = null;
+        let currentStream = null;
+        let isPostSubmission = false;
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -238,7 +269,18 @@
             return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         }
 
-        // Add helper function for connectivity check
+        // Get DOM elements
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const output = document.getElementById('output');
+        const scan_button = document.getElementById('scan_button');
+        const reportButton = document.getElementById('report_button');
+        const resetButton = document.getElementById('reset_button');
+        const qrParamDisplay = document.getElementById('qr_param_display');
+        const reportOutput = document.getElementById('report_output');
+        const statusElement = document.getElementById('status');
+
         async function isOnline() {
             if (!navigator.onLine) return false;
             try {
@@ -249,7 +291,6 @@
             }
         }
 
-        // Add helper function for clipboard copying
         async function copyToClipboard(text) {
             try {
                 await navigator.clipboard.writeText(text);
@@ -260,7 +301,20 @@
             }
         }
 
-        // Access the camera
+        function resetForm() {
+            lastQrParam = null;
+            qrParamDisplay.textContent = '';
+            reportOutput.textContent = '';
+            output.textContent = 'Scan the QR code on your Agroverse ceremonial cacao to report its sale in TrueSight DAO\'s Town Hall. Help us track our regenerative cacao journey and update our transparent ledger!';
+            scan_button.value = 'Start Scanning';
+            scanning = false;
+            reportButton.disabled = true;
+            reportButton.style.display = 'block';
+            resetButton.style.display = 'none';
+            isPostSubmission = false;
+            startCamera();
+        }
+
         async function startCamera() {
             try {
                 const isMobile = isMobileDevice();
@@ -274,6 +328,7 @@
                         : true
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream;
                 video.srcObject = stream;
                 const [track] = stream.getVideoTracks();
                 const capabilities = track.getCapabilities();
@@ -310,10 +365,21 @@
             } catch (err) {
                 console.error('Error accessing camera:', err);
                 output.textContent = 'Error accessing camera: ' + err.message;
+                statusElement.textContent = 'Unable to access camera. Please check permissions.';
+                statusElement.className = 'error fade-in';
+                scan_button.disabled = true;
+                reportButton.disabled = true;
             }
         }
 
-        // Scan for QR codes
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+                video.srcObject = null;
+            }
+        }
+
         function scanQRCode() {
             if (!scanning) return;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -325,7 +391,7 @@
             if (code) {
                 output.textContent = 'QR Code Data: ' + code.data;
                 scanning = false;
-                scan_button.value = 'Scan another QR Code';
+                scan_button.value = 'Scan Another QR Code';
                 try {
                     const urlObj = new URL(code.data);
                     if (urlObj.searchParams.has('qr_code')) {
@@ -333,12 +399,14 @@
                         qrParamDisplay.textContent = `QR Code: ${lastQrParam}`;
                         reportButton.disabled = false;
                     } else {
-                        qrParamDisplay.textContent = '';
+                        qrParamDisplay.textContent = 'No valid QR code data found';
                         reportButton.disabled = true;
                     }
                 } catch (e) {
-                    qrParamDisplay.textContent = '';
+                    console.error('Error parsing QR code:', e);
+                    qrParamDisplay.textContent = 'Invalid QR code format';
                     reportButton.disabled = true;
+                    output.textContent = 'Invalid QR code format. Please try scanning again.';
                 }
             } else {
                 requestAnimationFrame(scanQRCode);
@@ -357,12 +425,24 @@
             scanQRCode();
         });
 
-        // Handle report sold button click
+        resetButton.addEventListener('click', () => {
+            resetForm();
+            reportOutput.textContent = 'Form cleared. Please scan a new QR code to report another sale.';
+            reportOutput.className = 'status';
+        });
+
         reportButton.addEventListener('click', async () => {
             await onReport();
         });
 
         async function onReport() {
+            if (isPostSubmission) {
+                resetForm();
+                reportOutput.textContent = 'Form cleared. Please scan a new QR code to report another sale.';
+                reportOutput.className = 'status';
+                return;
+            }
+
             if (!lastQrParam) return;
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
@@ -395,10 +475,10 @@
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const telegramLink = 'https://t.me/TrueSightDAO';
-            const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(`[QR CODE EVENT] ${qrParam} - this bag of cacao just sold by me for $25.\n--------`);
+            const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(`[QR CODE EVENT] ${qrParam} - this bag of cacao just sold by ${contributorName} for $25.\n--------`);
 
             try {
-                const requestText = `[QR CODE EVENT] ${qrParam} - this bag of cacao just sold by me for $25.\n- Attached Filename: ${fileName}\n- Submission Source: ${window.location.href}\n--------`;
+                const requestText = `[QR CODE EVENT] ${qrParam} - this bag of cacao just sold by ${contributorName} for $25.\n- Attached Filename: ${fileName}\n- Submission Source: ${window.location.href}\n--------`;
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
                     base64ToArrayBuffer(privateKey),
@@ -432,6 +512,9 @@
 
                     reportOutput.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegram_link" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     reportOutput.className = 'status';
+                    isPostSubmission = true;
+                    reportButton.style.display = 'none';
+                    resetButton.style.display = 'block';
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
@@ -467,9 +550,49 @@
             }
         }
 
-        // Start the camera when the page loads
-        window.onload = function() {
-            startCamera();
+        window.onload = async function() {
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading fade-in';
+            const publicKey = localStorage.getItem('publicKey');
+            if (!publicKey) {
+                statusElement.textContent = 'No digital signature found. Redirecting to create one...';
+                statusElement.className = 'error fade-in';
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    if (data.error.includes('No matching')) {
+                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                        statusElement.className = 'error fade-in';
+                        return;
+                    } else {
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error fade-in';
+                        return;
+                    }
+                }
+
+                contributorName = data.contributor_name;
+                document.getElementById('info').style.display = 'block';
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+
+                await startCamera();
+            } catch (error) {
+                statusElement.textContent = 'Error fetching data: ' + error.message;
+                statusElement.className = 'error fade-in';
+                scan_button.disabled = true;
+                reportButton.disabled = true;
+            }
         }
     </script>
     <!-- Reload latest version link -->

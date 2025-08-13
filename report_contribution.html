@@ -773,11 +773,18 @@
             statusElement.className = 'loading fade-in';
 
             if (!publicKey) {
-                statusElement.textContent = 'No digital signature found. Redirecting...';
+                let seconds = 2;
+                statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
                 statusElement.className = 'error fade-in';
-                setTimeout(() => {
-                    window.location.href = './create_signature.html';
-                }, 2000);
+                const countdown = setInterval(() => {
+                    seconds--;
+                    if (seconds > 0) {
+                        statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                    } else {
+                        clearInterval(countdown);
+                        window.location.href = './create_signature.html';
+                    }
+                }, 1000);
                 return;
             }
 
@@ -787,9 +794,15 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    statusElement.textContent = 'Error: ' + data.error;
-                    statusElement.className = 'error fade-in';
-                    return;
+                    if (data.error.includes('No matching')) {
+                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                        statusElement.className = 'error fade-in';
+                        return;
+                    } else {
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error fade-in';
+                        return;
+                    }
                 }
 
                 contributorName = data.contributor_name;
