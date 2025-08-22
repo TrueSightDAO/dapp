@@ -97,6 +97,7 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 0.95rem;
+            overflow: scroll;
         }
         .info {
             font-weight: bold;
@@ -119,7 +120,7 @@
             font-weight: bold;
             font-size: 1rem;
         }
-        select, input[type="number"], input[type="file"], input[type="text"], textarea {
+        select, input[type="number"], input[type="text"], textarea {
             width: 100%;
             padding: 0.8rem;
             font-size: 1rem;
@@ -132,9 +133,9 @@
             cursor: not-allowed;
         }
         button {
-            padding: 0.8rem 1rem; /* Adjusted padding for longer text */
+            padding: 0.8rem 1rem;
             cursor: pointer;
-            font-size: 1rem; /* Slightly smaller font size for better fit */
+            font-size: 1rem;
             border: none;
             border-radius: 8px;
             background-color: #007bff;
@@ -144,9 +145,9 @@
             width: 100%;
             max-width: 300px;
             display: block;
-            white-space: nowrap; /* Prevent text wrapping */
-            overflow: hidden; /* Handle overflow */
-            text-overflow: ellipsis; /* Add ellipsis for very small screens */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         button:hover {
             background-color: #0056b3;
@@ -232,6 +233,20 @@
         .time-inputs input {
             flex: 1;
         }
+        .paste-area {
+            border: 2px dashed #ccc;
+            padding: 1rem;
+            text-align: center;
+            margin-top: 0.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #f8f9fa;
+            font-size: 1rem;
+            color: #333;
+        }
+        .paste-area:hover {
+            background-color: #e9ecef;
+        }
         @media (max-width: 600px) {
             body {
                 margin: 0.5rem;
@@ -249,7 +264,7 @@
             label {
                 font-size: 0.95rem;
             }
-            select, input[type="number"], input[type="file"], input[type="text"], textarea {
+            select, input[type="number"], input[type="text"], textarea {
                 font-size: 0.95rem;
                 padding: 0.6rem;
             }
@@ -264,6 +279,10 @@
             .time-inputs {
                 flex-direction: column;
                 gap: 0.5rem;
+            }
+            .paste-area {
+                padding: 0.6rem;
+                font-size: 0.95rem;
             }
         }
     </style>
@@ -289,8 +308,8 @@
                 </select>
             </div>
             <div class="form-row" id="upload-section" style="display: none;">
-                <label for="attachmentInput">Upload File or Image:</label>
-                <input type="file" id="attachmentInput" accept="image/*,application/pdf,.doc,.docx,.txt">
+                <label>Upload File or Image:</label>
+                <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
             </div>
             <div id="video-holder">
                 <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
@@ -345,11 +364,9 @@
     </div>
 
     <script>
-
-        // Add at the top of the <script> section, after other variable declarations
         let isPostSubmission = false;
+        let uploadedFile = null;
 
-        // New function to update button text
         function updateButtonText() {
             const submitBtn = document.getElementById('submitButton');
             submitBtn.textContent = isPostSubmission ? 'Submit Another Contribution' : 'Submit Contribution Report';
@@ -360,7 +377,6 @@
         let contributorName = '';
         let allContributors = [];
         let currentStream = null;
-        let uploadedFile = null;
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -410,7 +426,7 @@
             let tdgPerContributor;
             if (type === 'Time') {
                 const totalHours = parseFloat(hours || 0) + parseFloat(minutes || 0) / 60;
-                tdgPerContributor = (totalHours * 100).toFixed(2); // 100 TDG per hour
+                tdgPerContributor = (totalHours * 100).toFixed(2);
             } else {
                 tdgPerContributor = parseFloat(usd).toFixed(2);
             }
@@ -556,7 +572,7 @@
             const uploadSection = document.getElementById('upload-section');
             const videoHolder = document.getElementById('video-holder');
             const uploadedFilePreview = document.getElementById('uploaded-file-preview');
-            const attachmentInput = document.getElementById('attachmentInput');
+            const pasteArea = document.getElementById('paste-area');
 
             if (inputMethod === 'camera') {
                 uploadSection.style.display = 'none';
@@ -564,8 +580,9 @@
                 uploadedFilePreview.style.display = 'none';
                 uploadedFile = null;
                 uploadedFilePreview.src = '';
-                attachmentInput.value = '';
                 updateFileInfo('');
+                pasteArea.removeEventListener('paste', handlePaste);
+                pasteArea.removeEventListener('click', triggerFileSelect);
                 startCamera();
             } else {
                 stopCamera();
@@ -574,13 +591,13 @@
                 uploadedFilePreview.style.display = 'none';
                 uploadedFile = null;
                 uploadedFilePreview.src = '';
-                attachmentInput.value = '';
                 updateFileInfo('');
+                pasteArea.addEventListener('paste', handlePaste);
+                pasteArea.addEventListener('click', triggerFileSelect);
             }
             updateSubmitButtonState();
         }
 
-        // Add helper function for connectivity check
         async function isOnline() {
             if (!navigator.onLine) return false;
             try {
@@ -591,7 +608,6 @@
             }
         }
 
-        // Add helper function for clipboard copying
         async function copyToClipboard(text) {
             try {
                 await navigator.clipboard.writeText(text);
@@ -602,13 +618,85 @@
             }
         }
 
-        // Modify the onSubmit function
+        function triggerFileSelect() {
+            const inputMethod = document.getElementById('inputMethod').value;
+            if (inputMethod !== 'upload') return;
+
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,application/pdf,.doc,.docx,.txt';
+            input.onchange = (event) => {
+                if (event.target.files.length > 0) {
+                    handleFile(event.target.files[0]);
+                }
+            };
+            input.click();
+        }
+
+        function handleFile(file) {
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!allowedTypes.includes(file.type)) {
+                document.getElementById('outputMessage').textContent = 'Unsupported file type. Please select or paste an image, PDF, or text file.';
+                document.getElementById('outputMessage').className = 'error';
+                return;
+            }
+
+            uploadedFile = file;
+            const fileExtension = file.type === 'application/pdf' ? '.pdf' :
+                                 file.type === 'text/plain' ? '.txt' :
+                                 file.type === 'application/msword' ? '.doc' :
+                                 file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ? '.docx' :
+                                 file.type.split('/')[1];
+            const fileName = file.name || `pasted_file_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}.${fileExtension}`;
+            updateFileInfo(fileName);
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('uploaded-file-preview').src = e.target.result;
+                    document.getElementById('uploaded-file-preview').style.display = 'block';
+                };
+                reader.onerror = () => {
+                    document.getElementById('outputMessage').textContent = 'Error reading file. Please try again.';
+                    document.getElementById('outputMessage').className = 'error';
+                    document.getElementById('uploaded-file-preview').style.display = 'none';
+                    uploadedFile = null;
+                    updateFileInfo('');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                document.getElementById('uploaded-file-preview').style.display = 'none';
+                document.getElementById('uploaded-file-preview').src = '';
+            }
+            updateSubmitButtonState();
+        }
+
+        function handlePaste(event) {
+            const inputMethod = document.getElementById('inputMethod').value;
+            if (inputMethod !== 'upload') return;
+
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            let file = null;
+            for (const item of items) {
+                if (item.kind === 'file') {
+                    file = item.getAsFile();
+                    break;
+                }
+            }
+
+            if (file) {
+                handleFile(file);
+            } else {
+                document.getElementById('outputMessage').textContent = 'No valid file found in clipboard. Please paste an image, PDF, or text file.';
+                document.getElementById('outputMessage').className = 'error';
+            }
+        }
+
         async function onSubmit() {
             const submitBtn = document.getElementById('submitButton');
             const output = document.getElementById('outputMessage');
 
             if (isPostSubmission) {
-                // Reset form and revert button text
                 resetForm();
                 isPostSubmission = false;
                 updateButtonText();
@@ -623,7 +711,6 @@
             const minutesInput = document.getElementById('minutesInput');
             const usdInput = document.getElementById('usdInput');
             const description = document.getElementById('descriptionInput').value;
-            const attachmentInput = document.getElementById('attachmentInput');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const inputMethod = document.getElementById('inputMethod').value;
@@ -649,9 +736,9 @@
 
             let fileName = '';
             let file = null;
-            if (inputMethod === 'upload' && attachmentInput.files.length > 0) {
-                file = attachmentInput.files[0];
-                fileName = file.name;
+            if (inputMethod === 'upload' && uploadedFile) {
+                file = uploadedFile;
+                fileName = file.name || `pasted_file_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}.${file.type.split('/')[1]}`;
             } else if (inputMethod === 'camera') {
                 const canvas = document.getElementById('canvas');
                 canvas.toBlob(blob => {
@@ -671,8 +758,6 @@
             await submitReport(file, fileName, typeName, amount);
         }
 
-
-        // Modify the submitReport function
         async function submitReport(file, fileName, typeName, amount) {
             const contributorSel = document.getElementById('contributorSelect');
             const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
@@ -727,10 +812,10 @@
 
                     if (!resp.ok) throw new Error(await resp.text());
 
-                    output.innerHTML = `Report sent to Edgar successfully. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
+                    output.innerHTML = `Report sent to Edgar successfully. <br>View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
-                    isPostSubmission = true; // Set flag to indicate successful submission
-                    updateButtonText(); // Update button text to "Submit Another Contribution"
+                    isPostSubmission = true;
+                    updateButtonText();
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
@@ -866,40 +951,8 @@
                         e.preventDefault();
                     }
                 });
-
-                document.getElementById('attachmentInput').addEventListener('change', function() {
-                    if (this.files.length > 0) {
-                        uploadedFile = this.files[0];
-                        const isImage = uploadedFile.type.startsWith('image/');
-                        updateFileInfo(uploadedFile.name);
-                        if (isImage) {
-                            const reader = new FileReader();
-                            reader.onload = (e) => {
-                                document.getElementById('uploaded-file-preview').src = e.target.result;
-                                document.getElementById('uploaded-file-preview').style.display = 'block';
-                            };
-                            reader.onerror = () => {
-                                document.getElementById('outputMessage').textContent = 'Error reading file. Please try uploading again.';
-                                document.getElementById('outputMessage').className = 'error';
-                                document.getElementById('uploaded-file-preview').style.display = 'none';
-                                uploadedFile = null;
-                                updateFileInfo('');
-                            };
-                            reader.readAsDataURL(uploadedFile);
-                        } else {
-                            document.getElementById('uploaded-file-preview').style.display = 'none';
-                            document.getElementById('uploaded-file-preview').src = '';
-                        }
-                    } else {
-                        uploadedFile = null;
-                        updateFileInfo('');
-                        document.getElementById('uploaded-file-preview').style.display = 'none';
-                        document.getElementById('uploaded-file-preview').src = '';
-                    }
-                    updateSubmitButtonState();
-                });
-                document.getElementById('submitButton').addEventListener('click', onSubmit);
                 document.getElementById('contributorFilter').addEventListener('input', filterContributors);
+                document.getElementById('submitButton').addEventListener('click', onSubmit);
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';
@@ -907,7 +960,6 @@
             }
         });
 
-        // Update resetForm to ensure camera state is preserved
         function resetForm() {
             const contributorSel = document.getElementById('contributorSelect');
             const typeSel = document.getElementById('typeSelect');
@@ -915,21 +967,18 @@
             const minutesInput = document.getElementById('minutesInput');
             const usdInput = document.getElementById('usdInput');
             const descriptionInput = document.getElementById('descriptionInput');
-            const attachmentInput = document.getElementById('attachmentInput');
             const uploadedFilePreview = document.getElementById('uploaded-file-preview');
             const output = document.getElementById('outputMessage');
             const charCount = document.getElementById('charCount');
             const contributorFilter = document.getElementById('contributorFilter');
             const inputMethod = document.getElementById('inputMethod');
 
-            // Reset form fields
             contributorSel.selectedIndex = -1;
             typeSel.value = '';
             hoursInput.value = '';
             minutesInput.value = '';
             usdInput.value = '';
             descriptionInput.value = '';
-            attachmentInput.value = '';
             contributorFilter.value = '';
             uploadedFilePreview.src = '';
             uploadedFilePreview.style.display = 'none';
@@ -938,10 +987,8 @@
             charCount.textContent = '0';
             uploadedFile = null;
 
-            // Reset file info
             updateFileInfo('');
 
-            // Reset amount input section visibility
             document.getElementById('amountInputSection').style.display = 'none';
             hoursInput.style.display = 'none';
             minutesInput.style.display = 'none';
@@ -950,16 +997,12 @@
             minutesInput.disabled = true;
             usdInput.disabled = true;
 
-            // Reset TDG output
             document.getElementById('tdgOutput').textContent = '';
 
-            // Refresh contributor list
             filterContributors();
 
-            // Preserve camera state
             toggleInputMethod();
 
-            // Update submit button state
             updateSubmitButtonState();
         }
 
