@@ -97,7 +97,7 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 0.95rem;
-            overflow: scroll;
+            overflow: auto;
         }
         .info {
             font-weight: bold;
@@ -120,7 +120,7 @@
             font-weight: bold;
             font-size: 1rem;
         }
-        select, input[type="number"], input[type="file"], textarea {
+        select, input[type="number"], textarea {
             width: 100%;
             padding: 0.8rem;
             font-size: 1rem;
@@ -136,9 +136,9 @@
             text-align: center;
         }
         button {
-            padding: 0.8rem 1rem; /* Adjusted for longer text */
+            padding: 0.8rem 1rem;
             cursor: pointer;
-            font-size: 1rem; /* Slightly smaller for better fit */
+            font-size: 1rem;
             border: none;
             border-radius: 8px;
             background-color: #007bff;
@@ -147,9 +147,9 @@
             margin: 0.5rem 0;
             width: 100%;
             max-width: 300px;
-            white-space: nowrap; /* Prevent text wrapping */
-            overflow: hidden; /* Handle overflow */
-            text-overflow: ellipsis; /* Ellipsis for small screens */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         button:hover {
             background-color: #0056b3;
@@ -208,6 +208,29 @@
             margin-top: -0.5rem;
             margin-bottom: 0.5rem;
         }
+        #uploaded-file-preview {
+            border: 1px solid #ccc;
+            margin-bottom: 1rem;
+            max-width: 100%;
+            height: auto;
+            display: none;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .paste-area {
+            border: 2px dashed #ccc;
+            padding: 1rem;
+            text-align: center;
+            margin-top: 0.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #f8f9fa;
+            font-size: 1rem;
+            color: #333;
+        }
+        .paste-area:hover {
+            background-color: #e9ecef;
+        }
         @media (max-width: 600px) {
             body {
                 margin: 0.5rem;
@@ -225,17 +248,21 @@
             label {
                 font-size: 0.95rem;
             }
-            select, input[type="number"], input[type="file"], textarea {
+            select, input[type="number"], textarea {
                 font-size: 0.95rem;
                 padding: 0.6rem;
             }
             button {
                 padding: 1rem;
-                font-size: 0.95rem; /* Adjusted for mobile */
+                font-size: 0.95rem;
             }
             .info, .info-location {
                 font-size: 0.95rem;
                 text-align: center;
+            }
+            .paste-area {
+                padding: 0.6rem;
+                font-size: 0.95rem;
             }
         }
     </style>
@@ -271,13 +298,9 @@
                 <input type="number" id="quantityInput" min="0.01" step="0.01" disabled>
             </div>
             <div class="form-row">
-                <label for="descriptionInput">Expense Description:</label>
-                <textarea id="descriptionInput" maxlength="500" placeholder="Enter expense description"></textarea>
-                <div class="char-count"><span id="charCount">0</span>/500 characters</div>
-            </div>
-            <div class="form-row">
                 <label for="attachmentInput">Attachment:</label>
-                <input type="file" id="attachmentInput" accept="image/*,application/pdf">
+                <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
+                <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
                 <div class="info-box">
                     <div class="info">Original File Name:</div>
                     <div class="info-location" id="originalFileName">No file selected</div>
@@ -288,6 +311,11 @@
                     <div class="info">Current Location:</div>
                     <div class="info-location" id="location">Waiting for geolocation...</div>
                 </div>
+            </div>
+            <div class="form-row">
+                <label for="descriptionInput">Expense Description:</label>
+                <textarea id="descriptionInput" maxlength="500" placeholder="Enter expense description"></textarea>
+                <div class="char-count"><span id="charCount">0</span>/500 characters</div>
             </div>
             <div id="submitButtonHolder">
                 <button id="submitButton" disabled aria-label="Submit Expense Report">Submit Expense Report</button>
@@ -303,7 +331,8 @@
         let latitude = null;
         let longitude = null;
         let contributorName = '';
-        let isPostSubmission = false; // New flag to track post-submission state
+        let isPostSubmission = false;
+        let uploadedFile = null;
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -362,7 +391,7 @@
                         latitude = 'NA';
                         longitude = 'NA';
                         resolve({ latitude, longitude });
-                     },
+                    },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             });
@@ -392,17 +421,80 @@
             }
         }
 
+        function triggerFileSelect() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,application/pdf';
+            input.onchange = (event) => {
+                if (event.target.files.length > 0) {
+                    handleFile(event.target.files[0]);
+                }
+            };
+            input.click();
+        }
+
+        function handleFile(file) {
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'application/pdf'];
+            if (!allowedTypes.includes(file.type)) {
+                document.getElementById('outputMessage').textContent = 'Unsupported file type. Please select or paste an image or PDF.';
+                document.getElementById('outputMessage').className = 'error';
+                return;
+            }
+
+            uploadedFile = file;
+            const fileExtension = file.type === 'application/pdf' ? '.pdf' : file.type.split('/')[1];
+            const fileName = file.name || `pasted_file_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}.${fileExtension}`;
+            updateFileInfo(fileName);
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('uploaded-file-preview').src = e.target.result;
+                    document.getElementById('uploaded-file-preview').style.display = 'block';
+                };
+                reader.onerror = () => {
+                    document.getElementById('outputMessage').textContent = 'Error reading file. Please try again.';
+                    document.getElementById('outputMessage').className = 'error';
+                    document.getElementById('uploaded-file-preview').style.display = 'none';
+                    uploadedFile = null;
+                    updateFileInfo('');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                document.getElementById('uploaded-file-preview').style.display = 'none';
+                document.getElementById('uploaded-file-preview').src = '';
+            }
+            updateSubmitButtonState();
+        }
+
+        function handlePaste(event) {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            let file = null;
+            for (const item of items) {
+                if (item.kind === 'file') {
+                    file = item.getAsFile();
+                    break;
+                }
+            }
+
+            if (file) {
+                handleFile(file);
+            } else {
+                document.getElementById('outputMessage').textContent = 'No valid file found in clipboard. Please paste an image or PDF.';
+                document.getElementById('outputMessage').className = 'error';
+            }
+        }
+
         function resetForm() {
             const memberSel = document.getElementById('memberSelect');
             const resourceSel = document.getElementById('resourceSelect');
             const qtyInput = document.getElementById('quantityInput');
             const descriptionInput = document.getElementById('descriptionInput');
-            const attachmentInput = document.getElementById('attachmentInput');
+            const uploadedFilePreview = document.getElementById('uploaded-file-preview');
             const availableQtyElem = document.getElementById('availableQuantity');
             const output = document.getElementById('outputMessage');
             const charCount = document.getElementById('charCount');
 
-            // Reset form fields
             memberSel.selectedIndex = 0;
             resourceSel.innerHTML = '<option value="">Select a member first</option>';
             resourceSel.disabled = true;
@@ -410,11 +502,13 @@
             qtyInput.disabled = true;
             descriptionInput.value = '';
             charCount.textContent = '0';
-            attachmentInput.value = '';
+            uploadedFilePreview.src = '';
+            uploadedFilePreview.style.display = 'none';
             updateFileInfo('');
             output.textContent = '';
             output.className = '';
             availableQtyElem.textContent = '';
+            uploadedFile = null;
             updateSubmitButtonState();
         }
 
@@ -498,9 +592,8 @@
             const resourceSel = document.getElementById('resourceSelect');
             const qtyInput = document.getElementById('quantityInput');
             const descriptionInput = document.getElementById('descriptionInput');
-            const attachmentInput = document.getElementById('attachmentInput');
             const submitBtn = document.getElementById('submitButton');
-            submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0 && descriptionInput.value && attachmentInput.files.length > 0);
+            submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0 && descriptionInput.value && uploadedFile);
         }
 
         async function onSubmit() {
@@ -522,7 +615,6 @@
             const resourceName = resourceSel.value;
             const quantity = document.getElementById('quantityInput').value;
             const description = document.getElementById('descriptionInput').value;
-            const attachmentInput = document.getElementById('attachmentInput');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
 
@@ -547,16 +639,14 @@
                 return;
             }
 
-            let fileName = '';
-            let file = null;
-            if (attachmentInput.files.length > 0) {
-                file = attachmentInput.files[0];
-                fileName = file.name;
-            } else {
-                output.textContent = 'No file selected. Please upload a file.';
+            if (!uploadedFile) {
+                output.textContent = 'No file selected or pasted. Please attach a file.';
                 output.className = 'error';
                 return;
             }
+
+            const fileName = uploadedFile.name || `pasted_file_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}.${uploadedFile.type.split('/')[1]}`;
+            const file = uploadedFile;
 
             submitBtn.disabled = true;
             output.textContent = 'Submitting...';
@@ -609,9 +699,9 @@
 
                     output.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
-                    isPostSubmission = true; // Set flag after successful submission
+                    isPostSubmission = true;
                     updateButtonText();
-                    updateSubmitButtonState(); 
+                    updateSubmitButtonState();
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
@@ -651,7 +741,6 @@
             statusElement.textContent = 'Verifying your digital signature...';
             statusElement.className = 'loading fade-in';
 
-            // If no signature exists, redirect to create one
             if (!publicKey) {
                 let seconds = 2;
                 statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
@@ -684,7 +773,6 @@
                     }
                 }
 
-                // Only show form if signature is verified
                 contributorName = data.contributor_name;
                 document.getElementById('info').style.display = 'block';
                 document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
@@ -721,13 +809,11 @@
                     }
                 });
 
-                document.getElementById('attachmentInput').addEventListener('change', function() {
-                    updateFileInfo(this.files[0]?.name || '');
-                    updateSubmitButtonState();
-                });
+                const pasteArea = document.getElementById('paste-area');
+                pasteArea.addEventListener('paste', handlePaste);
+                pasteArea.addEventListener('click', triggerFileSelect);
                 document.getElementById('submitButton').addEventListener('click', onSubmit);
                 updateButtonText();
-
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';
