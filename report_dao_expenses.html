@@ -382,10 +382,9 @@
                 }
                 navigator.geolocation.getCurrentPosition(
                     position => {
-                        resolve({
-                            latitude: position.coords.latitude.toFixed(6),
-                            longitude: position.coords.longitude.toFixed(6)
-                        });
+                        latitude = position.coords.latitude.toFixed(6);
+                        longitude = position.coords.longitude.toFixed(6);
+                        resolve({ latitude, longitude });
                     },
                     error => {
                         latitude = 'NA';
@@ -617,12 +616,6 @@
             const description = document.getElementById('descriptionInput').value;
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
-
-            if (!latitude || !longitude) {
-                output.textContent = 'Location not available. Please allow location access and try again.';
-                output.className = 'error';
-                return;
-            }
 
             if (!publicKey || !privateKey) {
                 output.textContent = 'No digital signature found. Redirecting to create one...';
