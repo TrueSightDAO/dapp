@@ -417,13 +417,28 @@ Timestamp: ${new Date().toISOString()}`;
                 };
 
                 // Make the request to Google Apps Script
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload)
-                });
+                let response;
+                try {
+                    response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        mode: 'cors',
+                        body: JSON.stringify(payload)
+                    });
+                } catch (corsError) {
+                    console.log('CORS error, trying alternative approach...');
+                    // Fallback: try with different headers
+                    response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                }
 
                 const result = await response.json();
 
