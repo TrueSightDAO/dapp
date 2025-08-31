@@ -105,7 +105,7 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
-        input[type="file"], input[type="text"] {
+        input[type="file"], input[type="text"], input[type="number"] {
             width: 100%;
             padding: 0.8rem;
             font-size: 1rem;
@@ -224,7 +224,7 @@
                 width: 100%;
                 max-width: 400px;
             }
-            input[type="button"], input[type="file"], input[type="text"] {
+            input[type="button"], input[type="file"], input[type="text"], input[type="number"] {
                 padding: 1rem;
                 font-size: 1.1rem;
                 width: 100%;
@@ -280,6 +280,10 @@
                 <select id="qrSelect">
                     <option value="">Loading QR codes...</option>
                 </select>
+            </div>
+            <div class="form-row">
+                <label for="salePriceInput">Sale Price ($):</label>
+                <input type="number" id="salePriceInput" min="0.01" step="0.01" placeholder="Enter sale price">
             </div>
             <div id="video-holder">
                 <video id="video" width="400" height="300" autoplay playsinline muted></video>
@@ -351,6 +355,7 @@
         const videoHolder = document.getElementById('video-holder');
         const uploadedImage = document.getElementById('uploaded-image');
         const scanButtonRow = document.getElementById('scan-button-row');
+        const salePriceInput = document.getElementById('salePriceInput');
         let scanning = false;
 
         async function loadQrCodes() {
@@ -388,7 +393,8 @@
         }
 
         function updateReportButtonState() {
-            reportButton.disabled = !lastQrParam;
+            const salePrice = parseFloat(salePriceInput.value);
+            reportButton.disabled = !lastQrParam || isNaN(salePrice) || salePrice <= 0;
         }
 
         function resetForm() {
@@ -408,6 +414,7 @@
             scan_button.value = 'Scan QR Code';
             scanning = false;
             video.classList.remove('scanning');
+            salePriceInput.value = '';
             updateReportButtonState();
         }
 
@@ -422,6 +429,7 @@
             scan_button.value = 'Scan QR Code';
             scanning = false;
             video.classList.remove('scanning');
+            salePriceInput.value = '';
 
             if (method === 'camera') {
                 uploadSection.style.display = 'none';
@@ -445,6 +453,7 @@
                 uploadSection.style.display = 'block';
                 output.textContent = 'Upload an image containing a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
             }
+            updateReportButtonState();
         }
 
         async function startCamera() {
@@ -651,6 +660,10 @@
             }
         });
 
+        salePriceInput.addEventListener('input', () => {
+            updateReportButtonState();
+        });
+
         reportButton.addEventListener('click', async () => {
             await onReport();
         });
@@ -669,6 +682,13 @@
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const inputMethodVal = inputMethod.value;
+            const salePrice = parseFloat(salePriceInput.value);
+
+            if (isNaN(salePrice) || salePrice <= 0) {
+                reportOutput.textContent = 'Please enter a valid sale price greater than 0.';
+                reportOutput.className = 'error';
+                return;
+            }
 
             reportButton.disabled = true;
             reportOutput.textContent = 'Submitting...';
@@ -695,22 +715,22 @@
                     if (blob) {
                         fileToShare = new File([blob], 'scan.png', { type: 'image/png' });
                     }
-                    submitSalesReport(fileToShare, fileName, lastQrParam, contributorName);
+                    submitSalesReport(fileToShare, fileName, lastQrParam, contributorName, salePrice);
                 }, 'image/png');
                 return;
             }
 
-            await submitSalesReport(fileToShare, fileName, lastQrParam, contributorName);
+            await submitSalesReport(fileToShare, fileName, lastQrParam, contributorName, salePrice);
         }
 
-        async function submitSalesReport(file, fileName, qrParam, memberName) {
+        async function submitSalesReport(file, fileName, qrParam, memberName, salePrice) {
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const telegramLink = 'https://t.me/TrueSightDAO';
-            const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(`[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $25\n- Sold by: ${memberName}\n--------`);
+            const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(`[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $${salePrice}\n- Sold by: ${memberName}\n--------`);
 
             try {
-                const requestText = `[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $25\n- Sold by: ${memberName}\n- Attached Filename: ${fileName || 'None'}\n- Submission Source: ${window.location.href}\n--------`;
+                const requestText = `[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $${salePrice}\n- Sold by: ${memberName}\n- Attached Filename: ${fileName || 'None'}\n- Submission Source: ${window.location.href}\n--------`;
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
                     base64ToArrayBuffer(privateKey),
