@@ -13,6 +13,7 @@
     { title: 'Verify Signed Request', url: './verify_request.html', section: 'Identity & Governance' },
     { title: 'Cacao Bag Scanner', url: './scanner.html', section: 'Inventory & Sales' },
     { title: 'Sales Reporter', url: './report_sales.html', section: 'Inventory & Sales' },
+    { title: 'Batch QR Code Generator', url: './batch_qr_generator.html', section: 'Inventory & Sales' },
     { title: 'Register Your Farm', url: './register_farm.html', section: 'Sunmint Tree Planting Program' }
   ];
 
