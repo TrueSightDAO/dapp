@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Generate batch QR codes for TrueSight DAO currencies with digital signature verification.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch QR Code Generator</title>
+
+    <!-- Open Graph tags for WhatsApp and social media previews -->
+    <meta property="og:title" content="Batch QR Code Generator">
+    <meta property="og:description" content="Generate batch QR codes for TrueSight DAO currencies with digital signature verification.">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+    <meta property="og:type" content="website">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./menu.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #backLink {
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
+            color: #007bff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: color 0.2s;
+        }
+        #backLink:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        #backLink::before {
+            content: "←";
+            font-size: 1.2rem;
+        }            
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        #intro {
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+        select, input[type="number"] {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .signature-section {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+        }
+        .signature-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: monospace;
+            resize: vertical;
+            min-height: 100px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+        .result-box {
+            background-color: #e9ecef;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .currency-info {
+            background-color: #e8f5e8;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        .currency-info h4 {
+            margin-top: 0;
+            color: #155724;
+        }
+        #welcome {
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        @media (max-width: 768px) {
+            .container {
+                margin: 0.5rem;
+                padding: 0.8rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            button {
+                padding: 0.8rem 1.5rem;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>
+        
+        <h1>Batch QR Code Generator</h1>
+        <p id="intro">
+            Generate multiple QR codes for TrueSight DAO currencies. Each request requires digital signature verification.
+        </p>
+
+        <div id="status" class="status info" style="display: none;"></div>
+        <div id="welcome" style="display: none;"></div>
+
+        <form id="batchForm">
+            <div class="form-group">
+                <label for="currencySelect">Select Currency:</label>
+                <select id="currencySelect" required>
+                    <option value="">Loading currencies...</option>
+                </select>
+            </div>
+
+            <div id="currencyDetails" class="currency-info" style="display: none;">
+                <h4>Currency Details</h4>
+                <div id="currencyDetailsContent"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="quantity">Number of QR Codes (1-100):</label>
+                <input type="number" id="quantity" min="1" max="100" value="10" required>
+            </div>
+
+            <button type="submit" id="submitBtn">Generate Batch QR Codes</button>
+        </form>
+
+        <div id="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Google Apps Script URL
+        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySJ86OcVsk5gETTiJ-CY-zBZGHAQoZ8yVW-buxXMjOI9eEc3HP7AicHhtNICHoJo1z/exec';
+        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        
+        let currencies = [];
+        let contributorName = '';
+
+        // Utility functions
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        // Page load handler
+        window.onload = async function() {
+            showStatus('Verifying your digital signature...', 'info');
+            
+            const publicKey = localStorage.getItem('publicKey');
+            if (!publicKey) {
+                showStatus('No digital signature found. Redirecting to create one...', 'error');
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    if (data.error.includes('No matching')) {
+                        showStatus('Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.', 'error');
+                        return;
+                    } else {
+                        showStatus('Error: ' + data.error, 'error');
+                        return;
+                    }
+                }
+
+                contributorName = data.contributor_name;
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                showStatus('Signature verified successfully', 'success');
+
+                // Load currencies after signature verification
+                await loadCurrencies();
+            } catch (error) {
+                showStatus('Error fetching data: ' + error.message, 'error');
+                document.getElementById('submitBtn').disabled = true;
+            }
+        }
+
+        async function loadCurrencies() {
+            try {
+                showStatus('Loading currencies...', 'info');
+                
+                // Try the new list endpoint first
+                let response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?action=list`);
+                let data = await response.json();
+                
+                // If list endpoint doesn't work, try search with a common term
+                if (data.status === 'error') {
+                    response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?action=search&product_name=2024`);
+                    data = await response.json();
+                }
+                
+                if (data.status === 'success') {
+                    // Handle both list and search response formats
+                    if (data.data.currencies) {
+                        currencies = data.data.currencies;
+                    } else if (data.data.matches) {
+                        currencies = data.data.matches;
+                    } else {
+                        throw new Error('Unexpected response format');
+                    }
+                    
+                    populateCurrencySelect();
+                    showStatus('Currencies loaded successfully', 'success');
+                } else {
+                    showStatus('Failed to load currencies: ' + (data.message || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showStatus('Error loading currencies: ' + error.message, 'error');
+            }
+        }
+
+        function populateCurrencySelect() {
+            const select = document.getElementById('currencySelect');
+            select.innerHTML = '<option value="">Select a currency...</option>';
+            
+            currencies.forEach(currency => {
+                const option = document.createElement('option');
+                option.value = currency.product_name;
+                
+                // Create display text with quantity information
+                let displayText = currency.product_name;
+                
+                // Add farm and country info if available
+                if (currency.farm_name && currency.country) {
+                    displayText += ` (${currency.farm_name}, ${currency.country})`;
+                }
+                
+                // Add total quantity if available
+                if (currency.total_quantity && currency.total_quantity > 0) {
+                    displayText += ` - Available: ${currency.total_quantity}`;
+                }
+                
+                option.textContent = displayText;
+                select.appendChild(option);
+            });
+        }
+
+
+
+        async function submitBatchRequest() {
+            const currencyName = document.getElementById('currencySelect').value;
+            const quantity = document.getElementById('quantity').value;
+            
+            const publicKey = localStorage.getItem('publicKey');
+            const privateKey = localStorage.getItem('privateKey');
+            
+            if (!publicKey || !privateKey) {
+                showStatus('No digital signature found. Redirecting to create one...', 'error');
+                setTimeout(() => {
+                    window.location.href = './create_signature.html';
+                }, 2000);
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Generating QR Codes...';
+
+            try {
+                showStatus('Submitting batch QR code request...', 'info');
+
+                // Create the message to sign
+                const message = `[BATCH QR CODE REQUEST]
+Currency: ${currencyName}
+Quantity: ${quantity}
+Timestamp: ${new Date().toISOString()}`;
+
+                // Import private key and sign the message
+                const privateKeyObj = await window.crypto.subtle.importKey(
+                    "pkcs8",
+                    base64ToArrayBuffer(privateKey),
+                    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+                    false,
+                    ["sign"]
+                );
+
+                const encoder = new TextEncoder();
+                const signature = await window.crypto.subtle.sign(
+                    "RSASSA-PKCS1-v1_5",
+                    privateKeyObj,
+                    encoder.encode(message)
+                );
+                const signatureBase64 = arrayBufferToBase64(signature);
+
+                // Prepare the request payload
+                const payload = {
+                    request_type: 'batch_qr_generation',
+                    currency_name: currencyName,
+                    quantity: parseInt(quantity),
+                    digital_signature: publicKey,
+                    request_transaction_id: signatureBase64,
+                    submission_source: window.location.href
+                };
+
+                // Make the request to Google Apps Script
+                let response;
+                try {
+                    response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        mode: 'cors',
+                        body: JSON.stringify(payload)
+                    });
+                } catch (corsError) {
+                    console.log('CORS error, trying alternative approach...');
+                    // Fallback: try with different headers
+                    response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    const data = result.data;
+                    const successMessage = `✅ Batch QR codes generated successfully!
+
+📦 Batch ID: ${data.batch_id}
+💰 Currency: ${data.currency_name}
+📊 Quantity: ${data.quantity}
+📁 Zip File: ${data.zip_file_name}
+🔗 Download URL: ${data.zip_file_url}
+📧 Email Sent: ${data.email_sent ? 'Yes' : 'No'}
+
+${data.message}
+
+You will receive an email notification with the download link.`;
+
+                    showStatus(successMessage, 'success');
+                    
+                    // Display the full result for verification
+                    document.getElementById('result').innerHTML = `
+                        <h3>Full Response (for verification):</h3>
+                        <div class="result-box">${JSON.stringify(result, null, 2)}</div>
+                    `;
+                    document.getElementById('result').style.display = 'block';
+                    
+                    submitBtn.textContent = 'Generate Another Batch';
+                    submitBtn.disabled = false;
+                } else {
+                    showStatus(`❌ Error: ${result.message}`, 'error');
+                    submitBtn.textContent = 'Generate Batch QR Codes';
+                    submitBtn.disabled = false;
+                }
+
+            } catch (error) {
+                showStatus(`❌ Network error: ${error.message}`, 'error');
+                submitBtn.textContent = 'Generate Batch QR Codes';
+                submitBtn.disabled = false;
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+            statusDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Form submission handler
+        document.getElementById('batchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitBatchRequest();
+        });
+
+        // Real-time validation and currency details
+        document.getElementById('currencySelect').addEventListener('change', function() {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = !this.value;
+            
+            // Show currency details if a currency is selected
+            if (this.value) {
+                const selectedCurrency = currencies.find(c => c.product_name === this.value);
+                if (selectedCurrency) {
+                    showCurrencyDetails(selectedCurrency);
+                }
+            } else {
+                document.getElementById('currencyDetails').style.display = 'none';
+            }
+        });
+
+        document.getElementById('quantity').addEventListener('input', function() {
+            const value = parseInt(this.value);
+            if (value < 1) this.value = 1;
+            if (value > 100) this.value = 100;
+        });
+
+        function showCurrencyDetails(currency) {
+            const detailsDiv = document.getElementById('currencyDetails');
+            const contentDiv = document.getElementById('currencyDetailsContent');
+            
+            let detailsHtml = `
+                <p><strong>Product:</strong> ${currency.product_name}</p>
+                <p><strong>Total Available:</strong> ${currency.total_quantity || 0}</p>
+            `;
+            
+            if (currency.farm_name) {
+                detailsHtml += `<p><strong>Farm:</strong> ${currency.farm_name}</p>`;
+            }
+            
+            if (currency.country) {
+                detailsHtml += `<p><strong>Country:</strong> ${currency.country}</p>`;
+            }
+            
+            if (currency.state) {
+                detailsHtml += `<p><strong>State:</strong> ${currency.state}</p>`;
+            }
+            
+            if (currency.year) {
+                detailsHtml += `<p><strong>Year:</strong> ${currency.year}</p>`;
+            }
+            
+            // Show ledger quantities if available
+            if (currency.ledger_quantities && Object.keys(currency.ledger_quantities).length > 0) {
+                detailsHtml += `<p><strong>Available by Ledger:</strong></p><ul>`;
+                for (const [ledger, quantity] of Object.entries(currency.ledger_quantities)) {
+                    detailsHtml += `<li>${ledger}: ${quantity}</li>`;
+                }
+                detailsHtml += `</ul>`;
+            }
+            
+            contentDiv.innerHTML = detailsHtml;
+            detailsDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
