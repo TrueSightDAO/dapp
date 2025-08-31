@@ -6,6 +6,10 @@
 
 Welcome to the TrueSight DAO DApp, a suite of web-based tools for managing decentralized operations in the Agroverse cacao circles. Explore the live DApp at [https://dapp.truesight.me](https://dapp.truesight.me) to manage cacao bags, voting rights, and more.
 
+## API Documentation
+
+For comprehensive API documentation covering all endpoints used by this DApp, including request formats, authentication, and response examples, see the [API.md file in the tokenomics repository](https://github.com/TrueSightDAO/tokenomics/blob/main/API.md).
+
 ## Modules
 
 This repository contains tools for TrueSight DAO members, each accessible via the live DApp at [https://dapp.truesight.me](https://dapp.truesight.me):
