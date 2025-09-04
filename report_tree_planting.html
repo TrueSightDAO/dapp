@@ -568,7 +568,7 @@
     async function updateDescription() {
       const descriptionElement = document.getElementById('description');
       const telegramLink = 'https://t.me/TrueSightDAO';
-      const whatsappLink = 'https://wa.me/14153000019';
+      const whatsappLink = 'https://wa.me/14423405782';
       const baseText = `Take a photo showing the planted tree and a clear, readable receipt for the tree purchase. Select the tree species, enter the cost and currency, and click "Submit Report"`;
       const signatureText = `If your digital signature is not registered, please register it later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.`;
 
@@ -657,7 +657,7 @@
       const otherCurrency = document.getElementById('otherCurrency').value;
       const finalCurrency = currency === 'Other' ? (otherCurrency || 'Unknown') : currency;
       const telegramLink = 'https://t.me/TrueSightDAO';
-      const whatsappLink = 'https://wa.me/14153000019?text=' + encodeURIComponent(`[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}\n- Cost: ${treeCost} ${finalCurrency}\n- Planting Time: ${new Date().toISOString()}\n--------`);
+      const whatsappLink = 'https://wa.me/14423405782?text=' + encodeURIComponent(`[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}\n- Cost: ${treeCost} ${finalCurrency}\n- Planting Time: ${new Date().toISOString()}\n--------`);
 
       if (!stream || !video.srcObject) {
         console.error('Camera stream is null or not initialized.');
