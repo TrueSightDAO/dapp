@@ -111,6 +111,7 @@
     }
     label {
       display: block;
+      margin-top: 0.8rem;
       margin-bottom: 0.3rem;
       font-weight: bold;
       font-size: 1rem;
@@ -260,6 +261,7 @@
           <option value="Zelle">Zelle - USA</option>          
           <option value="PayPal">PayPal - International</option>
           <option value="WiseTransfer">WiseTransfer - International</option>
+          <option value="WesternUnion">Western Union - International</option>
         </select>
       </div>
       <div class="input-group withdrawal-details" id="pixDetails">
@@ -291,6 +293,157 @@
       <div class="input-group withdrawal-details" id="zelleDetails">
         <label for="zelleId">Zelle ID (Email or Phone Number)</label>
         <input type="text" id="zelleId" placeholder="Enter Zelle email or phone">
+      </div>
+      <div class="input-group withdrawal-details" id="westernUnionDetails">
+        <label for="wuFirstName">Recipient First Name</label>
+        <input type="text" id="wuFirstName" placeholder="Enter recipient first name">
+        <label for="wuLastName">Recipient Last Name</label>
+        <input type="text" id="wuLastName" placeholder="Enter recipient last name">
+        <label for="wuCountry">Recipient Country</label>
+        <input type="text" id="wuCountry" placeholder="Enter recipient country">
+        <label for="wuCity">Recipient City</label>
+        <input type="text" id="wuCity" placeholder="Enter recipient city">
+        <label for="wuState">Recipient State/Province (Optional)</label>
+        <input type="text" id="wuState" placeholder="Enter recipient state or province">
+        <label for="wuAddress">Recipient Address</label>
+        <input type="text" id="wuAddress" placeholder="Enter recipient address">
+        <label for="wuPostalCode">Postal/ZIP Code</label>
+        <input type="text" id="wuPostalCode" placeholder="Enter postal or ZIP code">
+        <label for="wuPhoneNumber">Recipient Phone Number</label>
+        <input type="text" id="wuPhoneNumber" placeholder="Enter recipient phone number">
+        <label for="wuEmail">Recipient Email (Optional)</label>
+        <input type="email" id="wuEmail" placeholder="Enter recipient email">
+        <label for="wuCurrency">Currency to Receive</label>
+        <select id="wuCurrency">
+          <option value="USD">USD - US Dollar</option>
+          <option value="EUR">EUR - Euro</option>
+          <option value="GBP">GBP - British Pound</option>
+          <option value="CAD">CAD - Canadian Dollar</option>
+          <option value="AUD">AUD - Australian Dollar</option>
+          <option value="JPY">JPY - Japanese Yen</option>
+          <option value="CHF">CHF - Swiss Franc</option>
+          <option value="BRL">BRL - Brazilian Real</option>
+          <option value="MXN">MXN - Mexican Peso</option>
+          <option value="INR">INR - Indian Rupee</option>
+          <option value="CNY">CNY - Chinese Yuan</option>
+          <option value="KRW">KRW - South Korean Won</option>
+          <option value="SGD">SGD - Singapore Dollar</option>
+          <option value="HKD">HKD - Hong Kong Dollar</option>
+          <option value="NZD">NZD - New Zealand Dollar</option>
+          <option value="SEK">SEK - Swedish Krona</option>
+          <option value="NOK">NOK - Norwegian Krone</option>
+          <option value="DKK">DKK - Danish Krone</option>
+          <option value="PLN">PLN - Polish Zloty</option>
+          <option value="CZK">CZK - Czech Koruna</option>
+          <option value="HUF">HUF - Hungarian Forint</option>
+          <option value="RUB">RUB - Russian Ruble</option>
+          <option value="TRY">TRY - Turkish Lira</option>
+          <option value="ZAR">ZAR - South African Rand</option>
+          <option value="EGP">EGP - Egyptian Pound</option>
+          <option value="NGN">NGN - Nigerian Naira</option>
+          <option value="KES">KES - Kenyan Shilling</option>
+          <option value="GHS">GHS - Ghanaian Cedi</option>
+          <option value="UGX">UGX - Ugandan Shilling</option>
+          <option value="TZS">TZS - Tanzanian Shilling</option>
+          <option value="ETB">ETB - Ethiopian Birr</option>
+          <option value="MAD">MAD - Moroccan Dirham</option>
+          <option value="TND">TND - Tunisian Dinar</option>
+          <option value="DZD">DZD - Algerian Dinar</option>
+          <option value="LYD">LYD - Libyan Dinar</option>
+          <option value="SDG">SDG - Sudanese Pound</option>
+          <option value="SOS">SOS - Somali Shilling</option>
+          <option value="DJF">DJF - Djiboutian Franc</option>
+          <option value="KMF">KMF - Comorian Franc</option>
+          <option value="MUR">MUR - Mauritian Rupee</option>
+          <option value="SCR">SCR - Seychellois Rupee</option>
+          <option value="MVR">MVR - Maldivian Rufiyaa</option>
+          <option value="LKR">LKR - Sri Lankan Rupee</option>
+          <option value="BDT">BDT - Bangladeshi Taka</option>
+          <option value="PKR">PKR - Pakistani Rupee</option>
+          <option value="AFN">AFN - Afghan Afghani</option>
+          <option value="NPR">NPR - Nepalese Rupee</option>
+          <option value="BTN">BTN - Bhutanese Ngultrum</option>
+          <option value="MMK">MMK - Myanmar Kyat</option>
+          <option value="LAK">LAK - Lao Kip</option>
+          <option value="KHR">KHR - Cambodian Riel</option>
+          <option value="VND">VND - Vietnamese Dong</option>
+          <option value="THB">THB - Thai Baht</option>
+          <option value="MYR">MYR - Malaysian Ringgit</option>
+          <option value="IDR">IDR - Indonesian Rupiah</option>
+          <option value="PHP">PHP - Philippine Peso</option>
+          <option value="VUV">VUV - Vanuatu Vatu</option>
+          <option value="WST">WST - Samoan Tala</option>
+          <option value="TOP">TOP - Tongan Pa'anga</option>
+          <option value="FJD">FJD - Fijian Dollar</option>
+          <option value="PGK">PGK - Papua New Guinea Kina</option>
+          <option value="SBD">SBD - Solomon Islands Dollar</option>
+          <option value="BND">BND - Brunei Dollar</option>
+          <option value="KWD">KWD - Kuwaiti Dinar</option>
+          <option value="BHD">BHD - Bahraini Dinar</option>
+          <option value="QAR">QAR - Qatari Riyal</option>
+          <option value="AED">AED - UAE Dirham</option>
+          <option value="OMR">OMR - Omani Rial</option>
+          <option value="YER">YER - Yemeni Rial</option>
+          <option value="SAR">SAR - Saudi Riyal</option>
+          <option value="JOD">JOD - Jordanian Dinar</option>
+          <option value="LBP">LBP - Lebanese Pound</option>
+          <option value="ILS">ILS - Israeli Shekel</option>
+          <option value="JMD">JMD - Jamaican Dollar</option>
+          <option value="BBD">BBD - Barbadian Dollar</option>
+          <option value="BZD">BZD - Belize Dollar</option>
+          <option value="GTQ">GTQ - Guatemalan Quetzal</option>
+          <option value="HNL">HNL - Honduran Lempira</option>
+          <option value="NIO">NIO - Nicaraguan Cordoba</option>
+          <option value="CRC">CRC - Costa Rican Colon</option>
+          <option value="PAB">PAB - Panamanian Balboa</option>
+          <option value="DOP">DOP - Dominican Peso</option>
+          <option value="HTG">HTG - Haitian Gourde</option>
+          <option value="CUP">CUP - Cuban Peso</option>
+          <option value="TTD">TTD - Trinidad and Tobago Dollar</option>
+          <option value="XCD">XCD - East Caribbean Dollar</option>
+          <option value="BMD">BMD - Bermudian Dollar</option>
+          <option value="BSD">BSD - Bahamian Dollar</option>
+          <option value="KYD">KYD - Cayman Islands Dollar</option>
+          <option value="AWG">AWG - Aruban Florin</option>
+          <option value="ANG">ANG - Netherlands Antillean Guilder</option>
+          <option value="SRD">SRD - Surinamese Dollar</option>
+          <option value="GYD">GYD - Guyanese Dollar</option>
+          <option value="VES">VES - Venezuelan Bolivar</option>
+          <option value="COP">COP - Colombian Peso</option>
+          <option value="PEN">PEN - Peruvian Sol</option>
+          <option value="BOB">BOB - Bolivian Boliviano</option>
+          <option value="CLP">CLP - Chilean Peso</option>
+          <option value="ARS">ARS - Argentine Peso</option>
+          <option value="UYU">UYU - Uruguayan Peso</option>
+          <option value="PYG">PYG - Paraguayan Guarani</option>
+          <option value="FKP">FKP - Falkland Islands Pound</option>
+          <option value="BWP">BWP - Botswana Pula</option>
+          <option value="SZL">SZL - Swazi Lilangeni</option>
+          <option value="LSL">LSL - Lesotho Loti</option>
+          <option value="NAD">NAD - Namibian Dollar</option>
+          <option value="MWK">MWK - Malawian Kwacha</option>
+          <option value="ZMW">ZMW - Zambian Kwacha</option>
+          <option value="BIF">BIF - Burundian Franc</option>
+          <option value="RWF">RWF - Rwandan Franc</option>
+          <option value="CDF">CDF - Congolese Franc</option>
+          <option value="AOA">AOA - Angolan Kwanza</option>
+          <option value="MZN">MZN - Mozambican Metical</option>
+          <option value="MGA">MGA - Malagasy Ariary</option>
+          <option value="KMF">KMF - Comorian Franc</option>
+          <option value="STN">STN - Sao Tome and Principe Dobra</option>
+          <option value="CVE">CVE - Cape Verdean Escudo</option>
+          <option value="GMD">GMD - Gambian Dalasi</option>
+          <option value="SLL">SLL - Sierra Leonean Leone</option>
+          <option value="LRD">LRD - Liberian Dollar</option>
+          <option value="CDF">CDF - Congolese Franc</option>
+          <option value="XAF">XAF - Central African CFA Franc</option>
+          <option value="XOF">XOF - West African CFA Franc</option>
+          <option value="XPF">XPF - CFP Franc</option>
+        </select>
+        <label for="wuTestQuestion">Test Question (Optional)</label>
+        <input type="text" id="wuTestQuestion" placeholder="Enter a test question for pickup verification">
+        <label for="wuTestAnswer">Test Answer (Optional)</label>
+        <input type="text" id="wuTestAnswer" placeholder="Enter the answer to the test question">
       </div>
       <div class="action-section">
         <div class="button-container">
@@ -337,6 +490,18 @@
       document.getElementById('wiseBankName').value = '';
       document.getElementById('wiseSwiftCode').value = '';
       document.getElementById('zelleId').value = '';
+      document.getElementById('wuFirstName').value = '';
+      document.getElementById('wuLastName').value = '';
+      document.getElementById('wuCountry').value = '';
+      document.getElementById('wuCity').value = '';
+      document.getElementById('wuState').value = '';
+      document.getElementById('wuAddress').value = '';
+      document.getElementById('wuPostalCode').value = '';
+      document.getElementById('wuPhoneNumber').value = '';
+      document.getElementById('wuEmail').value = '';
+      document.getElementById('wuCurrency').value = 'USD';
+      document.getElementById('wuTestQuestion').value = '';
+      document.getElementById('wuTestAnswer').value = '';
       document.getElementById('expectedTotal').textContent = '$0.00';
       document.getElementById('action-status').textContent = 'Form cleared. Please enter new details to submit another request.';
       document.getElementById('action-status').className = 'status';
@@ -354,12 +519,14 @@
       const paypalDetails = document.getElementById('paypalDetails');
       const wiseDetails = document.getElementById('wiseDetails');
       const zelleDetails = document.getElementById('zelleDetails');
+      const westernUnionDetails = document.getElementById('westernUnionDetails');
 
       pixDetails.style.display = 'none';
       venmoDetails.style.display = 'none';
       paypalDetails.style.display = 'none';
       wiseDetails.style.display = 'none';
       zelleDetails.style.display = 'none';
+      westernUnionDetails.style.display = 'none';
 
       if (method === 'PIX') {
         pixDetails.style.display = 'block';
@@ -371,6 +538,8 @@
         wiseDetails.style.display = 'block';
       } else if (method === 'Zelle') {
         zelleDetails.style.display = 'block';
+      } else if (method === 'WesternUnion') {
+        westernUnionDetails.style.display = 'block';
       }
     }
 
@@ -399,6 +568,18 @@
       const wiseBankName = document.getElementById('wiseBankName');
       const wiseSwiftCode = document.getElementById('wiseSwiftCode');
       const zelleId = document.getElementById('zelleId');
+      const wuFirstName = document.getElementById('wuFirstName');
+      const wuLastName = document.getElementById('wuLastName');
+      const wuCountry = document.getElementById('wuCountry');
+      const wuCity = document.getElementById('wuCity');
+      const wuState = document.getElementById('wuState');
+      const wuAddress = document.getElementById('wuAddress');
+      const wuPostalCode = document.getElementById('wuPostalCode');
+      const wuPhoneNumber = document.getElementById('wuPhoneNumber');
+      const wuEmail = document.getElementById('wuEmail');
+      const wuCurrency = document.getElementById('wuCurrency');
+      const wuTestQuestion = document.getElementById('wuTestQuestion');
+      const wuTestAnswer = document.getElementById('wuTestAnswer');
       const actionStatus = document.getElementById('action-status');
       let amount = parseFloat(amountInput.value);
       let hasError = false;
@@ -415,6 +596,18 @@
       wiseBankName.classList.remove('invalid');
       wiseSwiftCode.classList.remove('invalid');
       zelleId.classList.remove('invalid');
+      wuFirstName.classList.remove('invalid');
+      wuLastName.classList.remove('invalid');
+      wuCountry.classList.remove('invalid');
+      wuCity.classList.remove('invalid');
+      wuState.classList.remove('invalid');
+      wuAddress.classList.remove('invalid');
+      wuPostalCode.classList.remove('invalid');
+      wuPhoneNumber.classList.remove('invalid');
+      wuEmail.classList.remove('invalid');
+      wuCurrency.classList.remove('invalid');
+      wuTestQuestion.classList.remove('invalid');
+      wuTestAnswer.classList.remove('invalid');
       actionStatus.textContent = '';
       actionStatus.className = '';
 
@@ -542,6 +735,109 @@
         return false;
       }
 
+      if (withdrawalMethod.value === 'WesternUnion') {
+        if (!wuFirstName.value.trim()) {
+          wuFirstName.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid recipient first name for Western Union.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid recipient first name for Western Union.';
+          }
+          return false;
+        }
+        if (!wuLastName.value.trim()) {
+          wuLastName.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid recipient last name for Western Union.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid recipient last name for Western Union.';
+          }
+          return false;
+        }
+        if (!wuCountry.value.trim()) {
+          wuCountry.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid recipient country for Western Union.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid recipient country for Western Union.';
+          }
+          return false;
+        }
+        if (!wuCity.value.trim()) {
+          wuCity.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid recipient city for Western Union.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid recipient city for Western Union.';
+          }
+          return false;
+        }
+        if (!wuAddress.value.trim()) {
+          wuAddress.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid recipient address for Western Union.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid recipient address for Western Union.';
+          }
+          return false;
+        }
+        if (!wuPostalCode.value.trim()) {
+          wuPostalCode.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid postal/ZIP code for Western Union.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid postal/ZIP code for Western Union.';
+          }
+          return false;
+        }
+        if (!wuPhoneNumber.value.trim() || !/^\+?\d{7,15}$/.test(wuPhoneNumber.value.trim())) {
+          wuPhoneNumber.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid recipient phone number for Western Union.';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid recipient phone number for Western Union.';
+          }
+          return false;
+        }
+        if (wuEmail.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wuEmail.value.trim())) {
+          wuEmail.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid recipient email for Western Union (or leave blank).';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid recipient email for Western Union (or leave blank).';
+          }
+          return false;
+        }
+        if (wuTestQuestion.value.trim() && !wuTestAnswer.value.trim()) {
+          wuTestAnswer.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter an answer for the test question for Western Union (or leave both blank).';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter an answer for the test question for Western Union (or leave both blank).';
+          }
+          return false;
+        }
+        if (!wuTestQuestion.value.trim() && wuTestAnswer.value.trim()) {
+          wuTestQuestion.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a test question for Western Union (or leave both blank).';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a test question for Western Union (or leave both blank).';
+          }
+          return false;
+        }
+      }
+
       return !hasError;
     }
 
@@ -623,6 +919,29 @@
         document.getElementById('wiseSwiftCode').addEventListener('input', validateInputs);
         document.getElementById('zelleId').addEventListener('change', validateInputs);
         document.getElementById('zelleId').addEventListener('input', validateInputs);
+        document.getElementById('wuFirstName').addEventListener('change', validateInputs);
+        document.getElementById('wuFirstName').addEventListener('input', validateInputs);
+        document.getElementById('wuLastName').addEventListener('change', validateInputs);
+        document.getElementById('wuLastName').addEventListener('input', validateInputs);
+        document.getElementById('wuCountry').addEventListener('change', validateInputs);
+        document.getElementById('wuCountry').addEventListener('input', validateInputs);
+        document.getElementById('wuCity').addEventListener('change', validateInputs);
+        document.getElementById('wuCity').addEventListener('input', validateInputs);
+        document.getElementById('wuState').addEventListener('change', validateInputs);
+        document.getElementById('wuState').addEventListener('input', validateInputs);
+        document.getElementById('wuAddress').addEventListener('change', validateInputs);
+        document.getElementById('wuAddress').addEventListener('input', validateInputs);
+        document.getElementById('wuPostalCode').addEventListener('change', validateInputs);
+        document.getElementById('wuPostalCode').addEventListener('input', validateInputs);
+        document.getElementById('wuPhoneNumber').addEventListener('change', validateInputs);
+        document.getElementById('wuPhoneNumber').addEventListener('input', validateInputs);
+        document.getElementById('wuEmail').addEventListener('change', validateInputs);
+        document.getElementById('wuEmail').addEventListener('input', validateInputs);
+        document.getElementById('wuCurrency').addEventListener('change', validateInputs);
+        document.getElementById('wuTestQuestion').addEventListener('change', validateInputs);
+        document.getElementById('wuTestQuestion').addEventListener('input', validateInputs);
+        document.getElementById('wuTestAnswer').addEventListener('change', validateInputs);
+        document.getElementById('wuTestAnswer').addEventListener('input', validateInputs);
       } catch (error) {
         statusElement.textContent = 'Error fetching data: ' + error.message;
         statusElement.className = 'error fade-in';
@@ -651,6 +970,18 @@
       const wiseBankName = document.getElementById('wiseBankName').value;
       const wiseSwiftCode = document.getElementById('wiseSwiftCode').value;
       const zelleId = document.getElementById('zelleId').value;
+      const wuFirstName = document.getElementById('wuFirstName').value;
+      const wuLastName = document.getElementById('wuLastName').value;
+      const wuCountry = document.getElementById('wuCountry').value;
+      const wuCity = document.getElementById('wuCity').value;
+      const wuState = document.getElementById('wuState').value;
+      const wuAddress = document.getElementById('wuAddress').value;
+      const wuPostalCode = document.getElementById('wuPostalCode').value;
+      const wuPhoneNumber = document.getElementById('wuPhoneNumber').value;
+      const wuEmail = document.getElementById('wuEmail').value;
+      const wuCurrency = document.getElementById('wuCurrency').value;
+      const wuTestQuestion = document.getElementById('wuTestQuestion').value;
+      const wuTestAnswer = document.getElementById('wuTestAnswer').value;
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
       const actionStatus = document.getElementById('action-status');
@@ -687,6 +1018,20 @@
           if (wiseSwiftCode) requestText += `Wise SWIFT/BIC code: ${wiseSwiftCode}\n`;
         } else if (withdrawalMethod === 'Zelle') {
           requestText += `Zelle ID: ${zelleId}\n`;
+        } else if (withdrawalMethod === 'WesternUnion') {
+          requestText += `Western Union Recipient: ${wuFirstName} ${wuLastName}\n`;
+          requestText += `Country: ${wuCountry}\n`;
+          requestText += `City: ${wuCity}\n`;
+          if (wuState) requestText += `State/Province: ${wuState}\n`;
+          requestText += `Address: ${wuAddress}\n`;
+          requestText += `Postal/ZIP Code: ${wuPostalCode}\n`;
+          requestText += `Phone Number: ${wuPhoneNumber}\n`;
+          if (wuEmail) requestText += `Email: ${wuEmail}\n`;
+          requestText += `Currency to Receive: ${wuCurrency}\n`;
+          if (wuTestQuestion && wuTestAnswer) {
+            requestText += `Test Question: ${wuTestQuestion}\n`;
+            requestText += `Test Answer: ${wuTestAnswer}\n`;
+          }
         }
         requestText += '--------';
 
