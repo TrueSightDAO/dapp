@@ -717,7 +717,7 @@
     async function updateDescription() {
       const descriptionElement = document.getElementById('description');
       const telegramLink = 'https://t.me/TrueSightDAO';
-      const whatsappLink = 'https://wa.me/14153000019';
+      const whatsappLink = 'https://wa.me/14423405782';
       const baseText = `Fill in your farm details, select tree species (hold Ctrl or tap multiple options), choose a reimbursement method, take a photo at the entrance of the farm where the trees will be planted, and click "Submit Farm Registration"`;
       const farmNameText = `Use a unique farm name (e.g., Fazenda São João).`;
       const signatureText = `If your digital signature is not registered, please register it later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.`;
@@ -787,7 +787,7 @@
       const wiseBankName = document.getElementById('wiseBankName').value;
       const wiseSwiftCode = document.getElementById('wiseSwiftCode').value;
       const telegramLink = 'https://t.me/TrueSightDAO';
-      const whatsappLink = 'https://wa.me/14153000019?text=' + encodeURIComponent(`[FARM REGISTRATION]\n- Farm Name: ${farmName}\n- Farm Location: ${farmLocation}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Area for Tree Planting (hectares): ${plantingArea}\n- Current Land Use: ${landUse}\n- Ownership Status: ${ownership}\n- Planned Tree Species: ${treeSpecies}\n- Estimated Trees: ${treeCount}\n- Reimbursement Method: ${reimbursementMethod}\n--------`);
+      const whatsappLink = 'https://wa.me/14423405782?text=' + encodeURIComponent(`[FARM REGISTRATION]\n- Farm Name: ${farmName}\n- Farm Location: ${farmLocation}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Area for Tree Planting (hectares): ${plantingArea}\n- Current Land Use: ${landUse}\n- Ownership Status: ${ownership}\n- Planned Tree Species: ${treeSpecies}\n- Estimated Trees: ${treeCount}\n- Reimbursement Method: ${reimbursementMethod}\n--------`);
 
       if (!stream) {
         actionStatus.textContent = 'Camera not started. Please ensure camera access is allowed.';
