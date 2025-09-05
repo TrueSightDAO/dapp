@@ -421,6 +421,33 @@
             color: #e74c3c;
         }
 
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 0.5; }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info {
+            color: #17a2b8;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8rem;
@@ -458,7 +485,10 @@
             <p>Review the proposal details and cast your vote</p>
         </div>
 
-        <div id="content">
+        <div id="welcome" style="display: none;"></div>
+        <p id="status" class="loading fade-in">Verifying your digital signature...</p>
+
+        <div id="content" style="display: none;">
             <div class="loading">
                 <div class="spinner"></div>
                 <p>Loading proposal details...</p>
@@ -491,41 +521,64 @@
 
         async function verifySignatureAndLoadProposal(prNumber) {
             const publicKey = localStorage.getItem('publicKey');
-            const statusElement = document.getElementById('content');
-            
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading fade-in';
+
             if (!publicKey) {
-                showError('No digital signature found. Please <a href="./create_signature.html">create a digital signature</a> first.');
+                let seconds = 2;
+                statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                statusElement.className = 'error fade-in';
+                const countdown = setInterval(() => {
+                    seconds--;
+                    if (seconds > 0) {
+                        statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                    } else {
+                        clearInterval(countdown);
+                        window.location.href = './create_signature.html';
+                    }
+                }, 1000);
                 return;
             }
 
             try {
-                showLoading('Verifying your digital signature...');
-                
                 const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
                 const data = await response.json();
 
                 if (data.error) {
                     if (data.error.includes('No matching')) {
-                        showError('Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.');
+                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                        statusElement.className = 'error fade-in';
                         return;
                     } else {
-                        showError(`Signature verification failed: ${data.error}`);
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error fade-in';
                         return;
                     }
                 }
 
-                // Signature verified, now load the proposal
+                const contributorName = data.contributor_name || 'Unknown';
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+
+                // Show content and load proposal
+                document.getElementById('content').style.display = 'block';
                 await loadProposal(prNumber);
                 
             } catch (error) {
                 console.error('Error verifying signature:', error);
-                showError('Failed to verify digital signature. Please try again.');
+                statusElement.textContent = 'Error fetching data: ' + error.message;
+                statusElement.className = 'error fade-in';
             }
         }
 
         async function loadProposal(prNumber) {
             try {
-                showLoading('Loading proposal details...');
+                const statusElement = document.getElementById('status');
+                statusElement.textContent = 'Loading proposal details...';
+                statusElement.className = 'loading fade-in';
                 
                 // Load all proposals first to enable navigation
                 await loadAllProposals();
@@ -539,11 +592,14 @@
                     currentProposalIndex = allProposals.findIndex(p => p.number == prNumber);
                     displayProposal();
                 } else {
-                    showError(`Failed to load proposal: ${result.error}`);
+                    statusElement.textContent = `Failed to load proposal: ${result.error}`;
+                    statusElement.className = 'error fade-in';
                 }
             } catch (error) {
                 console.error('Error loading proposal:', error);
-                showError('Failed to load proposal. Please check your connection and try again.');
+                const statusElement = document.getElementById('status');
+                statusElement.textContent = 'Failed to load proposal. Please check your connection and try again.';
+                statusElement.className = 'error fade-in';
             }
         }
 
@@ -744,21 +800,10 @@ Request Transaction ID: vote_${proposal.number}_${Date.now()}`;
             window.location.href = `./review_proposal.html?pr=${prNumber}`;
         }
 
-        function showLoading(message = 'Loading proposal details...') {
-            document.getElementById('content').innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>${message}</p>
-                </div>
-            `;
-        }
-
         function showError(message) {
-            document.getElementById('content').innerHTML = `
-                <div class="error-message">
-                    <strong>Error:</strong> ${message}
-                </div>
-            `;
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.className = 'error fade-in';
         }
 
         function showSuccess(message) {
