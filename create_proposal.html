@@ -316,6 +316,26 @@
         // Configuration - Google Apps Script web app URLs
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
         const WEB_APP_URL = 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
+
+        // Helper function for base64 encoding
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        // Helper function for base64 decoding
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
         
         // Page load handler - verify digital signature
         window.addEventListener('load', async () => {
@@ -399,21 +419,42 @@
                 submitBtn.innerHTML = '<div class="spinner"></div> Submitting...';
                 
                 // Create the proposal text in the same format as other DApps
-                const proposalText = `[PROPOSAL CREATION]
+                const requestText = `[PROPOSAL CREATION]
 Title: ${title}
 Content: ${content}
+--------`;
 
-My Digital Signature: [SIGNATURE_PLACEHOLDER]
-Request Transaction ID: proposal_${Date.now()}`;
+                // Generate digital signature like other DApp pages
+                const privateKeyObj = await window.crypto.subtle.importKey(
+                    'pkcs8',
+                    base64ToArrayBuffer(localStorage.getItem('privateKey')),
+                    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+                    false,
+                    ['sign']
+                );
 
-                // TODO: Implement digital signature generation
-                // For now, we'll use a placeholder
-                const digitalSignature = 'PLACEHOLDER_SIGNATURE';
-                const requestText = proposalText;
+                const encoder = new TextEncoder();
+                const signature = await window.crypto.subtle.sign(
+                    'RSASSA-PKCS1-v1_5',
+                    privateKeyObj,
+                    encoder.encode(requestText)
+                );
+                const requestHash = arrayBufferToBase64(signature);
+
+                // Create the share text following the same pattern as other DApps
+                const shareText = `${requestText}
+
+My Digital Signature: ${localStorage.getItem('publicKey')}
+
+Request Transaction ID: ${requestHash}
+
+This submission was generated using ${window.location.href}
+
+Verify submission here: https://dapp.truesight.me/verify_request.html`;
 
                 // Submit to Edgar's domain like other DApp pages
                 const formData = new FormData();
-                formData.append('text', requestText);
+                formData.append('text', shareText);
 
                 const response = await fetch('https://edgar.truesight.me/dao/submit_contribution', {
                     method: 'POST',
