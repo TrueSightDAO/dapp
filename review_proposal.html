@@ -488,11 +488,15 @@
         <div id="welcome" style="display: none;"></div>
         <p id="status" class="loading fade-in">Verifying your digital signature...</p>
 
-        <div id="content" style="display: none;">
+        <div id="content">
             <div class="loading">
                 <div class="spinner"></div>
                 <p>Loading proposal details...</p>
             </div>
+        </div>
+
+        <div id="voting-section" style="display: none;">
+            <!-- Voting section will be populated after signature verification -->
         </div>
     </div>
 
@@ -516,14 +520,39 @@
                 showError('No proposal number provided');
                 return;
             }
+            loadProposalContent(prNumber);
             verifySignatureAndLoadProposal(prNumber);
         };
+
+        async function loadProposalContent(prNumber) {
+            try {
+                showLoading('Loading proposal details...');
+                
+                // Load all proposals first to enable navigation
+                await loadAllProposals();
+                
+                const response = await fetch(`${WEB_APP_URL}?mode=fetch_proposal&pr_number=${prNumber}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    proposal = result.data.proposal;
+                    // Find current proposal index for navigation
+                    currentProposalIndex = allProposals.findIndex(p => p.number == prNumber);
+                    displayProposalContent();
+                } else {
+                    showError(`Failed to load proposal: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error loading proposal:', error);
+                showError('Failed to load proposal. Please check your connection and try again.');
+            }
+        }
 
         async function verifySignatureAndLoadProposal(prNumber) {
             const publicKey = localStorage.getItem('publicKey');
             const statusElement = document.getElementById('status');
             statusElement.textContent = 'Verifying your digital signature...';
-            statusElement.className = 'loading fade-in';
+            statusElement.className = 'loading';
 
             if (!publicKey) {
                 let seconds = 2;
@@ -563,9 +592,8 @@
                 statusElement.textContent = 'Signature verified successfully';
                 statusElement.className = 'status fade-in';
 
-                // Show content and load proposal
-                document.getElementById('content').style.display = 'block';
-                await loadProposal(prNumber);
+                // Show voting section after verification
+                displayVotingSection();
                 
             } catch (error) {
                 console.error('Error verifying signature:', error);
@@ -574,34 +602,6 @@
             }
         }
 
-        async function loadProposal(prNumber) {
-            try {
-                const statusElement = document.getElementById('status');
-                statusElement.textContent = 'Loading proposal details...';
-                statusElement.className = 'loading fade-in';
-                
-                // Load all proposals first to enable navigation
-                await loadAllProposals();
-                
-                const response = await fetch(`${WEB_APP_URL}?mode=fetch_proposal&pr_number=${prNumber}`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    proposal = result.data.proposal;
-                    // Find current proposal index for navigation
-                    currentProposalIndex = allProposals.findIndex(p => p.number == prNumber);
-                    displayProposal();
-                } else {
-                    statusElement.textContent = `Failed to load proposal: ${result.error}`;
-                    statusElement.className = 'error fade-in';
-                }
-            } catch (error) {
-                console.error('Error loading proposal:', error);
-                const statusElement = document.getElementById('status');
-                statusElement.textContent = 'Failed to load proposal. Please check your connection and try again.';
-                statusElement.className = 'error fade-in';
-            }
-        }
 
         async function loadAllProposals() {
             try {
@@ -618,7 +618,7 @@
             }
         }
 
-        function displayProposal() {
+        function displayProposalContent() {
             if (!proposal) return;
 
             const createdDate = new Date(proposal.created_at).toLocaleDateString();
@@ -659,6 +659,37 @@
                     ${formatMarkdown(proposal.body)}
                 </div>
 
+                <div class="navigation-section" style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e9ecef;">
+                    <h3 style="margin-bottom: 15px; color: #2c3e50;">Navigation</h3>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                        <button class="btn btn-secondary" onclick="window.location.href='./view_open_proposals.html'">
+                            📋 View All Proposals
+                        </button>
+                        ${prevButton}
+                        ${nextButton}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.9rem; color: #7f8c8d;">
+                        Proposal ${currentProposalIndex + 1} of ${allProposals.length}
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayVotingSection() {
+            if (!proposal) return;
+
+            const daysRemaining = proposal.voting.days_remaining;
+            
+            // Determine time remaining styling
+            let timeClass = 'safe';
+            if (daysRemaining <= 1) {
+                timeClass = '';
+            } else if (daysRemaining <= 3) {
+                timeClass = 'warning';
+            }
+
+            const votingSection = document.getElementById('voting-section');
+            votingSection.innerHTML = `
                 <div class="voting-section">
                     <div class="voting-header">
                         <div class="voting-title">Voting Status</div>
@@ -712,21 +743,10 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="navigation-section" style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e9ecef;">
-                    <h3 style="margin-bottom: 15px; color: #2c3e50;">Navigation</h3>
-                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
-                        <button class="btn btn-secondary" onclick="window.location.href='./view_open_proposals.html'">
-                            📋 View All Proposals
-                        </button>
-                        ${prevButton}
-                        ${nextButton}
-                    </div>
-                    <div style="margin-top: 10px; font-size: 0.9rem; color: #7f8c8d;">
-                        Proposal ${currentProposalIndex + 1} of ${allProposals.length}
-                    </div>
-                </div>
             `;
+            
+            // Show the voting section
+            votingSection.style.display = 'block';
         }
 
         async function submitVote() {
@@ -800,10 +820,21 @@ Request Transaction ID: vote_${proposal.number}_${Date.now()}`;
             window.location.href = `./review_proposal.html?pr=${prNumber}`;
         }
 
+        function showLoading(message = 'Loading proposal details...') {
+            document.getElementById('content').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
         function showError(message) {
-            const statusElement = document.getElementById('status');
-            statusElement.textContent = message;
-            statusElement.className = 'error fade-in';
+            document.getElementById('content').innerHTML = `
+                <div class="error-message">
+                    <strong>Error:</strong> ${message}
+                </div>
+            `;
         }
 
         function showSuccess(message) {
