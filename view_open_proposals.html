@@ -301,19 +301,54 @@
             try {
                 showLoading();
                 
-                const response = await fetch(`${WEB_APP_URL}?mode=list_open_proposals`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    proposals = result.data.proposals;
-                    displayProposals();
-                } else {
-                    showError(`Failed to load proposals: ${result.error}`);
+                // Try fetch first
+                try {
+                    const response = await fetch(`${WEB_APP_URL}?mode=list_open_proposals`);
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        proposals = result.data.proposals;
+                        displayProposals();
+                        return;
+                    } else {
+                        showError(`Failed to load proposals: ${result.error}`);
+                        return;
+                    }
+                } catch (fetchError) {
+                    console.log('Fetch failed, trying JSONP:', fetchError);
+                    // Fallback to JSONP
+                    loadProposalsJSONP();
                 }
             } catch (error) {
                 console.error('Error loading proposals:', error);
                 showError('Failed to load proposals. Please check your connection and try again.');
             }
+        }
+
+        function loadProposalsJSONP() {
+            // Create a unique callback function name
+            const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+            
+            // Create script element
+            const script = document.createElement('script');
+            script.src = `${WEB_APP_URL}?mode=list_open_proposals&callback=${callbackName}`;
+            
+            // Define the callback function
+            window[callbackName] = function(data) {
+                // Clean up
+                document.head.removeChild(script);
+                delete window[callbackName];
+                
+                if (data.success) {
+                    proposals = data.data.proposals;
+                    displayProposals();
+                } else {
+                    showError(`Failed to load proposals: ${data.error}`);
+                }
+            };
+            
+            // Add script to page
+            document.head.appendChild(script);
         }
 
         function displayProposals() {
