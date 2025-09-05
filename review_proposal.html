@@ -693,6 +693,15 @@
                 return;
             }
 
+            console.log('Proposal voting data:', proposal.voting);
+            const votingSection = document.getElementById('voting-section');
+            console.log('Voting section element:', votingSection);
+            
+            if (!votingSection) {
+                console.error('Voting section element not found!');
+                return;
+            }
+
             const daysRemaining = proposal.voting.days_remaining;
             
             // Determine time remaining styling
@@ -760,8 +769,13 @@
                 </div>
             `;
             
-            // Show the voting section
+            console.log('Voting section HTML set, about to show it');
+            // Show the voting section with explicit styling
             votingSection.style.display = 'block';
+            votingSection.style.visibility = 'visible';
+            votingSection.style.opacity = '1';
+            console.log('Voting section display set to block, computed style:', window.getComputedStyle(votingSection).display);
+            console.log('Voting section innerHTML length:', votingSection.innerHTML.length);
         }
 
         async function submitVote() {
