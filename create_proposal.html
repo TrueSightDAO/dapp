@@ -243,6 +243,33 @@
                 flex-direction: column;
             }
         }
+        
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 0.5; }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info {
+            color: #17a2b8;
+        }
     </style>
 </head>
 <body>
@@ -253,9 +280,14 @@
         </div>
         
         <h1>📝 Create New Proposal</h1>
-        <p id="description">Submit a new proposal for community voting</p>
-        
-        <div id="status"></div>
+        <p id="intro">
+            Submit a new proposal for community voting. Your proposal will be reviewed by DAO members and voted on through the proposal management system.
+        </p>
+
+        <div id="welcome" style="display: none;"></div>
+        <p id="status" class="loading fade-in">Verifying your digital signature...</p>
+
+        <div id="info" style="display: none;">
             <div class="proposal-template">
                 <h4>📋 Proposal Template</h4>
                 <p>
@@ -302,11 +334,65 @@
                     </button>
                 </div>
             </form>
+        </div>
     </div>
 
     <script>
         // Configuration - Google Apps Script web app URL
         const WEB_APP_URL = 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
+        
+        // Page load handler - verify digital signature
+        window.addEventListener('load', async () => {
+            const publicKey = localStorage.getItem('publicKey');
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading';
+
+            if (!publicKey) {
+                let seconds = 2;
+                statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                statusElement.className = 'error fade-in';
+                const countdown = setInterval(() => {
+                    seconds--;
+                    if (seconds > 0) {
+                        statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                    } else {
+                        clearInterval(countdown);
+                        window.location.href = './create_signature.html';
+                    }
+                }, 1000);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${WEB_APP_URL}?action=verify_signature&public_key=${encodeURIComponent(publicKey)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    if (data.error.includes('No matching')) {
+                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                        statusElement.className = 'error fade-in';
+                        return;
+                    } else {
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error fade-in';
+                        return;
+                    }
+                }
+
+                const contributorName = data.contributor_name || 'Unknown';
+                document.getElementById('info').style.display = 'block';
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+
+            } catch (error) {
+                statusElement.textContent = 'Error fetching data: ' + error.message;
+                statusElement.className = 'error fade-in';
+                document.getElementById('submitBtn').style.display = 'none';
+            }
+        });
         
         document.getElementById('proposalForm').addEventListener('submit', async function(e) {
             e.preventDefault();
