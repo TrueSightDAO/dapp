@@ -884,11 +884,16 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
                     successDiv.style.margin = '20px 0';
                     successDiv.style.padding = '0';
                     successDiv.innerHTML = `
-                        <div style="text-align: left; line-height: 1.6; margin: 0; padding: 0;">
+                        <div style="text-align: left; line-height: 1.6; margin: 0; padding: 0 0 0 2rem;">
                             <h3 style="color: #28a745; margin-top: 0;">✅ Vote Submitted Successfully!</h3>
                             <p><strong>Proposal:</strong> ${proposal.title}</p>
                             <p><strong>Your Vote:</strong> ${vote.value}</p>
                             <p><strong>Transaction ID:</strong> ${requestHash}</p>
+                            
+                            <div style="background-color: #fff3cd; padding: 1rem; border-radius: 5px; margin: 1rem 0; border-left: 4px solid #ffc107; word-wrap: break-word; overflow-wrap: break-word;">
+                                <h4 style="margin-top: 0; color: #856404;">⏳ What Happens Next:</h4>
+                                <p style="margin: 0.5rem 0;">Your vote has been submitted and will be reflected in the voting results when Edgar next runs the proposal management system.</p>
+                            </div>
                             
                             <div style="background-color: #d1ecf1; padding: 1rem; border-radius: 5px; margin: 1rem 0; border-left: 4px solid #17a2b8; word-wrap: break-word; overflow-wrap: break-word;">
                                 <h4 style="margin-top: 0; color: #0c5460;">🔍 Track Your Vote:</h4>
