@@ -469,9 +469,12 @@
     <script>
         // Configuration - Google Apps Script web app URL
         const WEB_APP_URL = 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
+        const API_ENDPOINT = 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
         
         let proposal = null;
         let currentVote = null;
+        let allProposals = [];
+        let currentProposalIndex = -1;
 
         // Get PR number from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -483,18 +486,57 @@
                 showError('No proposal number provided');
                 return;
             }
-            loadProposal(prNumber);
+            verifySignatureAndLoadProposal(prNumber);
         };
+
+        async function verifySignatureAndLoadProposal(prNumber) {
+            const publicKey = localStorage.getItem('publicKey');
+            const statusElement = document.getElementById('content');
+            
+            if (!publicKey) {
+                showError('No digital signature found. Please <a href="./create_signature.html">create a digital signature</a> first.');
+                return;
+            }
+
+            try {
+                showLoading('Verifying your digital signature...');
+                
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    if (data.error.includes('No matching')) {
+                        showError('Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.');
+                        return;
+                    } else {
+                        showError(`Signature verification failed: ${data.error}`);
+                        return;
+                    }
+                }
+
+                // Signature verified, now load the proposal
+                await loadProposal(prNumber);
+                
+            } catch (error) {
+                console.error('Error verifying signature:', error);
+                showError('Failed to verify digital signature. Please try again.');
+            }
+        }
 
         async function loadProposal(prNumber) {
             try {
-                showLoading();
+                showLoading('Loading proposal details...');
+                
+                // Load all proposals first to enable navigation
+                await loadAllProposals();
                 
                 const response = await fetch(`${WEB_APP_URL}?mode=fetch_proposal&pr_number=${prNumber}`);
                 const result = await response.json();
                 
                 if (result.success) {
                     proposal = result.data.proposal;
+                    // Find current proposal index for navigation
+                    currentProposalIndex = allProposals.findIndex(p => p.number == prNumber);
                     displayProposal();
                 } else {
                     showError(`Failed to load proposal: ${result.error}`);
@@ -502,6 +544,21 @@
             } catch (error) {
                 console.error('Error loading proposal:', error);
                 showError('Failed to load proposal. Please check your connection and try again.');
+            }
+        }
+
+        async function loadAllProposals() {
+            try {
+                const response = await fetch(`${WEB_APP_URL}?mode=list_open_proposals`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    allProposals = result.data.proposals;
+                } else {
+                    console.warn('Failed to load all proposals for navigation:', result.error);
+                }
+            } catch (error) {
+                console.warn('Error loading all proposals for navigation:', error);
             }
         }
 
@@ -519,6 +576,17 @@
             } else if (daysRemaining <= 3) {
                 timeClass = 'warning';
             }
+
+            // Navigation buttons
+            const prevButton = currentProposalIndex > 0 ? 
+                `<button class="btn btn-secondary" onclick="navigateToProposal(${allProposals[currentProposalIndex - 1].number})">
+                    ← Previous Proposal
+                </button>` : '';
+            
+            const nextButton = currentProposalIndex < allProposals.length - 1 ? 
+                `<button class="btn btn-secondary" onclick="navigateToProposal(${allProposals[currentProposalIndex + 1].number})">
+                    Next Proposal →
+                </button>` : '';
 
             const content = document.getElementById('content');
             content.innerHTML = `
@@ -586,6 +654,20 @@
                                 🔗 View on GitHub
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                <div class="navigation-section" style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e9ecef;">
+                    <h3 style="margin-bottom: 15px; color: #2c3e50;">Navigation</h3>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                        <button class="btn btn-secondary" onclick="window.location.href='./view_open_proposals.html'">
+                            📋 View All Proposals
+                        </button>
+                        ${prevButton}
+                        ${nextButton}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.9rem; color: #7f8c8d;">
+                        Proposal ${currentProposalIndex + 1} of ${allProposals.length}
                     </div>
                 </div>
             `;
@@ -658,11 +740,15 @@ Request Transaction ID: vote_${proposal.number}_${Date.now()}`;
             }
         }
 
-        function showLoading() {
+        function navigateToProposal(prNumber) {
+            window.location.href = `./review_proposal.html?pr=${prNumber}`;
+        }
+
+        function showLoading(message = 'Loading proposal details...') {
             document.getElementById('content').innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <p>Loading proposal details...</p>
+                    <p>${message}</p>
                 </div>
             `;
         }
