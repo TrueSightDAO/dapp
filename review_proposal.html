@@ -549,7 +549,8 @@
         // Load proposal on page load
         window.onload = function() {
             if (!prNumber) {
-                showError('No proposal number provided');
+                // Redirect to view all proposals if no PR number provided
+                window.location.href = './view_open_proposals.html';
                 return;
             }
             loadProposalAndVerifySignature(prNumber);
