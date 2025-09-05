@@ -764,12 +764,6 @@
                             </div>
                         </div>
 
-                        <textarea 
-                            class="reason-input" 
-                            id="vote-reason" 
-                            placeholder="Explain your reasoning for this vote (optional but recommended)..."
-                        ></textarea>
-
                         <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                             <button class="btn btn-primary" onclick="submitVote()">
                                 🗳️ Submit Vote
@@ -793,17 +787,10 @@
 
         async function submitVote() {
             const vote = document.querySelector('input[name="vote"]:checked');
-            const reason = document.getElementById('vote-reason').value.trim();
 
             if (!vote) {
                 alert('Please select YES or NO before submitting your vote.');
                 return;
-            }
-
-            if (!reason) {
-                if (!confirm('You haven\'t provided a reason for your vote. Continue without a reason?')) {
-                    return;
-                }
             }
 
             try {
@@ -811,7 +798,6 @@
                 const voteText = `[PROPOSAL VOTE]
 Proposal: ${proposal.title}
 Vote: ${vote.value}
-Reason: ${reason || 'No reason provided'}
 
 My Digital Signature: [SIGNATURE_PLACEHOLDER]
 Request Transaction ID: vote_${proposal.number}_${Date.now()}`;
