@@ -463,14 +463,42 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
 
                 const result = await response.json();
 
-                if (result.success) {
-                    showSuccess('Proposal created successfully!');
-                    // Redirect to view proposals after a short delay
-                    setTimeout(() => {
-                        window.location.href = `view_open_proposals.html?success=${encodeURIComponent('Proposal created successfully!')}`;
-                    }, 2000);
+                if (result.status === 'success') {
+                    // Show success message similar to other DApp pages
+                    const output = document.getElementById('status');
+                    output.innerHTML = `
+                        <div style="text-align: left; line-height: 1.6;">
+                            <h3 style="color: #28a745; margin-top: 0;">✅ Proposal Submitted Successfully!</h3>
+                            
+                            <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 5px; margin: 1rem 0; border-left: 4px solid #28a745; word-wrap: break-word; overflow-wrap: break-word;">
+                                <h4 style="margin-top: 0; color: #155724;">📋 Your Proposal Details:</h4>
+                                <p style="margin: 0.5rem 0;"><strong>Title:</strong> ${title}</p>
+                                <p style="margin: 0.5rem 0;"><strong>Transaction ID:</strong> <code style="background-color: #e9ecef; padding: 2px 6px; border-radius: 3px; word-break: break-all;">${requestHash}</code></p>
+                            </div>
+                            
+                            <div style="background-color: #fff3cd; padding: 1rem; border-radius: 5px; margin: 1rem 0; border-left: 4px solid #ffc107; word-wrap: break-word; overflow-wrap: break-word;">
+                                <h4 style="margin-top: 0; color: #856404;">⏳ What Happens Next:</h4>
+                                <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                                    <li>Your proposal has been submitted to the DAO</li>
+                                    <li>It will be reviewed and posted as a GitHub Pull Request</li>
+                                    <li>Community members can vote on your proposal</li>
+                                    <li>You'll be notified when voting begins</li>
+                                </ul>
+                            </div>
+                            
+                            <div style="background-color: #d1ecf1; padding: 1rem; border-radius: 5px; margin: 1rem 0; border-left: 4px solid #17a2b8; word-wrap: break-word; overflow-wrap: break-word;">
+                                <h4 style="margin-top: 0; color: #0c5460;">🔍 Track Your Proposal:</h4>
+                                <p style="margin: 0.5rem 0;">View all open proposals: <a href="./view_open_proposals.html" style="color: #007bff; text-decoration: none;">DAO Proposal Management</a></p>
+                                <p style="margin: 0.5rem 0;">Verify your submission: <a href="https://dapp.truesight.me/verify_request.html" target="_blank" style="color: #007bff; text-decoration: none;">Verify Request</a></p>
+                            </div>
+                        </div>
+                    `;
+                    output.className = 'status';
+                    
+                    // Reset form
+                    document.getElementById('proposalForm').reset();
                 } else {
-                    showError(`Failed to create proposal: ${result.error}`);
+                    showError(`Failed to create proposal: ${result.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Error creating proposal:', error);
