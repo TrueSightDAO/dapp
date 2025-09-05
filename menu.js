@@ -11,6 +11,7 @@
     { title: 'Voting Rights Cash Out', url: './withdraw_voting_rights.html', section: 'Identity & Governance' },
     { title: 'Notarize Official Document', url: './notarize.html', section: 'Identity & Governance' },
     { title: 'Verify Signed Request', url: './verify_request.html', section: 'Identity & Governance' },
+    { title: 'DAO Proposal Management', url: './view_open_proposals.html', section: 'Identity & Governance' },
     { title: 'Cacao Bag Scanner', url: './scanner.html', section: 'Inventory & Sales' },
     { title: 'Sales Reporter', url: './report_sales.html', section: 'Inventory & Sales' },
     { title: 'Batch QR Code Generator', url: './batch_qr_generator.html', section: 'Inventory & Sales' },

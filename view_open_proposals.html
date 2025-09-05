@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="View and vote on TrueSight DAO community proposals">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAO Proposal Management</title>
+
+    <!-- Open Graph tags for WhatsApp and social media previews -->
+    <meta property="og:title" content="DAO Proposal Management">
+    <meta property="og:description" content="View and vote on TrueSight DAO community proposals">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./menu.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #backLink {
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
+            color: #007bff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: color 0.2s;
+        }
+        #backLink:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        #backLink::before {
+            content: "←";
+            font-size: 1.2rem;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info-box {
+            margin: 1rem 0;
+            background-color: #f8f9fa;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            overflow: scroll;
+            max-height: 200px;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn-primary {
+            background-color: #28a745;
+        }
+        .btn-primary:hover {
+            background-color: #218838;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+        }
+        .loading .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .proposals-list {
+            margin: 1rem 0;
+        }
+        .proposal-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .proposal-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 4px rgba(0,123,255,0.1);
+        }
+        .proposal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .proposal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+            min-width: 200px;
+        }
+        .proposal-number {
+            background: #007bff;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .proposal-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .proposal-preview {
+            color: #555;
+            line-height: 1.4;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .proposal-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .btn-small {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+        }
+        .empty-state h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+        .empty-state p {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 0.75rem;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 0.75rem;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .proposal-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .proposal-meta {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>
+        
+        <h1>🗳️ DAO Proposal Management</h1>
+        <div id="description">View, review, and vote on community proposals</div>
+        
+        <div id="status"></div>
+
+        <div class="actions">
+            <button class="btn btn-secondary" onclick="refreshProposals()">
+                🔄 Refresh Proposals
+            </button>
+            <button class="btn btn-primary" onclick="createNewProposal()">
+                ➕ Create New Proposal
+            </button>
+        </div>
+
+        <div id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading open proposals...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Google Apps Script web app URL
+        const WEB_APP_URL = 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
+        
+        let proposals = [];
+
+        // Load proposals on page load
+        window.onload = function() {
+            loadProposals();
+        };
+
+        async function loadProposals() {
+            try {
+                showLoading();
+                
+                const response = await fetch(`${WEB_APP_URL}?mode=list_open_proposals`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    proposals = result.data.proposals;
+                    displayProposals();
+                } else {
+                    showError(`Failed to load proposals: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error loading proposals:', error);
+                showError('Failed to load proposals. Please check your connection and try again.');
+            }
+        }
+
+        function displayProposals() {
+            const content = document.getElementById('content');
+            
+            if (proposals.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No Open Proposals</h3>
+                        <p>There are currently no open proposals to review.</p>
+                        <button class="btn btn-primary" onclick="createNewProposal()">
+                            Create the First Proposal
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const proposalsHTML = proposals.map(proposal => {
+                const createdDate = new Date(proposal.created_at).toLocaleDateString();
+                const preview = proposal.body ? proposal.body.substring(0, 200) + '...' : 'No description provided';
+                
+                return `
+                    <div class="proposal-card" onclick="viewProposal(${proposal.number})">
+                        <div class="proposal-header">
+                            <div class="proposal-title">${escapeHtml(proposal.title)}</div>
+                            <div class="proposal-number">PR #${proposal.number}</div>
+                        </div>
+                        
+                        <div class="proposal-meta">
+                            <div class="proposal-author">👤 ${escapeHtml(proposal.user)}</div>
+                            <div class="proposal-date">📅 ${createdDate}</div>
+                        </div>
+                        
+                        <div class="proposal-preview">
+                            ${escapeHtml(preview)}
+                        </div>
+                        
+                        <div class="proposal-actions">
+                            <button class="btn btn-small" onclick="event.stopPropagation(); viewProposal(${proposal.number})">
+                                👁️ Review & Vote
+                            </button>
+                            <button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); openGitHubPR(${proposal.number})">
+                                🔗 View on GitHub
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            content.innerHTML = `
+                <div class="proposals-list">
+                    <h2 style="margin-bottom: 20px; color: #2c3e50;">Open Proposals (${proposals.length})</h2>
+                    ${proposalsHTML}
+                </div>
+            `;
+        }
+
+        function viewProposal(prNumber) {
+            // Navigate to the review proposal page
+            window.location.href = `review_proposal.html?pr=${prNumber}`;
+        }
+
+        function createNewProposal() {
+            // Navigate to the create proposal page
+            window.location.href = 'create_proposal.html';
+        }
+
+        function openGitHubPR(prNumber) {
+            const proposal = proposals.find(p => p.number === prNumber);
+            if (proposal) {
+                window.open(proposal.html_url, '_blank');
+            }
+        }
+
+        function refreshProposals() {
+            loadProposals();
+        }
+
+        function showLoading() {
+            document.getElementById('content').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading open proposals...</p>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            document.getElementById('status').innerHTML = `<span class="error">Error: ${message}</span>`;
+            document.getElementById('content').innerHTML = `
+                <div class="error-message">
+                    <strong>Error:</strong> ${message}
+                </div>
+            `;
+        }
+
+        function showSuccess(message) {
+            document.getElementById('status').innerHTML = `<span class="status">${message}</span>`;
+            
+            // Clear status after 5 seconds
+            setTimeout(() => {
+                document.getElementById('status').innerHTML = '';
+            }, 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Handle URL parameters for success messages
+        const urlParams = new URLSearchParams(window.location.search);
+        const success = urlParams.get('success');
+        if (success) {
+            showSuccess(decodeURIComponent(success));
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    </script>
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const url = new URL(window.location.href);
+        url.searchParams.set('reload', 'true');
+        const a = document.createElement('a');
+        a.href = url.toString();
+        a.textContent = 'Reload Latest Version';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
+    </script>
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const a = document.createElement('a');
+        a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/view_open_proposals.html';
+        a.textContent = 'View Source Code';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
+    </script>
+</body>
+</html>
