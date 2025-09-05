@@ -316,7 +316,7 @@
         // Configuration - Google Apps Script web app URLs
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
         const WEB_APP_URL = 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
-
+        
         // Helper function for base64 encoding
         function arrayBufferToBase64(buffer) {
             const bytes = new Uint8Array(buffer);
@@ -420,11 +420,11 @@
                 
                 // Create the proposal text in the same format as other DApps
                 const requestText = `[PROPOSAL CREATION]
-Title: ${title}
-Content: ${content}
+- Title: ${title}
+- Content: ${content}
 --------`;
 
-                // Generate digital signature like other DApp pages
+                // Import private key and sign the message like other DApp pages
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     'pkcs8',
                     base64ToArrayBuffer(localStorage.getItem('privateKey')),
