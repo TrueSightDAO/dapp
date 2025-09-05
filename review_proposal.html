@@ -881,8 +881,10 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
                     // Show success message similar to other DApp pages
                     const content = document.getElementById('content');
                     const successDiv = document.createElement('div');
+                    successDiv.style.margin = '20px 0';
+                    successDiv.style.padding = '0';
                     successDiv.innerHTML = `
-                        <div style="text-align: left; line-height: 1.6; margin-top: 20px;">
+                        <div style="text-align: left; line-height: 1.6; margin: 0; padding: 0;">
                             <h3 style="color: #28a745; margin-top: 0;">✅ Vote Submitted Successfully!</h3>
                             <p><strong>Proposal:</strong> ${proposal.title}</p>
                             <p><strong>Your Vote:</strong> ${vote.value}</p>
