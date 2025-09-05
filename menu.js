@@ -52,7 +52,12 @@
         option.value = item.url;
         option.textContent = item.title;
         var itemPage = item.url.split('/').pop();
-        if (currentPage === itemPage) {
+        
+        // Special handling for proposal pages
+        var isProposalPage = currentPage === 'review_proposal.html' || currentPage === 'create_proposal.html';
+        var isDAOProposalManagement = item.title === 'DAO Proposal Management';
+        
+        if (currentPage === itemPage || (isProposalPage && isDAOProposalManagement)) {
           option.selected = true;
         }
         parent.appendChild(option);
