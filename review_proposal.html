@@ -600,6 +600,27 @@
 
                 // Show voting section after verification
                 console.log('Signature verified, calling displayVotingSection');
+                
+                // Force show voting section immediately for testing
+                const votingSection = document.getElementById('voting-section');
+                if (votingSection) {
+                    console.log('Forcing voting section to be visible');
+                    votingSection.style.display = 'block';
+                    votingSection.style.visibility = 'visible';
+                    
+                    // Add basic test content if empty
+                    if (!votingSection.innerHTML || votingSection.innerHTML.trim() === '') {
+                        console.log('Adding test content to voting section');
+                        votingSection.innerHTML = `
+                            <div class="voting-section">
+                                <h3>Test Voting Section</h3>
+                                <p>This is a test to see if the voting section displays.</p>
+                                <button class="btn btn-primary">Test Vote Button</button>
+                            </div>
+                        `;
+                    }
+                }
+                
                 displayVotingSection();
                 
             } catch (error) {
