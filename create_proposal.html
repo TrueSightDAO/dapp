@@ -365,7 +365,7 @@
             }
 
             try {
-                const response = await fetch(`${WEB_APP_URL}?action=verify_signature&public_key=${encodeURIComponent(publicKey)}`);
+                const response = await fetch(`${WEB_APP_URL}?mode=verify_signature&public_key=${encodeURIComponent(publicKey)}`);
                 const data = await response.json();
 
                 if (data.error) {
