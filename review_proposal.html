@@ -454,6 +454,32 @@
             text-align: center;
         }
 
+        .voting-loading {
+            animation: pulse 1.5s ease-in-out infinite;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px dashed #dee2e6;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .voting-loading .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8rem;
@@ -716,17 +742,28 @@
                 return;
             }
 
-            const daysRemaining = proposal.voting.days_remaining;
-            
-            // Determine time remaining styling
-            let timeClass = 'safe';
-            if (daysRemaining <= 1) {
-                timeClass = '';
-            } else if (daysRemaining <= 3) {
-                timeClass = 'warning';
-            }
-
+            // Show loading animation first
             votingSection.innerHTML = `
+                <div class="voting-loading">
+                    <div class="spinner"></div>
+                    <p>Preparing voting interface...</p>
+                </div>
+            `;
+            votingSection.style.display = 'block';
+
+            // Add a small delay to show the loading animation
+            setTimeout(() => {
+                const daysRemaining = proposal.voting.days_remaining;
+                
+                // Determine time remaining styling
+                let timeClass = 'safe';
+                if (daysRemaining <= 1) {
+                    timeClass = '';
+                } else if (daysRemaining <= 3) {
+                    timeClass = 'warning';
+                }
+
+                votingSection.innerHTML = `
                 <div class="voting-section">
                     <div class="voting-header">
                         <div class="voting-title">Voting Status</div>
@@ -776,13 +813,14 @@
                 </div>
             `;
             
-            console.log('Voting section HTML set, about to show it');
-            // Show the voting section with explicit styling
-            votingSection.style.display = 'block';
-            votingSection.style.visibility = 'visible';
-            votingSection.style.opacity = '1';
-            console.log('Voting section display set to block, computed style:', window.getComputedStyle(votingSection).display);
-            console.log('Voting section innerHTML length:', votingSection.innerHTML.length);
+                console.log('Voting section HTML set, about to show it');
+                // Show the voting section with explicit styling
+                votingSection.style.display = 'block';
+                votingSection.style.visibility = 'visible';
+                votingSection.style.opacity = '1';
+                console.log('Voting section display set to block, computed style:', window.getComputedStyle(votingSection).display);
+                console.log('Voting section innerHTML length:', votingSection.innerHTML.length);
+            }, 800); // 800ms delay to show loading animation
         }
 
         async function submitVote() {
