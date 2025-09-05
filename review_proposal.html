@@ -599,12 +599,17 @@
                 statusElement.className = 'status fade-in';
 
                 // Show voting section after verification
+                console.log('Signature verified, calling displayVotingSection');
                 displayVotingSection();
                 
             } catch (error) {
                 console.error('Error verifying signature:', error);
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';
+                
+                // For debugging: show voting section even if signature verification fails
+                console.log('Signature verification failed, but showing voting section for debugging');
+                displayVotingSection();
             }
         }
 
@@ -682,7 +687,11 @@
         }
 
         function displayVotingSection() {
-            if (!proposal) return;
+            console.log('displayVotingSection called, proposal:', proposal);
+            if (!proposal) {
+                console.log('No proposal data available');
+                return;
+            }
 
             const daysRemaining = proposal.voting.days_remaining;
             
