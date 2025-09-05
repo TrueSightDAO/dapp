@@ -447,13 +447,13 @@
     </style>
 </head>
 <body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
     <div class="container">
         <div style="text-align: center;">
             <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>
         
         <div class="header">
-            <a href="view_open_proposals.html" class="back-btn">← Back to Proposals</a>
             <h1>🗳️ Review Proposal</h1>
             <p>Review the proposal details and cast your vote</p>
         </div>
@@ -714,6 +714,38 @@ Request Transaction ID: vote_${proposal.number}_${Date.now()}`;
                 .replace(/^(\d+)\. (.*$)/gm, '<li>$2</li>')
                 .replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
         }
+    </script>
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const url = new URL(window.location.href);
+        url.searchParams.set('reload', 'true');
+        const a = document.createElement('a');
+        a.href = url.toString();
+        a.textContent = 'Reload Latest Version';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
+    </script>
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const a = document.createElement('a');
+        a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/review_proposal.html';
+        a.textContent = 'View Source Code';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
     </script>
 </body>
 </html>
