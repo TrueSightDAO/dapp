@@ -861,20 +861,41 @@ Request Transaction ID: vote_${proposal.number}_${Date.now()}`;
         function formatMarkdown(text) {
             if (!text) return '<p>No description provided.</p>';
             
-            // Simple markdown formatting
-            return text
-                .replace(/\n\n/g, '</p><p>')
-                .replace(/\n/g, '<br>')
+            // Escape HTML first to prevent XSS
+            const escaped = escapeHtml(text);
+            
+            // Simple markdown formatting - be more conservative with headings
+            let formatted = escaped
+                // Handle bold and italic first
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                // Handle inline code
                 .replace(/`(.*?)`/g, '<code>$1</code>')
-                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                // Handle headings only if they're at the start of a line with proper spacing
                 .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                // Handle lists
                 .replace(/^- (.*$)/gm, '<li>$1</li>')
-                .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-                .replace(/^(\d+)\. (.*$)/gm, '<li>$2</li>')
-                .replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
+                .replace(/^(\d+)\. (.*$)/gm, '<li>$2</li>');
+            
+            // Wrap list items in proper list tags
+            formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+            
+            // Handle line breaks and paragraphs
+            formatted = formatted
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            
+            // Ensure content is wrapped in paragraphs if it doesn't start with a tag
+            if (!formatted.startsWith('<')) {
+                formatted = '<p>' + formatted;
+            }
+            if (!formatted.endsWith('>')) {
+                formatted = formatted + '</p>';
+            }
+            
+            return formatted;
         }
     </script>
     <script>
