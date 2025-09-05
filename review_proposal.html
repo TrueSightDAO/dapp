@@ -896,11 +896,6 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
                         </div>
                     `;
                     content.appendChild(successDiv);
-                    
-                    // Refresh the proposal to show updated vote count
-                    setTimeout(() => {
-                        loadProposalContent(proposal.number);
-                    }, 3000);
                 } else {
                     showError(`Failed to submit vote: ${result.error || 'Unknown error'}`);
                 }
