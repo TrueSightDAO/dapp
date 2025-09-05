@@ -526,9 +526,22 @@
                 showError('No proposal number provided');
                 return;
             }
-            loadProposalContent(prNumber);
-            verifySignatureAndLoadProposal(prNumber);
+            loadProposalAndVerifySignature(prNumber);
         };
+
+        async function loadProposalAndVerifySignature(prNumber) {
+            try {
+                // Load proposal content first
+                await loadProposalContent(prNumber);
+                
+                // Then verify signature and show voting section
+                await verifySignatureAndLoadProposal(prNumber);
+                
+            } catch (error) {
+                console.error('Error in loadProposalAndVerifySignature:', error);
+                showError('Failed to load proposal or verify signature');
+            }
+        }
 
         async function loadProposalContent(prNumber) {
             try {
@@ -600,27 +613,7 @@
 
                 // Show voting section after verification
                 console.log('Signature verified, calling displayVotingSection');
-                
-                // Force show voting section immediately for testing
-                const votingSection = document.getElementById('voting-section');
-                if (votingSection) {
-                    console.log('Forcing voting section to be visible');
-                    votingSection.style.display = 'block';
-                    votingSection.style.visibility = 'visible';
-                    
-                    // Add basic test content if empty
-                    if (!votingSection.innerHTML || votingSection.innerHTML.trim() === '') {
-                        console.log('Adding test content to voting section');
-                        votingSection.innerHTML = `
-                            <div class="voting-section">
-                                <h3>Test Voting Section</h3>
-                                <p>This is a test to see if the voting section displays.</p>
-                                <button class="btn btn-primary">Test Vote Button</button>
-                            </div>
-                        `;
-                    }
-                }
-                
+                console.log('Proposal data available:', !!proposal);
                 displayVotingSection();
                 
             } catch (error) {
