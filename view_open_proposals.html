@@ -347,7 +347,6 @@
                         </div>
                         
                         <div class="proposal-meta">
-                            <div class="proposal-author">👤 ${escapeHtml(proposal.user)}</div>
                             <div class="proposal-date">📅 ${createdDate}</div>
                         </div>
                         
@@ -369,7 +368,7 @@
 
             content.innerHTML = `
                 <div class="proposals-list">
-                    <h2 style="margin-bottom: 20px; color: #2c3e50;">Open Proposals (${proposals.length})</h2>
+                    <h2 style="margin-bottom: 20px; color: #34495e;">Open Proposals (${proposals.length})</h2>
                     ${proposalsHTML}
                 </div>
             `;
