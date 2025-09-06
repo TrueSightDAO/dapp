@@ -40,7 +40,7 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -77,6 +77,33 @@
             transform: translateY(-2px);
         }
 
+        .top-navigation {
+            background: #3498db;
+            padding: 15px 0;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-link {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .nav-link:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
         .content {
             padding: 30px;
         }
@@ -92,7 +119,7 @@
         .proposal-title {
             font-size: 1.8rem;
             font-weight: 600;
-            color: #2c3e50;
+            color: #34495e;
             margin-bottom: 15px;
         }
 
@@ -114,10 +141,6 @@
             font-weight: 600;
         }
 
-        .proposal-author {
-            color: #7f8c8d;
-            font-size: 1rem;
-        }
 
         .proposal-date {
             color: #7f8c8d;
@@ -131,11 +154,11 @@
             padding: 25px;
             margin-bottom: 30px;
             line-height: 1.7;
-            color: #2c3e50;
+            color: #34495e;
         }
 
         .proposal-body h1, .proposal-body h2, .proposal-body h3 {
-            color: #2c3e50;
+            color: #34495e;
             margin: 20px 0 10px 0;
         }
 
@@ -182,7 +205,7 @@
         .voting-title {
             font-size: 1.5rem;
             font-weight: 600;
-            color: #2c3e50;
+            color: #34495e;
         }
 
         .time-remaining {
@@ -244,7 +267,7 @@
         }
 
         .vote-stat.total .vote-stat-number {
-            color: #3498db;
+            color: #34495e;
         }
 
         .vote-stat-label {
@@ -490,6 +513,16 @@
                 margin-bottom: 20px;
             }
             
+            .top-navigation {
+                padding: 10px 0;
+                margin-bottom: 15px;
+            }
+            
+            .nav-link {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+            
             .proposal-meta {
                 flex-direction: column;
                 align-items: flex-start;
@@ -507,6 +540,12 @@
 </head>
 <body>
     <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    
+    <!-- Top Navigation -->
+    <div class="top-navigation">
+        <a href="./view_open_proposals.html" class="nav-link">📋 View All Proposals</a>
+    </div>
+    
     <div class="container">
         <div style="text-align: center;">
             <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
@@ -702,7 +741,6 @@
                     <div class="proposal-title">${escapeHtml(proposal.title)}</div>
                     <div class="proposal-meta">
                         <div class="proposal-number">PR #${proposal.number}</div>
-                        <div class="proposal-author">👤 ${escapeHtml(proposal.user)}</div>
                         <div class="proposal-date">📅 ${createdDate}</div>
                     </div>
                 </div>
@@ -712,7 +750,7 @@
                 </div>
 
                 <div class="navigation-section" style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e9ecef;">
-                    <h3 style="margin-bottom: 15px; color: #2c3e50;">Navigation</h3>
+                    <h3 style="margin-bottom: 15px; color: #34495e;">Navigation</h3>
                     <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                         <button class="btn btn-secondary" onclick="window.location.href='./view_open_proposals.html'">
                             📋 View All Proposals
@@ -789,7 +827,7 @@
                     </div>
 
                     <div class="voting-form">
-                        <h3 style="margin-bottom: 20px; color: #2c3e50;">Cast Your Vote</h3>
+                        <h3 style="margin-bottom: 20px; color: #34495e;">Cast Your Vote</h3>
                         
                         <div class="vote-options">
                             <div class="vote-option yes">
