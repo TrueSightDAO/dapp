@@ -260,22 +260,74 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
         resultDiv.innerHTML = '<div class="loading">Checking request... Please wait.</div>';
         resultDiv.style.display = 'block';
         
-        // Extract components from the request
-        const parts = requestText.split('\n\n');
-        console.log(parts)
-        if (parts.length < 3) {
-          throw new Error('The request format looks incorrect. Make sure you copied all parts including the line breaks.');
+        // Extract components from the request - smart parsing
+        const lines = requestText.split('\n');
+        
+        // Find the -------- line (content separator)
+        let separatorIndex = -1;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].trim() === '--------') {
+            separatorIndex = i;
+            break;
+          }
         }
         
-        const message = parts[0];
-        const signatureLine = parts[1];
-        const transactionIdLine = parts[2];
-        if (!signatureLine.startsWith('My Digital Signature: ') || !transactionIdLine.startsWith('Request Transaction ID: ')) {
+        if (separatorIndex === -1) {
+          throw new Error('Could not find the content separator (--------). Make sure the request format is correct.');
+        }
+        
+        // Part 1: Everything before -------- + the -------- itself
+        const message = lines.slice(0, separatorIndex + 1).join('\n');
+        
+        // Find the signature and transaction ID sections after the separator
+        let signatureStartIndex = -1;
+        let transactionIdStartIndex = -1;
+        
+        for (let i = separatorIndex + 1; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.startsWith('My Digital Signature: ')) {
+            signatureStartIndex = i;
+          } else if (line.startsWith('Request Transaction ID: ')) {
+            transactionIdStartIndex = i;
+            break; // Transaction ID should come after signature
+          }
+        }
+        
+        if (signatureStartIndex === -1 || transactionIdStartIndex === -1) {
           throw new Error('We couldn\'t find the digital signature or transaction ID in the request. Make sure they start with "My Digital Signature:" and "Request Transaction ID:".');
         }
+        
+        // Part 2: My Digital Signature: line + the actual signature value (could be same line or next line)
+        const signatureLine = lines[signatureStartIndex];
+        let signatureValue = '';
+        if (signatureLine.length > 'My Digital Signature: '.length) {
+          // Signature is on the same line as the header
+          signatureValue = signatureLine.replace('My Digital Signature: ', '').trim();
+        } else {
+          // Signature is on the next line
+          signatureValue = lines[signatureStartIndex + 1] || '';
+        }
+        const fullSignature = signatureLine + '\n' + signatureValue;
+        
+        // Part 3: Request Transaction ID: line + the actual transaction ID value (could be same line or next line)
+        const transactionIdLine = lines[transactionIdStartIndex];
+        let transactionIdValue = '';
+        if (transactionIdLine.length > 'Request Transaction ID: '.length) {
+          // Transaction ID is on the same line as the header
+          transactionIdValue = transactionIdLine.replace('Request Transaction ID: ', '').trim();
+        } else {
+          // Transaction ID is on the next line
+          transactionIdValue = lines[transactionIdStartIndex + 1] || '';
+        }
+        const fullTransactionId = transactionIdLine + '\n' + transactionIdValue;
+        
+        console.log('Part 1 (message):', JSON.stringify(message));
+        console.log('Part 2 (signature):', fullSignature);
+        console.log('Part 3 (transaction ID):', fullTransactionId);
 
-        const digitalSignature = signatureLine.replace('My Digital Signature: ', '').trim();
-        const transactionId = transactionIdLine.replace('Request Transaction ID: ', '').trim();
+        // Extract the actual signature and transaction ID values (second lines)
+        const digitalSignature = signatureValue.trim();
+        const transactionId = transactionIdValue.trim();
 
         
         // Determine request type
@@ -309,29 +361,45 @@ Request Transaction ID: PV0ZZI3FKJJPqjfaqWltHPgmka+pWfFkNnXlTILNNOnpp9hrlewy7SMH
         }
 
         
-        // Verify the cryptographic signature
+        // Verify the cryptographic signature FIRST
         const isSignatureValid = await verifySignature(message, digitalSignature, transactionId);
         
-        // Fetch contributor info from API
+        // If signature verification fails, show failure immediately
+        if (!isSignatureValid) {
+          resultDiv.innerHTML = `
+            <div class="section-title">Verification Failed:</div>
+            ${transactionDetails}
+            <p><strong>Digital Signature:</strong><br>
+            <span class="highlight">${shortenSignature(digitalSignature)}</span></p>
+            <p><strong>Transaction ID:</strong><br>
+            <span class="highlight">${shortenSignature(transactionId)}</span></p>
+            <p><strong>Status:</strong> ❌ The signature doesn't match - this request may not be genuine</p>
+            <p><em>No need to check server records since the cryptographic signature verification failed.</em></p>
+          `;
+          
+          resultDiv.className = 'invalid';
+          resultDiv.style.display = 'block';
+          return; // Exit early - no need to check server
+        }
+        
+        // Signature is valid - now fetch contributor info from API
         const contributorInfo = await fetchContributorInfo(digitalSignature);
         
-        // Display results
+        // Display success results
         resultDiv.innerHTML = `
           <div class="section-title">Verification Results:</div>
           ${transactionDetails}
           <p><strong>DAO Member:</strong><br>
           <span class="highlight">${escapeHtml(contributorInfo.contributor_name || 'Unknown')}</span>
-          ${isSignatureValid ? '<span class="verified-badge">✓ Verified</span>' : ''}</p>
+          <span class="verified-badge">✓ Verified</span></p>
           <p><strong>Digital Signature:</strong><br>
           <span class="highlight">${shortenSignature(digitalSignature)}</span></p>
           <p><strong>Transaction ID:</strong><br>
           <span class="highlight">${shortenSignature(transactionId)}</span></p>
-          <p><strong>Status:</strong> ${isSignatureValid ? 
-            '✅ This request is authentic and matches the member\'s digital signature' : 
-            '❌ The signature doesn\'t match - this request may not be genuine'}</p>
+          <p><strong>Status:</strong> ✅ This request is authentic and matches the member's digital signature</p>
         `;
         
-        resultDiv.className = isSignatureValid ? 'valid' : 'invalid';
+        resultDiv.className = 'valid';
         resultDiv.style.display = 'block';
         
       } catch (error) {
