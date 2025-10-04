@@ -200,6 +200,20 @@
             text-decoration: underline;
             cursor: pointer;
         }
+        .paste-area {
+            border: 2px dashed #ccc;
+            padding: 1rem;
+            text-align: center;
+            margin-top: 0.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #f8f9fa;
+            font-size: 1rem;
+            color: #333;
+        }
+        .paste-area:hover {
+            background-color: #e9ecef;
+        }
         @media (max-width: 600px) {
             body {
                 margin: 0.5rem;
@@ -225,6 +239,10 @@
                 padding: 0.8rem;
                 font-size: 0.95rem;
             }
+            .paste-area {
+                padding: 0.6rem;
+                font-size: 0.95rem;
+            }
         }
     </style>
 </head>
@@ -247,24 +265,24 @@
                 </select>
             </div>
             <div class="form-row" id="upload-section" style="display: none;">
-                <label for="fileInput">Upload File or Image:</label>
-                <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx,.txt">
-                <div class="info-box">
-                    <div class="info">Original File Name:</div>
-                    <div class="info-location" id="originalFileName">No file selected</div>
-                    <div class="info">Inventory Report File Name:</div>
-                    <div class="info-location" id="inventoryFileName">Waiting for file selection...</div>
-                    <div class="info">Inventory Report Location:</div>
-                    <div class="info-location" id="inventoryLocation">Waiting for file selection...</div>
-                    <div class="info">Current Location:</div>
-                    <div class="info-location" id="location">Waiting for geolocation...</div>
-                </div>
+                <label>Upload File or Image:</label>
+                <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
             </div>
             <div id="video-holder">
                 <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
             </div>
             <canvas id="canvas" style="display: none;"></canvas>
             <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
+            <div class="info-box">
+                <div class="info">Original File Name:</div>
+                <div class="info-location" id="originalFileName">No file selected</div>
+                <div class="info">Inventory Report File Name:</div>
+                <div class="info-location" id="inventoryFileName">Waiting for file selection...</div>
+                <div class="info">Inventory Report Location:</div>
+                <div class="info-location" id="inventoryLocation">Waiting for file selection...</div>
+                <div class="info">Current Location:</div>
+                <div class="info-location" id="location">Waiting for geolocation...</div>
+            </div>
             <div class="form-row">
                 <label for="managerSelect">Warehouse Manager:</label>
                 <select id="managerSelect">
@@ -307,7 +325,6 @@
         const ctx = canvas.getContext('2d');
         const inputMethod = document.getElementById('inputMethod');
         const uploadSection = document.getElementById('upload-section');
-        const fileInput = document.getElementById('fileInput');
         const videoHolder = document.getElementById('video-holder');
         const uploadedFilePreview = document.getElementById('uploaded-file-preview');
         let assets = [];
@@ -354,6 +371,80 @@
                 originalFileNameElement.textContent = 'No file selected';
                 inventoryFileNameElement.textContent = 'Waiting for file selection...';
                 inventoryLocationElement.textContent = 'Waiting for file selection...';
+            }
+        }
+
+        function triggerFileSelect() {
+            const inputMethod = document.getElementById('inputMethod').value;
+            if (inputMethod !== 'upload') return;
+
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,.pdf,.doc,.docx,.txt';
+            input.onchange = (event) => {
+                if (event.target.files.length > 0) {
+                    handleFile(event.target.files[0]);
+                }
+            };
+            input.click();
+        }
+
+        function handleFile(file) {
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!allowedTypes.includes(file.type)) {
+                document.getElementById('reportOutput').textContent = 'Unsupported file type. Please select or paste an image, PDF, or text file.';
+                document.getElementById('reportOutput').className = 'error';
+                return;
+            }
+
+            uploadedFile = file;
+            const fileExtension = file.type === 'application/pdf' ? '.pdf' :
+                                 file.type === 'text/plain' ? '.txt' :
+                                 file.type === 'application/msword' ? '.doc' :
+                                 file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ? '.docx' :
+                                 file.type.split('/')[1];
+            const fileName = file.name || `pasted_file_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}.${fileExtension}`;
+            updateFileInfo(fileName);
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('uploaded-file-preview').src = e.target.result;
+                    document.getElementById('uploaded-file-preview').style.display = 'block';
+                };
+                reader.onerror = () => {
+                    document.getElementById('reportOutput').textContent = 'Error reading file. Please try again.';
+                    document.getElementById('reportOutput').className = 'error';
+                    document.getElementById('uploaded-file-preview').style.display = 'none';
+                    uploadedFile = null;
+                    updateFileInfo('');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                document.getElementById('uploaded-file-preview').style.display = 'none';
+                document.getElementById('uploaded-file-preview').src = '';
+            }
+            updateReportButtonState();
+        }
+
+        function handlePaste(event) {
+            const inputMethod = document.getElementById('inputMethod').value;
+            if (inputMethod !== 'upload') return;
+
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            let file = null;
+            for (const item of items) {
+                if (item.kind === 'file') {
+                    file = item.getAsFile();
+                    break;
+                }
+            }
+
+            if (file) {
+                handleFile(file);
+            } else {
+                document.getElementById('reportOutput').textContent = 'No valid file found in clipboard. Please paste an image, PDF, or text file.';
+                document.getElementById('reportOutput').className = 'error';
             }
         }
 
@@ -423,6 +514,8 @@
 
         function toggleInputMethod() {
             const method = inputMethod.value;
+            const pasteArea = document.getElementById('paste-area');
+            
             if (method === 'camera') {
                 uploadSection.style.display = 'none';
                 videoHolder.style.display = 'block';
@@ -431,6 +524,8 @@
                 uploadedFilePreview.src = '';
                 document.getElementById('reportOutput').textContent = '';
                 updateFileInfo('');
+                pasteArea.removeEventListener('paste', handlePaste);
+                pasteArea.removeEventListener('click', triggerFileSelect);
                 startCamera();
             } else {
                 stopCamera();
@@ -441,6 +536,8 @@
                 uploadedFilePreview.src = '';
                 document.getElementById('reportOutput').textContent = '';
                 updateFileInfo('');
+                pasteArea.addEventListener('paste', handlePaste);
+                pasteArea.addEventListener('click', triggerFileSelect);
             }
             updateReportButtonState();
         }
@@ -449,8 +546,6 @@
             const inputMethodEl = document.getElementById('inputMethod');
             inputMethodEl.value = 'upload';
             toggleInputMethod();
-            const fileInputEl = document.getElementById('fileInput');
-            fileInputEl.value = '';
             updateFileInfo('');
             const managerSel = document.getElementById('managerSelect');
             managerSel.selectedIndex = 0;
@@ -475,37 +570,6 @@
             reportBtn.setAttribute('aria-label', reportBtn.textContent);
         }
 
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length > 0) {
-                uploadedFile = fileInput.files[0];
-                const isImage = uploadedFile.type.startsWith('image/');
-                updateFileInfo(uploadedFile.name);
-                if (isImage) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        uploadedFilePreview.src = e.target.result;
-                        uploadedFilePreview.style.display = 'block';
-                    };
-                    reader.onerror = () => {
-                        document.getElementById('reportOutput').textContent = 'Error reading file. Please try uploading again.';
-                        document.getElementById('reportOutput').className = 'error';
-                        uploadedFilePreview.style.display = 'none';
-                        uploadedFile = null;
-                        updateFileInfo('');
-                    };
-                    reader.readAsDataURL(uploadedFile);
-                } else {
-                    uploadedFilePreview.style.display = 'none';
-                    uploadedFilePreview.src = '';
-                }
-            } else {
-                uploadedFile = null;
-                uploadedFilePreview.src = '';
-                uploadedFilePreview.style.display = 'none';
-                updateFileInfo('');
-            }
-            updateReportButtonState();
-        });
 
         async function loadManagers() {
             try {
