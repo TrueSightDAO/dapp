@@ -285,6 +285,12 @@
                 <label for="salePriceInput">Sale Price ($):</label>
                 <input type="number" id="salePriceInput" min="0.01" step="0.01" placeholder="Enter sale price">
             </div>
+            <div class="form-row">
+                <label for="contributorSelect">Sold by:</label>
+                <select id="contributorSelect" disabled>
+                    <option value="">Select contributor...</option>
+                </select>
+            </div>
             <div id="video-holder">
                 <video id="video" width="400" height="300" autoplay playsinline muted></video>
             </div>
@@ -356,7 +362,9 @@
         const uploadedImage = document.getElementById('uploaded-image');
         const scanButtonRow = document.getElementById('scan-button-row');
         const salePriceInput = document.getElementById('salePriceInput');
+        const contributorSelect = document.getElementById('contributorSelect');
         let scanning = false;
+        let allContributors = [];
 
         async function loadQrCodes() {
             try {
@@ -375,6 +383,47 @@
             }
         }
 
+        async function loadContributors() {
+            try {
+                const res = await fetch('https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec?list_with_members=true');
+                const data = await res.json();
+                if (data.status === 'error') {
+                    throw new Error(data.message);
+                }
+                // Extract unique contributor names from the items
+                const contributorMap = new Map();
+                data.items.forEach(item => {
+                    if (item.contributor_name && item.contributor_name.trim() !== '') {
+                        contributorMap.set(item.contributor_name, {
+                            key: item.contributor_name,
+                            name: item.contributor_name,
+                            qr_codes: contributorMap.has(item.contributor_name) 
+                                ? [...contributorMap.get(item.contributor_name).qr_codes, item.qr_code]
+                                : [item.qr_code]
+                        });
+                    }
+                });
+                allContributors = Array.from(contributorMap.values());
+                updateContributorDropdown();
+            } catch (err) {
+                console.error('Error loading contributors:', err);
+                reportOutput.textContent = 'Failed to load contributors. Please try again later.';
+                reportOutput.className = 'error';
+            }
+        }
+
+        function updateContributorDropdown() {
+            contributorSelect.innerHTML = '<option value="">Select contributor...</option>';
+            allContributors.forEach(contributor => {
+                const opt = document.createElement('option');
+                opt.value = contributor.key;
+                opt.textContent = contributor.name;
+                contributorSelect.appendChild(opt);
+            });
+            contributorSelect.disabled = false;
+            updateReportButtonState();
+        }
+
         function updateQrCodeDropdown() {
             qrSelect.innerHTML = '<option value="">Select a QR code</option>';
             filteredQrCodes.forEach(qr => {
@@ -383,7 +432,6 @@
                 opt.textContent = qr.name;
                 qrSelect.appendChild(opt);
             });
-            updateReportButtonState();
         }
 
         function filterQrCodes() {
@@ -394,7 +442,8 @@
 
         function updateReportButtonState() {
             const salePrice = parseFloat(salePriceInput.value);
-            reportButton.disabled = !lastQrParam || isNaN(salePrice) || salePrice <= 0;
+            const contributorSelected = contributorSelect.value && contributorSelect.value !== '';
+            reportButton.disabled = !lastQrParam || isNaN(salePrice) || salePrice <= 0 || !contributorSelected;
         }
 
         function resetForm() {
@@ -415,6 +464,7 @@
             scanning = false;
             video.classList.remove('scanning');
             salePriceInput.value = '';
+            contributorSelect.value = '';
             updateReportButtonState();
         }
 
@@ -642,6 +692,21 @@
         qrSelect.addEventListener('change', () => {
             lastQrParam = qrSelect.value;
             qrParamDisplay.textContent = lastQrParam ? `QR Code: ${lastQrParam}` : '';
+            
+            // Auto-select contributor based on QR code
+            if (lastQrParam && allContributors.length > 0) {
+                const matchingContributor = allContributors.find(contributor => 
+                    contributor.qr_codes.includes(lastQrParam)
+                );
+                if (matchingContributor) {
+                    contributorSelect.value = matchingContributor.key;
+                } else {
+                    contributorSelect.value = '';
+                }
+            } else {
+                contributorSelect.value = '';
+            }
+            
             updateReportButtonState();
         });
 
@@ -661,6 +726,10 @@
         });
 
         salePriceInput.addEventListener('input', () => {
+            updateReportButtonState();
+        });
+
+        contributorSelect.addEventListener('change', () => {
             updateReportButtonState();
         });
 
@@ -715,12 +784,12 @@
                     if (blob) {
                         fileToShare = new File([blob], 'scan.png', { type: 'image/png' });
                     }
-                    submitSalesReport(fileToShare, fileName, lastQrParam, contributorName, salePrice);
+                    submitSalesReport(fileToShare, fileName, lastQrParam, contributorSelect.value, salePrice);
                 }, 'image/png');
                 return;
             }
 
-            await submitSalesReport(fileToShare, fileName, lastQrParam, contributorName, salePrice);
+            await submitSalesReport(fileToShare, fileName, lastQrParam, contributorSelect.value, salePrice);
         }
 
         async function submitSalesReport(file, fileName, qrParam, memberName, salePrice) {
@@ -840,6 +909,7 @@
                 statusElement.className = 'status fade-in';
 
                 await loadQrCodes();
+                await loadContributors();
                 toggleInputMethod();
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
