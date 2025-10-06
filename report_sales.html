@@ -264,9 +264,9 @@
             <div class="form-row">
                 <label for="inputMethod">QR Code Input:</label>
                 <select id="inputMethod">
-                    <option value="upload" selected>Upload Image</option>                    
+                    <option value="upload">Upload Image</option>                    
                     <option value="camera">Use Camera</option>
-                    <option value="list">Select from List</option>
+                    <option value="list" selected>Select from List</option>
                 </select>
             </div>
             <div class="form-row" id="upload-section" style="display: none;">
@@ -447,7 +447,7 @@
         }
 
         function resetForm() {
-            inputMethod.value = 'upload';
+            inputMethod.value = 'list';
             toggleInputMethod();
             imageInput.value = '';
             uploadedFile = null;
