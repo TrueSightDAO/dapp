@@ -328,6 +328,7 @@
         const videoHolder = document.getElementById('video-holder');
         const uploadedFilePreview = document.getElementById('uploaded-file-preview');
         let assets = [];
+        let allCurrencies = [];
         let currentStream = null;
         let uploadedFile = null;
         let latitude = null;
@@ -609,6 +610,31 @@
             }
         }
 
+        async function loadAllCurrencies() {
+            try {
+                const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?all_currencies=true');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    // The listAllCurrenciesAcrossLedgers function returns currencies array
+                    allCurrencies = data.data.currencies || [];
+                    console.log('Loaded all currencies across ledgers:', allCurrencies.length, allCurrencies);
+                    if (allCurrencies.length > 0) {
+                        console.log('First currency type:', typeof allCurrencies[0]);
+                        console.log('First currency object:', allCurrencies[0]);
+                        console.log('Product name:', allCurrencies[0].product_name);
+                        console.log('Ledger URL:', allCurrencies[0].ledger);
+                        console.log('Ledger quantities:', allCurrencies[0].ledger_quantities);
+                    }
+                } else {
+                    console.error('Error from listAllCurrenciesAcrossLedgers:', data.message);
+                    allCurrencies = [];
+                }
+            } catch (err) {
+                console.error('Error loading all currencies:', err);
+                allCurrencies = [];
+            }
+        }
+
         async function onManagerChange() {
             const managerKey = this.value;
             const itemSel = document.getElementById('itemSelect');
@@ -621,15 +647,120 @@
                 qtyInput.disabled = true;
             } else {
                 try {
+                    // Load manager assets
                     const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?manager=' + encodeURIComponent(managerKey));
                     assets = await res.json();
+                    console.log('Loaded manager assets:', assets.length, assets);
+                    console.log('All currencies available:', allCurrencies.length, allCurrencies);
+                    
                     itemSel.innerHTML = '<option value="">Select an item</option>';
-                    assets.forEach(a => {
+                    
+                    // Add manager-controlled assets with available quantity info
+                    if (assets.length > 0) {
+                        const managerGroup = document.createElement('optgroup');
+                        managerGroup.label = 'Assets under manager control';
+                        // Sort assets alphabetically by currency name
+                        const sortedAssets = assets.sort((a, b) => a.currency.localeCompare(b.currency));
+                        sortedAssets.forEach(a => {
                         const opt = document.createElement('option');
                         opt.value = a.currency;
-                        opt.textContent = a.currency;
-                        itemSel.appendChild(opt);
-                    });
+                            opt.textContent = `${a.currency} (Available: ${a.amount})`;
+                            opt.dataset.managerControlled = 'true';
+                            opt.dataset.availableAmount = a.amount;
+                            managerGroup.appendChild(opt);
+                        });
+                        itemSel.appendChild(managerGroup);
+                    }
+                    
+                    // Add all currencies that are not under manager control
+                    if (allCurrencies.length > 0) {
+                        const managerCurrencies = assets.map(a => a.currency);
+                        // Show all currencies from the listAllCurrencies endpoint
+                        // Each currency object has ledger_quantities with ledger names as keys
+                        const otherCurrencies = allCurrencies.map(currencyObj => {
+                            const currencyName = currencyObj.product_name;
+                            const ledgerQuantities = currencyObj.ledger_quantities || {};
+                            const totalQuantity = currencyObj.total_quantity || 0;
+                            
+                            const currencyOptions = [];
+                            
+                            // Always include the base currency option (without ledger prefix)
+                            currencyOptions.push({
+                                ...currencyObj,
+                                formattedName: currencyName,
+                                ledgerName: '',
+                                quantity: totalQuantity
+                            });
+                            
+                            // Add individual ledger options for each ledger that has quantities
+                            for (const [ledgerName, quantity] of Object.entries(ledgerQuantities)) {
+                                if (quantity > 0) {
+                                    currencyOptions.push({
+                                        ...currencyObj,
+                                        formattedName: `[${ledgerName}] ${currencyName}`,
+                                        ledgerName: ledgerName,
+                                        quantity: quantity
+                                    });
+                                }
+                            }
+                            
+                            return currencyOptions;
+                        }).flat(); // Flatten the array of arrays
+                        
+                        // Sort all options alphabetically by formattedName
+                        otherCurrencies.sort((a, b) => a.formattedName.localeCompare(b.formattedName));
+                        console.log('Manager currencies:', managerCurrencies);
+                        console.log('Other currencies (objects):', otherCurrencies);
+                        console.log('Filtering logic example:');
+                        if (allCurrencies.length > 0 && managerCurrencies.length > 0) {
+                            const exampleCurrency = allCurrencies[0];
+                            const exampleMgrCurrency = managerCurrencies[0];
+                            console.log('Example currency:', exampleCurrency.product_name);
+                            console.log('Example mgr currency:', exampleMgrCurrency);
+                            console.log('Extracted mgr currency name:', exampleMgrCurrency.replace(/^\[[^\]]+\]\s*/, ''));
+                        }
+                        
+                        if (otherCurrencies.length > 0) {
+                            const otherGroup = document.createElement('optgroup');
+                            otherGroup.label = 'Other currencies (from all ledgers)';
+                            otherCurrencies.forEach(currencyOption => {
+                                const opt = document.createElement('option');
+                                opt.value = currencyOption.formattedName;
+                                opt.textContent = currencyOption.formattedName;
+                                opt.dataset.managerControlled = 'false';
+                                opt.dataset.quantity = currencyOption.quantity || 0;
+                                opt.dataset.ledgerName = currencyOption.ledgerName || '';
+                                otherGroup.appendChild(opt);
+                            });
+                            itemSel.appendChild(otherGroup);
+                        }
+                    } else {
+                        // If allCurrencies is still empty, show a message
+                        console.warn('All currencies not yet loaded, showing only manager-controlled assets');
+                        console.log('Attempting to reload all currencies...');
+                        await loadAllCurrencies();
+                        
+                        // Try again after reloading
+                        if (allCurrencies.length > 0) {
+                            const managerCurrencies = assets.map(a => a.currency);
+                            const otherCurrencies = allCurrencies.filter(currency => !managerCurrencies.includes(currency));
+                            console.log('After reload - Other currencies:', otherCurrencies);
+                            
+                            if (otherCurrencies.length > 0) {
+                                const otherGroup = document.createElement('optgroup');
+                                otherGroup.label = 'Other currencies (pending processing)';
+                                otherCurrencies.forEach(currency => {
+                                    const opt = document.createElement('option');
+                                    opt.value = currency;
+                                    opt.textContent = currency;
+                                    opt.dataset.managerControlled = 'false';
+                                    otherGroup.appendChild(opt);
+                                });
+                                itemSel.appendChild(otherGroup);
+                            }
+                        }
+                    }
+                    
                     itemSel.disabled = false;
                     qtyInput.disabled = true;
                 } catch (err) {
@@ -643,8 +774,16 @@
 
         function onItemChange() {
             const selected = this.value;
+            const selectedOption = this.options[this.selectedIndex];
             const av = document.getElementById('availableQuantity');
             const qtyInput = document.getElementById('quantityInput');
+            
+            // Check if this item is under manager control
+            const isManagerControlled = selectedOption.dataset.managerControlled === 'true';
+            const quantity = selectedOption.dataset.quantity || '0';
+            
+            if (isManagerControlled) {
+                // Handle available quantity for manager-controlled assets
             const asset = assets.find(a => a.currency === selected);
             if (asset) {
                 av.textContent = 'Available: ' + asset.amount;
@@ -654,6 +793,29 @@
                 av.textContent = '';
                 qtyInput.value = '';
                 qtyInput.disabled = true;
+                }
+            } else {
+                // Item is from listAllCurrencies (not manager-controlled)
+                if (selectedOption.dataset.ledgerName === '') {
+                    // Base currency option (no ledger prefix)
+                    if (parseInt(quantity) > 0) {
+                        av.textContent = `Total quantity across all ledgers: ${quantity}`;
+                    } else {
+                        av.textContent = 'Currency with no quantity tracking';
+                    }
+                } else {
+                    // Specific ledger option
+                    const ledgerName = selectedOption.dataset.ledgerName || 'Unknown';
+                    if (parseInt(quantity) > 0) {
+                        av.textContent = `Quantity in ${ledgerName} ledger: ${quantity}`;
+                    } else {
+                        av.textContent = `${ledgerName} ledger (no quantity tracking)`;
+                    }
+                }
+                // Enable quantity input for non-manager-controlled currencies
+                qtyInput.disabled = false;
+                qtyInput.max = ''; // No maximum limit for non-manager currencies
+                qtyInput.value = qtyInput.value || ''; // Keep existing value or empty
             }
             updateReportButtonState();
         }
@@ -761,9 +923,12 @@
             const reportBtn = document.getElementById('reportButton');
 
             try {
+                // Use itemName as-is since it already contains the correct format
+                const formattedItemName = itemName;
+                
                 const inventoryFileName = fileName ? generateInventoryFileName(fileName) : '';
                 const inventoryLocation = fileName ? `${REPO_BASE_URL}${inventoryFileName}` : 'No file attached';
-                const requestText = `[INVENTORY MOVEMENT]\n- Manager Name: ${managerName}\n- Recipient Name: ${recipientName}\n- Inventory Item: ${itemName}\n- Quantity: ${quantity}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Attached Filename: ${fileName || 'None'}\n- Destination Inventory File Location: ${inventoryLocation}\n- Submission Source: ${window.location.href}\n--------`;
+                const requestText = `[INVENTORY MOVEMENT]\n- Manager Name: ${managerName}\n- Recipient Name: ${recipientName}\n- Inventory Item: ${formattedItemName}\n- Quantity: ${quantity}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Attached Filename: ${fileName || 'None'}\n- Destination Inventory File Location: ${inventoryLocation}\n- Submission Source: ${window.location.href}\n--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
@@ -889,6 +1054,7 @@
 
                 loadManagers();
                 loadRecipients();
+                loadAllCurrencies();
                 toggleInputMethod();
                 inputMethod.addEventListener('change', toggleInputMethod);
                 document.getElementById('managerSelect').addEventListener('change', onManagerChange);
