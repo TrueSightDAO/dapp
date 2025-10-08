@@ -578,7 +578,9 @@
                 const managers = await res.json();
                 const sel = document.getElementById('managerSelect');
                 sel.innerHTML = '<option value="">Select a manager</option>';
-                managers.forEach(m => {
+                // Sort managers alphabetically by name
+                const sortedManagers = managers.sort((a, b) => a.name.localeCompare(b.name));
+                sortedManagers.forEach(m => {
                     const opt = document.createElement('option');
                     opt.value = m.key;
                     opt.textContent = m.name;
