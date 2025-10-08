@@ -328,6 +328,7 @@
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
         const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
         let resources = [];
+        let allCurrencies = [];
         let latitude = null;
         let longitude = null;
         let contributorName = '';
@@ -523,7 +524,9 @@
                 const members = await res.json();
                 const sel = document.getElementById('memberSelect');
                 sel.innerHTML = '<option value="">Select a DAO member</option>';
-                members.forEach(m => {
+                // Sort members alphabetically by name
+                const sortedMembers = members.sort((a, b) => a.name.localeCompare(b.name));
+                sortedMembers.forEach(m => {
                     const opt = document.createElement('option');
                     opt.value = m.key;
                     opt.textContent = m.name;
@@ -533,6 +536,23 @@
                 console.error('Error loading members:', err);
                 document.getElementById('outputMessage').textContent = 'Error loading members: ' + err.message;
                 document.getElementById('outputMessage').className = 'error';
+            }
+        }
+
+        async function loadAllCurrencies() {
+            try {
+                const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?all_currencies=true');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    allCurrencies = data.data.currencies || [];
+                    console.log('Loaded all currencies across ledgers:', allCurrencies.length, allCurrencies);
+                } else {
+                    console.error('Error from listAllCurrenciesAcrossLedgers:', data.message);
+                    allCurrencies = [];
+                }
+            } catch (err) {
+                console.error('Error loading all currencies:', err);
+                allCurrencies = [];
             }
         }
 
@@ -551,13 +571,95 @@
                 try {
                     const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?manager=' + encodeURIComponent(memberKey));
                     resources = await res.json();
+                    console.log('Loaded member resources:', resources.length, resources);
+                    console.log('All currencies available:', allCurrencies.length, allCurrencies);
+                    
                     resourceSel.innerHTML = '<option value="">Select a resource</option>';
-                    resources.forEach(r => {
-                        const opt = document.createElement('option');
-                        opt.value = r.currency;
-                        opt.textContent = r.currency;
-                        resourceSel.appendChild(opt);
-                    });
+                    
+                    // Add member-controlled resources with available quantity info
+                    if (resources.length > 0) {
+                        const memberGroup = document.createElement('optgroup');
+                        memberGroup.label = 'Resources under member control';
+                        // Sort resources alphabetically by currency name
+                        const sortedResources = resources.sort((a, b) => a.currency.localeCompare(b.currency));
+                        sortedResources.forEach(r => {
+                            const opt = document.createElement('option');
+                            opt.value = r.currency;
+                            opt.textContent = `${r.currency} (Available: ${r.amount})`;
+                            opt.dataset.memberControlled = 'true';
+                            opt.dataset.availableAmount = r.amount;
+                            memberGroup.appendChild(opt);
+                        });
+                        resourceSel.appendChild(memberGroup);
+                    }
+                    
+                    // Add all currencies that are not under member control
+                    if (allCurrencies.length > 0) {
+                        const memberCurrencies = resources.map(r => r.currency);
+                        // Show all currencies from the listAllCurrencies endpoint
+                        const otherCurrencies = allCurrencies.map(currencyObj => {
+                            const currencyName = currencyObj.product_name;
+                            const ledgerQuantities = currencyObj.ledger_quantities || {};
+                            const totalQuantity = currencyObj.total_quantity || 0;
+                            
+                            const currencyOptions = [];
+                            
+                            // Always include the base currency option (without ledger prefix)
+                            currencyOptions.push({
+                                ...currencyObj,
+                                formattedName: currencyName,
+                                ledgerName: '',
+                                quantity: totalQuantity
+                            });
+                            
+                            // Add individual ledger options for each ledger that has quantities
+                            for (const [ledgerName, quantity] of Object.entries(ledgerQuantities)) {
+                                if (quantity > 0) {
+                                    currencyOptions.push({
+                                        ...currencyObj,
+                                        formattedName: `[${ledgerName}] ${currencyName}`,
+                                        ledgerName: ledgerName,
+                                        quantity: quantity
+                                    });
+                                }
+                            }
+                            
+                            return currencyOptions;
+                        }).flat(); // Flatten the array of arrays
+                        
+                        // Sort all options alphabetically by formattedName
+                        otherCurrencies.sort((a, b) => a.formattedName.localeCompare(b.formattedName));
+                        console.log('Member currencies:', memberCurrencies);
+                        console.log('Other currencies (objects):', otherCurrencies);
+                        
+                        if (otherCurrencies.length > 0) {
+                            const otherGroup = document.createElement('optgroup');
+                            otherGroup.label = 'Other resources (from all ledgers)';
+                            otherCurrencies.forEach(currencyOption => {
+                                const opt = document.createElement('option');
+                                opt.value = currencyOption.formattedName;
+                                opt.textContent = currencyOption.formattedName;
+                                opt.dataset.memberControlled = 'false';
+                                opt.dataset.quantity = currencyOption.quantity || 0;
+                                opt.dataset.ledgerName = currencyOption.ledgerName || '';
+                                otherGroup.appendChild(opt);
+                            });
+                            resourceSel.appendChild(otherGroup);
+                        }
+                    } else {
+                        // If allCurrencies is still empty, show a message
+                        console.warn('All currencies not yet loaded, showing only member-controlled resources');
+                        console.log('Attempting to reload all currencies...');
+                        await loadAllCurrencies();
+                        
+                        // Try again after reloading
+                        if (allCurrencies.length > 0) {
+                            // Recursively call to populate with all currencies
+                            await onMemberChange.call(this);
+                            return;
+                        }
+                    }
+                    
                     resourceSel.disabled = false;
                     qtyInput.disabled = true;
                 } catch (err) {
@@ -571,17 +673,48 @@
 
         function onResourceChange() {
             const selected = this.value;
+            const selectedOption = this.options[this.selectedIndex];
             const availableQty = document.getElementById('availableQuantity');
             const qtyInput = document.getElementById('quantityInput');
-            const resource = resources.find(r => r.currency === selected);
-            if (resource) {
-                availableQty.textContent = `Available Quantity: ${resource.amount}`;
-                qtyInput.max = resource.amount;
-                qtyInput.disabled = false;
+            
+            // Check if this resource is under member control
+            const isMemberControlled = selectedOption.dataset.memberControlled === 'true';
+            const quantity = selectedOption.dataset.quantity || '0';
+            
+            if (isMemberControlled) {
+                // Handle available quantity for member-controlled resources
+                const resource = resources.find(r => r.currency === selected);
+                if (resource) {
+                    availableQty.textContent = `Available Quantity: ${resource.amount}`;
+                    qtyInput.max = resource.amount;
+                    qtyInput.disabled = false;
+                } else {
+                    availableQty.textContent = '';
+                    qtyInput.value = '';
+                    qtyInput.disabled = true;
+                }
             } else {
-                availableQty.textContent = '';
-                qtyInput.value = '';
-                qtyInput.disabled = true;
+                // Resource is from listAllCurrencies (not member-controlled)
+                if (selectedOption.dataset.ledgerName === '') {
+                    // Base currency option (no ledger prefix)
+                    if (parseInt(quantity) > 0) {
+                        availableQty.textContent = `Total quantity across all ledgers: ${quantity}`;
+                    } else {
+                        availableQty.textContent = 'Resource with no quantity tracking';
+                    }
+                } else {
+                    // Specific ledger option
+                    const ledgerName = selectedOption.dataset.ledgerName || 'Unknown';
+                    if (parseInt(quantity) > 0) {
+                        availableQty.textContent = `Quantity in ${ledgerName} ledger: ${quantity}`;
+                    } else {
+                        availableQty.textContent = `${ledgerName} ledger (no quantity tracking)`;
+                    }
+                }
+                // Enable quantity input for non-member-controlled currencies
+                qtyInput.disabled = false;
+                qtyInput.max = ''; // No maximum limit for non-member currencies
+                qtyInput.value = qtyInput.value || ''; // Keep existing value or empty
             }
             updateSubmitButtonState();
         }
@@ -784,6 +917,7 @@
                 }
 
                 loadMembers();
+                loadAllCurrencies();
                 document.getElementById('memberSelect').addEventListener('change', onMemberChange);
                 document.getElementById('resourceSelect').addEventListener('change', onResourceChange);
                 document.getElementById('quantityInput').addEventListener('input', updateSubmitButtonState);
