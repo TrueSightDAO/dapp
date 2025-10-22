@@ -335,6 +335,7 @@
         let longitude = null;
         let contributorName = '';
         let isPostSubmission = false;
+        let cachedInventoryFileName = null;  // Store the inventory filename to ensure consistency
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -365,13 +366,15 @@
 
             if (fileName) {
                 originalFileNameElement.textContent = fileName;
-                const inventoryFileName = generateInventoryFileName(fileName);
-                inventoryFileNameElement.textContent = inventoryFileName;
-                inventoryLocationElement.textContent = `${REPO_BASE_URL}${inventoryFileName}`;
+                // Generate and cache the inventory filename to ensure consistency between preview and submission
+                cachedInventoryFileName = generateInventoryFileName(fileName);
+                inventoryFileNameElement.textContent = cachedInventoryFileName;
+                inventoryLocationElement.innerHTML = `${REPO_BASE_URL}${cachedInventoryFileName}`;
             } else {
                 originalFileNameElement.textContent = 'No file selected';
                 inventoryFileNameElement.textContent = 'Waiting for file selection...';
-                inventoryLocationElement.textContent = 'Waiting for file selection...';
+                inventoryLocationElement.innerHTML = 'Waiting for file selection...';
+                cachedInventoryFileName = null;  // Clear cached filename
             }
         }
 
@@ -928,7 +931,8 @@
                 // Use itemName as-is since it already contains the correct format
                 const formattedItemName = itemName;
                 
-                const inventoryFileName = fileName ? generateInventoryFileName(fileName) : '';
+                // Use cached inventory filename to match what was shown in the info box
+                const inventoryFileName = cachedInventoryFileName || (fileName ? generateInventoryFileName(fileName) : '');
                 const inventoryLocation = fileName ? `${REPO_BASE_URL}${inventoryFileName}` : 'No file attached';
                 const requestText = `[INVENTORY MOVEMENT]\n- Manager Name: ${managerName}\n- Recipient Name: ${recipientName}\n- Inventory Item: ${formattedItemName}\n- Quantity: ${quantity}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Attached Filename: ${fileName || 'None'}\n- Destination Inventory File Location: ${inventoryLocation}\n- Submission Source: ${window.location.href}\n--------`;
 
@@ -964,6 +968,15 @@
                     });
 
                     if (!resp.ok) throw new Error(await resp.text());
+
+                    const result = await resp.json();
+                    
+                    // Make inventory location clickable after successful upload
+                    if (result.fileUploadedToGithub && fileName) {
+                        const inventoryLocationElement = document.getElementById('inventoryLocation');
+                        const locationUrl = inventoryLocationElement.textContent.trim();
+                        inventoryLocationElement.innerHTML = `<a href="${locationUrl}" target="_blank" style="color: #4CAF50; text-decoration: underline;">${locationUrl}</a>`;
+                    }
 
                     output.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';

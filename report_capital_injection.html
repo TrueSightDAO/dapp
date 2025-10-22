@@ -326,6 +326,7 @@
         let fileName = '';
         let contributionLocation = '';
         let isPostSubmission = false;
+        let cachedCapitalInjectionFileName = null;  // Store the capital injection filename to ensure consistency
 
         // Utility functions
         function base64ToArrayBuffer(base64) {
@@ -404,13 +405,15 @@
 
             if (file) {
                 originalFileNameElement.textContent = fileName;
-                const capitalInjectionFileName = generateCapitalInjectionFileName(fileName);
-                contributionFileNameElement.textContent = capitalInjectionFileName;
-                contributionLocationElement.textContent = `${REPO_BASE_URL}${capitalInjectionFileName}`;
+                // Generate and cache the capital injection filename to ensure consistency between preview and submission
+                cachedCapitalInjectionFileName = generateCapitalInjectionFileName(fileName);
+                contributionFileNameElement.textContent = cachedCapitalInjectionFileName;
+                contributionLocationElement.innerHTML = `${REPO_BASE_URL}${cachedCapitalInjectionFileName}`;
             } else {
                 originalFileNameElement.textContent = 'No file selected';
                 contributionFileNameElement.textContent = 'Waiting for file selection...';
-                contributionLocationElement.textContent = 'Waiting for file selection...';
+                contributionLocationElement.innerHTML = 'Waiting for file selection...';
+                cachedCapitalInjectionFileName = null;  // Clear cached filename
             }
         }
 
@@ -590,7 +593,8 @@
                     throw new Error('Digital signature not found. Please generate your signature first.');
                 }
 
-                const capitalInjectionFileName = fileName ? generateCapitalInjectionFileName(fileName) : '';
+                // Use cached capital injection filename to match what was shown in the info box
+                const capitalInjectionFileName = cachedCapitalInjectionFileName || (fileName ? generateCapitalInjectionFileName(fileName) : '');
                 const capitalInjectionLocation = fileName ? `${REPO_BASE_URL}${capitalInjectionFileName}` : 'No file attached';
                 const requestText = `[CAPITAL INJECTION EVENT]\n- Ledger: ${ledgerName}\n- Ledger URL: ${ledgerUrl}\n- Amount: $${amount.toFixed(2)} USD\n- Description: ${description}\n- Attached Filename: ${fileName || 'None'}\n- Destination Capital Injection File Location: ${capitalInjectionLocation}\n--------`;
 
@@ -627,6 +631,15 @@
                     });
 
                     if (!resp.ok) throw new Error(await resp.text());
+
+                    const result = await resp.json();
+                    
+                    // Make contribution location clickable after successful upload
+                    if (result.fileUploadedToGithub && fileName) {
+                        const contributionLocationElement = document.getElementById('contributionLocation');
+                        const locationUrl = contributionLocationElement.textContent.trim();
+                        contributionLocationElement.innerHTML = `<a href="${locationUrl}" target="_blank" style="color: #4CAF50; text-decoration: underline;">${locationUrl}</a>`;
+                    }
 
                     output.innerHTML = `Capital injection report sent to Edgar successfully. <br>View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';

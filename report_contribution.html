@@ -366,6 +366,7 @@
     <script>
         let isPostSubmission = false;
         let uploadedFile = null;
+        let cachedContributionFileName = null;  // Store the contribution filename to ensure consistency
 
         function updateButtonText() {
             const submitBtn = document.getElementById('submitButton');
@@ -407,13 +408,15 @@
 
             if (fileName) {
                 originalFileNameElement.textContent = fileName;
-                const contributionFileName = generateContributionFileName(fileName);
-                contributionFileNameElement.textContent = contributionFileName;
-                contributionLocationElement.textContent = `${REPO_BASE_URL}${contributionFileName}`;
+                // Generate and cache the contribution filename to ensure consistency between preview and submission
+                cachedContributionFileName = generateContributionFileName(fileName);
+                contributionFileNameElement.textContent = cachedContributionFileName;
+                contributionLocationElement.innerHTML = `${REPO_BASE_URL}${cachedContributionFileName}`;
             } else {
                 originalFileNameElement.textContent = 'No file selected';
                 contributionFileNameElement.textContent = 'Waiting for file selection...';
-                contributionLocationElement.textContent = 'Waiting for file selection...';
+                contributionLocationElement.innerHTML = 'Waiting for file selection...';
+                cachedContributionFileName = null;  // Clear cached filename
             }
         }
 
@@ -769,7 +772,8 @@
             const submitBtn = document.getElementById('submitButton');
 
             try {
-                const contributionFileName = fileName ? generateContributionFileName(fileName) : '';
+                // Use cached contribution filename to match what was shown in the info box
+                const contributionFileName = cachedContributionFileName || (fileName ? generateContributionFileName(fileName) : '');
                 const contributionLocation = fileName ? `${REPO_BASE_URL}${contributionFileName}` : 'No file attached';
                 const contributorsCount = contributorNames.length;
                 const tdgValues = calculateTDG(typeName, hoursInput.value, minutesInput.value, amount, contributorsCount);
@@ -811,6 +815,15 @@
                     });
 
                     if (!resp.ok) throw new Error(await resp.text());
+
+                    const result = await resp.json();
+                    
+                    // Make contribution location clickable after successful upload
+                    if (result.fileUploadedToGithub && fileName) {
+                        const contributionLocationElement = document.getElementById('contributionLocation');
+                        const locationUrl = contributionLocationElement.textContent.trim();
+                        contributionLocationElement.innerHTML = `<a href="${locationUrl}" target="_blank" style="color: #4CAF50; text-decoration: underline;">${locationUrl}</a>`;
+                    }
 
                     output.innerHTML = `Report sent to Edgar successfully. <br>View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
