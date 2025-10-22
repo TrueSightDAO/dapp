@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Submit content ideas and feedback to help improve Agroverse content marketing">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Feedback Submission</title>
+
+    <!-- Open Graph tags for WhatsApp and social media previews -->
+    <meta property="og:title" content="Content Feedback Submission">
+    <meta property="og:description" content="Submit content ideas and feedback to help improve Agroverse content marketing">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./menu.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #welcome {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0.8rem 0;
+            text-align: center;
+            display: none;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info-box {
+            margin: 1rem 0;
+            background-color: #e7f3ff;
+            padding: 1rem;
+            border-left: 4px solid #007bff;
+            border-radius: 5px;
+            font-size: 0.95rem;
+        }
+        .info-box strong {
+            color: #007bff;
+        }
+        .form-row {
+            margin: 1rem 0;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        textarea {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1rem;
+            box-sizing: border-box;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            resize: vertical;
+            min-height: 120px;
+            font-family: Arial, sans-serif;
+        }
+        textarea:disabled {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+        button {
+            padding: 0.8rem 1rem;
+            cursor: pointer;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.2s, transform 0.1s;
+            margin: 0.5rem auto;
+            width: 100%;
+            max-width: 300px;
+            display: block;
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: scale(1.02);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #outputMessage {
+            margin: 1rem 0;
+            font-size: 1rem;
+            text-align: center;
+            color: #333;
+            line-height: 1.6;
+        }
+        .char-count {
+            font-size: 0.85rem;
+            color: #666;
+            text-align: right;
+            margin-top: 0.3rem;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        .next-steps {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 1rem;
+            margin: 1rem 0;
+            display: none;
+        }
+        .next-steps h3 {
+            margin-top: 0;
+            color: #28a745;
+            font-size: 1.1rem;
+        }
+        .next-steps ul {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        .next-steps li {
+            margin: 0.5rem 0;
+            line-height: 1.5;
+        }
+        .next-steps a {
+            color: #007bff;
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            body {
+                margin: 0.5rem;
+                padding: 0.5rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .container {
+                padding: 0.8rem;
+            }
+            .form-row {
+                text-align: center;
+            }
+            label {
+                font-size: 0.95rem;
+            }
+            textarea {
+                font-size: 0.95rem;
+                padding: 0.6rem;
+            }
+            button {
+                padding: 1rem;
+                font-size: 1rem;
+            }
+            .info-box {
+                font-size: 0.9rem;
+                padding: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>        
+        <h1>Content Feedback Submission</h1>
+        <p id="description">
+            Share your content ideas, suggestions, or feedback to help improve Agroverse's Instagram, blog, and social media strategy.
+        </p>
+        <div id="welcome" style="display: none;"></div>
+        <p id="status" class="fade-in">Verifying your digital signature...</p>
+        
+        <div id="info" style="display: none;">
+            <div class="info-box">
+                <strong>💡 What to share:</strong>
+                <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                    <li>Content ideas you'd like to see</li>
+                    <li>Competitor content that inspired you</li>
+                    <li>Questions from customers</li>
+                    <li>Thoughts during farm visits</li>
+                    <li>Improvements for existing content</li>
+                </ul>
+            </div>
+
+            <div class="form-row">
+                <label for="feedbackInput">Your Feedback:</label>
+                <textarea 
+                    id="feedbackInput" 
+                    placeholder="Example: Customer asked about cacao and gut health. Could be a great blog post topic for February..."
+                    maxlength="1000"
+                ></textarea>
+                <div class="char-count"><span id="charCount">0</span>/1000 characters</div>
+            </div>
+
+            <button id="submitButton" disabled>Submit Feedback</button>
+            <div id="outputMessage"></div>
+            
+            <div id="nextSteps" class="next-steps">
+                <h3>✅ Feedback Submitted Successfully!</h3>
+                <p><strong>What happens next:</strong></p>
+                <ul>
+                    <li>Your feedback has been saved to our <a href="https://docs.google.com/spreadsheets/d/1ghZXeMqFq97Vl6yLKrtDmMQdQkd-4EN5yQs34NA_sBQ/edit?gid=497764730" target="_blank">Content Feedback Sheet</a></li>
+                    <li>Our content team reviews all feedback weekly</li>
+                    <li>Ideas marked as "INCORPORATED" when used in posts</li>
+                    <li>You'll see your ideas come to life on <a href="https://instagram.com/agroverse.shop" target="_blank">@agroverse.shop</a></li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Track your feedback:</strong><br>
+                View all submitted ideas in the <a href="https://docs.google.com/spreadsheets/d/1ghZXeMqFq97Vl6yLKrtDmMQdQkd-4EN5yQs34NA_sBQ/edit?gid=497764730" target="_blank">Feedback Sheet</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const FEEDBACK_API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbz3FQgXLaEc4KNq9fhCCFbf677OIcEMjVq_HjcgttMfCNWk7QWaCeTEq0xc5aRRbduFdg/exec';
+        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        let contributorName = '';
+        let isPostSubmission = false;
+
+        function updateSubmitButtonState() {
+            const feedbackInput = document.getElementById('feedbackInput');
+            const submitBtn = document.getElementById('submitButton');
+            submitBtn.disabled = !feedbackInput.value.trim();
+        }
+
+        function updateButtonText() {
+            const submitBtn = document.getElementById('submitButton');
+            submitBtn.textContent = isPostSubmission ? 'Submit Another Feedback' : 'Submit Feedback';
+        }
+
+        function resetForm() {
+            const feedbackInput = document.getElementById('feedbackInput');
+            const charCount = document.getElementById('charCount');
+            const output = document.getElementById('outputMessage');
+            const nextSteps = document.getElementById('nextSteps');
+
+            feedbackInput.value = '';
+            charCount.textContent = '0';
+            output.textContent = '';
+            output.className = '';
+            nextSteps.style.display = 'none';
+            isPostSubmission = false;
+            updateButtonText();
+            updateSubmitButtonState();
+        }
+
+        async function onSubmit() {
+            const submitBtn = document.getElementById('submitButton');
+            const output = document.getElementById('outputMessage');
+            const nextSteps = document.getElementById('nextSteps');
+
+            if (isPostSubmission) {
+                resetForm();
+                return;
+            }
+
+            const feedbackInput = document.getElementById('feedbackInput');
+            const feedback = feedbackInput.value.trim();
+
+            if (!feedback) {
+                output.textContent = 'Please enter your feedback before submitting.';
+                output.className = 'error';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            output.textContent = 'Submitting your feedback...';
+            output.className = 'loading';
+            nextSteps.style.display = 'none';
+
+            try {
+                // Get public key (digital signature)
+                const publicKey = localStorage.getItem('publicKey');
+                
+                // Add contributor name to feedback
+                const feedbackWithName = `${feedback} (Submitted by: ${contributorName})`;
+                
+                // Submit to Google Apps Script endpoint with signature
+                const url = `${FEEDBACK_API_ENDPOINT}?feedback=${encodeURIComponent(feedbackWithName)}&signature=${encodeURIComponent(publicKey)}`;
+                const response = await fetch(url, {
+                    method: 'GET'
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    output.innerHTML = '✅ Feedback submitted successfully!';
+                    output.className = 'status';
+                    nextSteps.style.display = 'block';
+                    isPostSubmission = true;
+                    updateButtonText();
+                    
+                    // Scroll to show next steps
+                    nextSteps.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    throw new Error(data.message || 'Failed to submit feedback');
+                }
+
+            } catch (err) {
+                console.error('Error submitting feedback:', err);
+                output.innerHTML = `❌ Error submitting feedback: ${err.message}<br><br>
+                    <strong>Alternative:</strong> You can still share your feedback via:<br>
+                    • <a href="https://t.me/TrueSightDAO" target="_blank">Telegram</a><br>
+                    • Email: support@truesight.me<br><br>
+                    Your feedback: "${feedback}"`;
+                output.className = 'error';
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            const publicKey = localStorage.getItem('publicKey');
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading fade-in';
+
+            if (!publicKey) {
+                let seconds = 2;
+                statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                statusElement.className = 'error fade-in';
+                const countdown = setInterval(() => {
+                    seconds--;
+                    if (seconds > 0) {
+                        statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                    } else {
+                        clearInterval(countdown);
+                        window.location.href = './create_signature.html';
+                    }
+                }, 1000);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    if (data.error.includes('No matching')) {
+                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                        statusElement.className = 'error fade-in';
+                        return;
+                    } else {
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error fade-in';
+                        return;
+                    }
+                }
+
+                contributorName = data.contributor_name;
+                document.getElementById('info').style.display = 'block';
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+
+                // Setup event listeners
+                const feedbackInput = document.getElementById('feedbackInput');
+                const charCount = document.getElementById('charCount');
+
+                feedbackInput.addEventListener('input', function() {
+                    charCount.textContent = this.value.length;
+                    updateSubmitButtonState();
+                });
+
+                document.getElementById('submitButton').addEventListener('click', onSubmit);
+                
+                // Allow Enter key to submit (Shift+Enter for new line)
+                feedbackInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!document.getElementById('submitButton').disabled) {
+                            onSubmit();
+                        }
+                    }
+                });
+
+                updateSubmitButtonState();
+
+            } catch (error) {
+                statusElement.textContent = 'Error fetching data: ' + error.message;
+                statusElement.className = 'error fade-in';
+                document.getElementById('submitButton').style.display = 'none';
+            }
+        });
+
+        // Register Service Worker for offline support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { scope: './' })
+                .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+                .catch(err => console.warn('Service Worker registration failed:', err));
+        }
+    </script>
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const url = new URL(window.location.href);
+        url.searchParams.set('reload', 'true');
+        const a = document.createElement('a');
+        a.href = url.toString();
+        a.textContent = 'Reload Latest Version';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
+    </script>
+    <script>
+      (function() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.marginTop = '1rem';
+        const a = document.createElement('a');
+        a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/submit_feedback.html';
+        a.textContent = 'View Source Code';
+        a.style.fontSize = '0.8rem';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        div.appendChild(a);
+        document.body.appendChild(div);
+      })();
+    </script>
+</body>
+</html>
+

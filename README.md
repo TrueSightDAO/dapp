@@ -20,6 +20,7 @@ This repository contains tools for TrueSight DAO members, each accessible via th
 - **[Serialized Cacao Bag Scanner](./scanner.html)**: Scan QR codes on cacao bags to report sales or stock updates, sharing standardized messages.
 - **[Inventory Expense Reporter](./report_dao_expenses.html)**: Report expenses for DAO inventory resources, with options to attach images or PDFs.
 - **[Inventory Movement Reporter](./report_inventory_movement.html)**: Track inventory movements with camera snapshots, selecting managers and recipients.
+- **[Content Feedback Submission](./submit_feedback.html)**: Submit content ideas and feedback for Agroverse's social media and blog strategy. Simple text-based interface with automatic tracking and voice-support via Siri Shortcuts.
 
 Visit [https://dapp.truesight.me](https://dapp.truesight.me) to use these tools and access detailed instructions.
 
