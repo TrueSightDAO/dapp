@@ -261,6 +261,12 @@
         <div class="info">Notarization Type:</div>
         <select id="docType">
           <option value="Official Agreement">Official Agreement</option>
+          <option value="Official Government Filing">Official Government Filing</option>
+          <option value="Government Notice">Government Notice</option>
+          <option value="Customs Declaration">Customs Declaration</option>
+          <option value="Import/Export License">Import/Export License</option>
+          <option value="Tax Filing">Tax Filing</option>
+          <option value="Business Registration">Business Registration</option>
           <option value="FDA prior notice">FDA Prior Notice</option>
           <option value="Shipping invoice">Shipping Invoice</option>
           <option value="Farmer invoice">Farmer Invoice</option>
@@ -284,7 +290,6 @@
       </div>
       <div class="button-container">
         <button id="submitButton" onclick="submitReport()">Submit Notarization</button>
-        <button id="resetButton" style="display: none;" onclick="resetForm()">Submit Another Notarization</button>
       </div>
       <p id="action-status" aria-live="polite"></p>
     </div>
@@ -292,13 +297,19 @@
 
   <script>
     const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
-    const REPO_BASE_URL = 'https://github.com/TrueSightDAO/notarizations/';
+    const REPO_BASE_URL = 'https://github.com/TrueSightDAO/notarizations/tree/main/';
     let latitude = null;
     let longitude = null;
     let file = null;
     let stream = null;
     let contributorName = '';
     let isPostSubmission = false;
+    let cachedNotarizedFileName = null;  // Store the notarized filename to ensure consistency
+
+    function updateButtonText() {
+      const submitBtn = document.getElementById('submitButton');
+      submitBtn.textContent = isPostSubmission ? 'Submit Another Notarization' : 'Submit Notarization';
+    }
 
     function arrayBufferToBase64(buffer) {
       return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -315,6 +326,27 @@
       return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
 
+    async function isOnline() {
+      // Check Edgar production endpoint
+      if (!navigator.onLine) return false;
+      try {
+        const response = await fetch('https://edgar.truesight.me/ping', { method: 'HEAD', timeout: 5000 });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    }
+
+    async function copyToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (err) {
+        console.error('Failed to copy to clipboard:', err);
+        return false;
+      }
+    }
+
     function generateNotarizedFileName(originalFileName) {
       const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
       const cleanContributorName = contributorName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
@@ -325,19 +357,19 @@
     function resetForm() {
       document.getElementById('inputType').value = 'file';
       document.getElementById('fileInput').value = '';
-      document.getElementById('docType').value = 'FDA prior notice';
+      document.getElementById('docType').value = 'Official Government Filing';
       document.getElementById('descriptionField').value = '';
       document.getElementById('charCount').textContent = '0';
       document.getElementById('originalFileName').textContent = 'No file selected';
       document.getElementById('notarizedFileName').textContent = 'Waiting for file selection...';
-      document.getElementById('notarizationLocation').textContent = 'Waiting for file selection...';
-      document.getElementById('action-status').textContent = 'Form cleared. Please select a new document or photo to notarize.';
-      document.getElementById('action-status').className = 'status';
-      document.getElementById('submitButton').style.display = 'block';
-      document.getElementById('resetButton').style.display = 'none';
+      document.getElementById('notarizationLocation').innerHTML = 'Waiting for file selection...';
+      document.getElementById('action-status').textContent = '';
+      document.getElementById('action-status').className = '';
+      cachedNotarizedFileName = null;  // Clear cached filename
       stopCamera();
       toggleInputMethod();
       isPostSubmission = false;
+      updateButtonText();
     }
 
     function startCamera() {
@@ -403,7 +435,7 @@
         fileInput.value = '';
         document.getElementById('originalFileName').textContent = 'No file selected';
         document.getElementById('notarizedFileName').textContent = 'Waiting for file selection...';
-        document.getElementById('notarizationLocation').textContent = 'Waiting for file selection...';
+        document.getElementById('notarizationLocation').innerHTML = 'Waiting for file selection...';
         startCamera();
       }
     }
@@ -415,13 +447,16 @@
 
       if (fileName) {
         originalFileNameElement.textContent = fileName;
-        const notarizedFileName = generateNotarizedFileName(fileName);
-        notarizedFileNameElement.textContent = notarizedFileName;
-        notarizationLocationElement.textContent = `${REPO_BASE_URL}${notarizedFileName}`;
+        // Generate and cache the notarized filename to ensure consistency between preview and submission
+        cachedNotarizedFileName = generateNotarizedFileName(fileName);
+        notarizedFileNameElement.textContent = cachedNotarizedFileName;
+        // Reset to plain text (not a link yet - will become clickable after successful submission)
+        notarizationLocationElement.innerHTML = `${REPO_BASE_URL}${cachedNotarizedFileName}`;
       } else {
         originalFileNameElement.textContent = 'No file selected';
         notarizedFileNameElement.textContent = 'Waiting for file selection...';
-        notarizationLocationElement.textContent = 'Waiting for file selection...';
+        notarizationLocationElement.innerHTML = 'Waiting for file selection...';
+        cachedNotarizedFileName = null;  // Clear cached filename
       }
     }
 
@@ -453,6 +488,9 @@
     }
 
     async function submitReport() {
+      const actionStatus = document.getElementById('action-status');
+      const submitButton = document.getElementById('submitButton');
+      
       if (isPostSubmission) {
         resetForm();
         return;
@@ -464,9 +502,6 @@
       const canvas = document.getElementById('captureCanvas');
       const docType = document.getElementById('docType').value;
       const description = document.getElementById('descriptionField').value;
-      const actionStatus = document.getElementById('action-status');
-      const submitButton = document.getElementById('submitButton');
-      const resetButton = document.getElementById('resetButton');
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
 
@@ -525,7 +560,8 @@
           fileName = 'captured_photo.jpg';
         }
 
-        const notarizedFileName = generateNotarizedFileName(fileName);
+        // Use cached notarized filename to match what was shown in the info box
+        const notarizedFileName = cachedNotarizedFileName || generateNotarizedFileName(fileName);
         const notarizationLocation = `${REPO_BASE_URL}${notarizedFileName}`;
         const requestText = `[NOTARIZATION EVENT]\nSubmitter: ${contributorName}\nLatitude: ${latitude}\nLongitude: ${longitude}\nDocument Type: ${docType}\nDescription: ${description}\nAttached Filename: ${fileName}\nDestination Notarized File Location: ${notarizationLocation}\nSubmission Source: ${window.location.href}\n--------`;
 
@@ -544,25 +580,80 @@
           encoder.encode(requestText)
         );
         const requestHash = arrayBufferToBase64(signature);
+        const telegramLink = 'https://t.me/TrueSightDAO';
+        const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(requestText);
         const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
 
+        // Check if online and try to submit to Edgar
+        const online = await isOnline();
+        
+        if (online) {
+          try {
+            const formData = new FormData();
+            formData.append('text', shareText);
+            formData.append('attachment', file, fileName);
+
+            const resp = await fetch('https://edgar.truesight.me/dao/submit_contribution', {
+              method: 'POST',
+              body: formData
+            });
+
+            if (resp.ok) {
+              const result = await resp.json();
+              console.log('Edgar response:', result);
+              
+              // Make notarization location clickable after successful upload
+              if (result.fileUploadedToGithub) {
+                const notarizationLocationElement = document.getElementById('notarizationLocation');
+                // Get the URL text (strip any existing HTML if present)
+                const locationUrl = notarizationLocationElement.textContent.trim();
+                notarizationLocationElement.innerHTML = `<a href="${locationUrl}" target="_blank" style="color: #4CAF50; text-decoration: underline;">${locationUrl}</a>`;
+              }
+              
+              actionStatus.innerHTML = `✅ Notarization sent to Edgar successfully!<br>
+                File uploaded to GitHub: ${result.fileUploadedToGithub ? 'YES ✅' : 'NO ❌'}<br>
+                Google Sheet logged: ${result.googleSheetLogged ? 'YES ✅' : 'NO ❌'}<br>
+                Signature verified: ${result.signature_verification}<br>
+                <a href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">View submissions</a>`;
+              actionStatus.className = 'status';
+              isPostSubmission = true;
+              updateButtonText();
+              submitButton.disabled = false;
+              stopCamera();
+              return;
+            } else {
+              const errorText = await resp.text();
+              console.error('Edgar submission failed:', resp.status, errorText);
+              actionStatus.innerHTML = `❌ Edgar submission failed (${resp.status})<br>${errorText}<br>Falling back to share/clipboard`;
+              actionStatus.className = 'error';
+            }
+          } catch (error) {
+            console.warn('Edgar API error, falling back to share/clipboard:', error);
+          }
+        }
+
+        // Fallback to share/clipboard if offline or Edgar failed
         if (isMobileDevice() && navigator.share) {
           await navigator.share({
             text: shareText,
             files: [file]
           });
-          actionStatus.textContent = 'Notarization shared successfully! Please submit another notarization or edit the current one.';
-          actionStatus.className = 'status';
+          actionStatus.innerHTML = `Internet or server not available. Please share the notarization to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
+          actionStatus.className = 'error';
           isPostSubmission = true;
-          submitButton.style.display = 'none';
-          resetButton.style.display = 'block';
+          updateButtonText();
+          submitButton.disabled = false;
         } else {
-          await navigator.clipboard.writeText(shareText);
-          actionStatus.textContent = 'Notarization details copied to clipboard! Share it with the file in our community to submit another notarization or edit the current one.';
-          actionStatus.className = 'status';
+          if (await copyToClipboard(shareText)) {
+            actionStatus.innerHTML = `Internet or server not available. Notarization copied to clipboard. Please paste it into our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels with the file.`;
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.innerHTML = `Internet or server not available and clipboard copy failed. Please manually copy the notarization below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels with the file:<br><br><pre>${shareText}</pre>`;
+            actionStatus.className = 'error';
+          }
           isPostSubmission = true;
-          submitButton.style.display = 'none';
-          resetButton.style.display = 'block';
+          updateButtonText();
+          submitButton.disabled = false;
         }
 
         stopCamera();
