@@ -334,6 +334,7 @@
         let contributorName = '';
         let isPostSubmission = false;
         let uploadedFile = null;
+        let cachedExpenseFileName = null;  // Store the expense filename to ensure consistency
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -364,13 +365,15 @@
 
             if (fileName) {
                 originalFileNameElement.textContent = fileName;
-                const expenseFileName = generateExpenseFileName(fileName);
-                expenseFileNameElement.textContent = expenseFileName;
-                expenseLocationElement.textContent = `${REPO_BASE_URL}${expenseFileName}`;
+                // Generate and cache the expense filename to ensure consistency between preview and submission
+                cachedExpenseFileName = generateExpenseFileName(fileName);
+                expenseFileNameElement.textContent = cachedExpenseFileName;
+                expenseLocationElement.innerHTML = `${REPO_BASE_URL}${cachedExpenseFileName}`;
             } else {
                 originalFileNameElement.textContent = 'No file selected';
                 expenseFileNameElement.textContent = 'Waiting for file selection...';
-                expenseLocationElement.textContent = 'Waiting for file selection...';
+                expenseLocationElement.innerHTML = 'Waiting for file selection...';
+                cachedExpenseFileName = null;  // Clear cached filename
             }
         }
 
@@ -788,7 +791,8 @@
             const submitBtn = document.getElementById('submitButton');
 
             try {
-                const expenseFileName = generateExpenseFileName(fileName);
+                // Use cached expense filename to match what was shown in the info box
+                const expenseFileName = cachedExpenseFileName || generateExpenseFileName(fileName);
                 const expenseLocation = `${REPO_BASE_URL}${expenseFileName}`;
                 const requestText = `[DAO Inventory Expense Event]\n- DAO Member Name: ${memberName}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Inventory Type: ${resourceName}\n- Inventory Quantity: ${quantity}\n- Description: ${description}\n- Attached Filename: ${fileName}\n- Destination Expense File Location: ${expenseLocation}\n- Submission Source: ${window.location.href}\n--------`;
 
@@ -822,6 +826,15 @@
                     });
 
                     if (!resp.ok) throw new Error(await resp.text());
+
+                    const result = await resp.json();
+                    
+                    // Make expense location clickable after successful upload
+                    if (result.fileUploadedToGithub && fileName) {
+                        const expenseLocationElement = document.getElementById('expenseLocation');
+                        const locationUrl = expenseLocationElement.textContent.trim();
+                        expenseLocationElement.innerHTML = `<a href="${locationUrl}" target="_blank" style="color: #4CAF50; text-decoration: underline;">${locationUrl}</a>`;
+                    }
 
                     output.innerHTML = `Report sent to Edgar successfully via API. View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
