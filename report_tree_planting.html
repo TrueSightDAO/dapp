@@ -253,25 +253,17 @@
         <div class="info-location" id="location">Waiting for geolocation...</div>
         <label for="treeSpecies">Tree Species Planted:</label>
         <select id="treeSpecies" name="treeSpecies" required>
-          <option value="" disabled selected>Select a species</option>
-          <option value="Cacao (Native)">Cacao (Native)</option>
+          <option value="Cacao (Native)" selected>Cacao (Native)</option>
           <option value="Brazil Nut (Native)">Brazil Nut (Native)</option>
           <option value="Acai (Native)">Acai (Native)</option>
           <option value="Mahogany (Native)">Mahogany (Native)</option>
           <option value="Jatoba (Native)">Jatoba (Native)</option>
           <option value="Other">Other (specify)</option>
         </select>
-        <label for="treeCost">Cost of Tree:</label>
-        <input type="number" id="treeCost" name="treeCost" min="0" step="0.01" placeholder="e.g., 10.50" required>
-        <label for="currency">Currency:</label>
-        <select id="currency" name="currency" required>
-          <option value="" disabled selected>Select currency</option>
-          <option value="USD">USD (US Dollar)</option>
-          <option value="BRL">BRL (Brazilian Real)</option>
-          <option value="EUR">EUR (Euro)</option>
-          <option value="Other">Other (specify)</option>
-        </select>
-        <input type="text" id="otherCurrency" name="otherCurrency" placeholder="Specify currency" style="display: none;" maxlength="10">
+        <!-- Hidden fields for cost/currency - auto-populated with defaults -->
+        <input type="hidden" id="treeCost" name="treeCost" value="0">
+        <input type="hidden" id="currency" name="currency" value="">
+        <input type="hidden" id="otherCurrency" name="otherCurrency" value="">
       </div>
       <div class="button-container">
         <button id="submitButton" aria-label="Submit Report">Submit Report</button>
@@ -489,24 +481,14 @@
 
     function resetForm() {
       const treeSpecies = document.getElementById('treeSpecies');
-      const treeCost = document.getElementById('treeCost');
-      const currency = document.getElementById('currency');
-      const otherCurrency = document.getElementById('otherCurrency');
       const actionStatus = document.getElementById('action-status');
 
       // Reset form fields
-      treeSpecies.value = '';
-      treeCost.value = '';
-      currency.value = '';
-      otherCurrency.value = '';
-      otherCurrency.style.display = 'none';
-      otherCurrency.removeAttribute('required');
+      treeSpecies.value = 'Cacao (Native)'; // Reset to default
       imageFile = null;
 
       // Clear validation styles
-      [treeSpecies, treeCost, currency, otherCurrency].forEach(input => {
-        if (input) input.classList.remove('invalid');
-      });
+      treeSpecies.classList.remove('invalid');
       actionStatus.textContent = '';
       actionStatus.className = '';
 
@@ -522,15 +504,9 @@
 
     function validateInputs() {
       const treeSpecies = document.getElementById('treeSpecies');
-      const treeCost = document.getElementById('treeCost');
-      const currency = document.getElementById('currency');
-      const otherCurrency = document.getElementById('otherCurrency');
       const actionStatus = document.getElementById('action-status');
-      let hasError = false;
 
-      [treeSpecies, treeCost, currency, otherCurrency].forEach(input => {
-        if (input) input.classList.remove('invalid');
-      });
+      treeSpecies.classList.remove('invalid');
       actionStatus.textContent = '';
       actionStatus.className = '';
 
@@ -541,35 +517,14 @@
         return false;
       }
 
-      if (!treeCost.value || parseFloat(treeCost.value) <= 0) {
-        treeCost.classList.add('invalid');
-        actionStatus.textContent = 'Please enter a valid tree cost (greater than 0).';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      if (!currency.value) {
-        currency.classList.add('invalid');
-        actionStatus.textContent = 'Please select a currency.';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      if (currency.value === 'Other' && !otherCurrency.value.trim()) {
-        otherCurrency.classList.add('invalid');
-        actionStatus.textContent = 'Please specify a currency for "Other".';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      return !hasError;
+      return true;
     }
 
     async function updateDescription() {
       const descriptionElement = document.getElementById('description');
       const telegramLink = 'https://t.me/TrueSightDAO';
       const whatsappLink = 'https://wa.me/14423405782';
-      const baseText = `Take a photo showing the planted tree and a clear, readable receipt for the tree purchase. Select the tree species, enter the cost and currency, and click "Submit Report"`;
+      const baseText = `Take a photo showing the planted tree. Select the tree species (Cacao is pre-selected) and click "Submit Report"`;
       const signatureText = `If your digital signature is not registered, please register it later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.`;
 
       try {
@@ -652,12 +607,18 @@
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
       const treeSpecies = document.getElementById('treeSpecies').value;
-      const treeCost = document.getElementById('treeCost').value;
-      const currency = document.getElementById('currency').value;
+      const treeCost = document.getElementById('treeCost').value || '0';
+      const currency = document.getElementById('currency').value || '';
       const otherCurrency = document.getElementById('otherCurrency').value;
-      const finalCurrency = currency === 'Other' ? (otherCurrency || 'Unknown') : currency;
+      const finalCurrency = currency === 'Other' ? (otherCurrency || '') : currency;
+      
+      // Only include cost/currency in message if they were actually provided
+      const costLine = (treeCost && treeCost !== '0' && finalCurrency) 
+        ? `\n- Cost: ${treeCost} ${finalCurrency}` 
+        : '';
+      
       const telegramLink = 'https://t.me/TrueSightDAO';
-      const whatsappLink = 'https://wa.me/14423405782?text=' + encodeURIComponent(`[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}\n- Cost: ${treeCost} ${finalCurrency}\n- Planting Time: ${new Date().toISOString()}\n--------`);
+      const whatsappLink = 'https://wa.me/14423405782?text=' + encodeURIComponent(`[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}${costLine}\n- Planting Time: ${new Date().toISOString()}\n--------`);
 
       if (!stream || !video.srcObject) {
         console.error('Camera stream is null or not initialized.');
@@ -690,7 +651,7 @@
         const safePublicKey = publicKey.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
         const photoCaptureDestinationURL = `https://github.com/TrueSightDAO/sunmint/tree/main/images/${yyyymmddhhmmss}_${safePublicKey}.jpg`;
 
-        const requestText = `[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}\n- Cost: ${treeCost} ${finalCurrency}\n- Planting Time: ${plantingTime}\n- Photo URL: ${photoCaptureDestinationURL}\n- Submission Source: ${window.location.href}\n--------`;
+        const requestText = `[TREE PLANTING EVENT]\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Species: ${treeSpecies}${costLine}\n- Planting Time: ${plantingTime}\n- Photo URL: ${photoCaptureDestinationURL}\n- Submission Source: ${window.location.href}\n--------`;
 
         const privateKeyObj = await window.crypto.subtle.importKey(
           "pkcs8",
@@ -793,16 +754,6 @@
           statusElement.className = 'error fade-in';
           document.getElementById('submitButton').style.display = 'none';
         }
-        document.getElementById('currency').addEventListener('change', function() {
-          const otherCurrencyInput = document.getElementById('otherCurrency');
-          if (this.value === 'Other') {
-            otherCurrencyInput.style.display = 'block';
-            otherCurrencyInput.setAttribute('required', 'true');
-          } else {
-            otherCurrencyInput.style.display = 'none';
-            otherCurrencyInput.removeAttribute('required');
-          }
-        });
         document.getElementById('submitButton').addEventListener('click', submitReport);
         updateButtonText();
         return;
@@ -837,16 +788,6 @@
           statusElement.className = 'error fade-in';
           document.getElementById('submitButton').style.display = 'none';
         }
-        document.getElementById('currency').addEventListener('change', function() {
-          const otherCurrencyInput = document.getElementById('otherCurrency');
-          if (this.value === 'Other') {
-            otherCurrencyInput.style.display = 'block';
-            otherCurrencyInput.setAttribute('required', 'true');
-          } else {
-            otherCurrencyInput.style.display = 'none';
-            otherCurrencyInput.removeAttribute('required');
-          }
-        });
         document.getElementById('submitButton').addEventListener('click', submitReport);
         updateButtonText();
       } catch (error) {
@@ -868,16 +809,6 @@
           statusElement.className = 'error fade-in';
           document.getElementById('submitButton').style.display = 'none';
         }
-        document.getElementById('currency').addEventListener('change', function() {
-          const otherCurrencyInput = document.getElementById('otherCurrency');
-          if (this.value === 'Other') {
-            otherCurrencyInput.style.display = 'block';
-            otherCurrencyInput.setAttribute('required', 'true');
-          } else {
-            otherCurrencyInput.style.display = 'none';
-            otherCurrencyInput.removeAttribute('required');
-          }
-        });
         document.getElementById('submitButton').addEventListener('click', submitReport);
         updateButtonText();
       }
