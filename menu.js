@@ -5,6 +5,7 @@
     { title: 'Home', url: './index.html', section: '' },
     { title: 'DAO Contribution Reporter', url: './report_contribution.html', section: 'Community Contributions' },
     { title: 'Capital Injection Reporter', url: './report_capital_injection.html', section: 'Community Contributions' },
+    { title: 'Content Feedback Submission', url: './submit_feedback.html', section: 'Community Contributions' },
     { title: 'Inventory Expense Reporter', url: './report_dao_expenses.html', section: 'Inventory & Sales' },
     { title: 'Inventory Movement Reporter', url: './report_inventory_movement.html', section: 'Inventory & Sales' },
     { title: 'Report Tree Planting', url: './report_tree_planting.html', section: 'Sunmint Tree Planting Program' },
