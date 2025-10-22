@@ -290,28 +290,43 @@
           <option value="Lease">I lease the land</option>
           <option value="Community">Community or shared land</option>
         </select>
-        <label for="treeSpecies">Planned Tree Species (select all that apply):</label>
-        <select id="treeSpecies" name="treeSpecies" multiple required>
-          <option value="Cacao (Native)">Cacao (Native)</option>
-          <option value="Brazil Nut (Native)">Brazil Nut (Native)</option>
-          <option value="Acai (Native)">Acai (Native)</option>
-          <option value="Mahogany (Native)">Mahogany (Native)</option>
-          <option value="Jatoba (Native)">Jatoba (Native)</option>
-          <option value="Other">Other (specify)</option>
-        </select>
-        <label for="treeCount">Estimated Number of Trees to Plant:</label>
-        <input type="number" id="treeCount" name="treeCount" required placeholder="e.g., 100" min="1" step="1">
-        <div class="info">Reimbursement Method for Tree Planting Costs:</div>
-        <div class="input-group">
-          <label for="reimbursementMethod">Select Preferred Method for Tree Planting Cost Reimbursement</label>
-          <select id="reimbursementMethod" name="reimbursementMethod" required>
-            <option value="" disabled selected>Select a reimbursement method</option>
-            <option value="PIX">PIX - Brazil</option>
-            <option value="Venmo">Venmo - USA</option>
-            <option value="Zelle">Zelle - USA</option>
-            <option value="PayPal">PayPal - International</option>
-            <option value="WiseTransfer">WiseTransfer - International</option>
+        
+        <!-- Tree Planting Program Opt-In -->
+        <div class="input-group" style="margin-top: 1.5rem; padding: 0.8rem; background-color: #e7f3ff; border-radius: 5px;">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" id="participateInPlanting" name="participateInPlanting" style="width: auto; margin: 0;">
+            <span style="font-weight: bold;">I want to participate in the tree planting program</span>
+          </label>
+          <p style="font-size: 0.85rem; color: #666; margin: 0.5rem 0 0 1.8rem;">
+            (Optional: Check this box if you plan to plant trees and need reimbursement)
+          </p>
+        </div>
+
+        <!-- Tree Planting Details (Hidden by default) -->
+        <div id="treePlantingSection" style="display: none;">
+          <label for="treeSpecies">Planned Tree Species (select all that apply):</label>
+          <select id="treeSpecies" name="treeSpecies" multiple>
+            <option value="Cacao (Native)" selected>Cacao (Native)</option>
+            <option value="Brazil Nut (Native)">Brazil Nut (Native)</option>
+            <option value="Acai (Native)">Acai (Native)</option>
+            <option value="Mahogany (Native)">Mahogany (Native)</option>
+            <option value="Jatoba (Native)">Jatoba (Native)</option>
+            <option value="Other">Other (specify)</option>
           </select>
+          <label for="treeCount">Estimated Number of Trees to Plant:</label>
+          <input type="number" id="treeCount" name="treeCount" placeholder="e.g., 100" min="1" step="1">
+          <div class="info">Reimbursement Method for Tree Planting Costs:</div>
+          <div class="input-group">
+            <label for="reimbursementMethod">Select Preferred Method for Tree Planting Cost Reimbursement</label>
+            <select id="reimbursementMethod" name="reimbursementMethod">
+              <option value="" disabled selected>Select a reimbursement method</option>
+              <option value="PIX">PIX - Brazil</option>
+              <option value="Venmo">Venmo - USA</option>
+              <option value="Zelle">Zelle - USA</option>
+              <option value="PayPal">PayPal - International</option>
+              <option value="WiseTransfer">WiseTransfer - International</option>
+            </select>
+          </div>
         </div>
         <div class="input-group reimbursement-details" id="pixDetails">
           <label for="pixNumber">PIX Number (CPF, Phone, or Email)</label>
@@ -544,6 +559,17 @@
       });
     }
 
+    function toggleTreePlantingSection() {
+      const checkbox = document.getElementById('participateInPlanting');
+      const treePlantingSection = document.getElementById('treePlantingSection');
+      
+      if (checkbox.checked) {
+        treePlantingSection.style.display = 'block';
+      } else {
+        treePlantingSection.style.display = 'none';
+      }
+    }
+
     function updateReimbursementDetails() {
       const method = document.getElementById('reimbursementMethod').value;
       const pixDetails = document.getElementById('pixDetails');
@@ -634,80 +660,88 @@
         return false;
       }
 
-      if (!Array.from(treeSpecies.selectedOptions).length) {
-        treeSpecies.classList.add('invalid');
-        actionStatus.textContent = 'Please select at least one tree species.';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      if (!treeCount.value || parseInt(treeCount.value) < 1) {
-        treeCount.classList.add('invalid');
-        actionStatus.textContent = 'Please enter a valid number of trees (at least 1).';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      if (!reimbursementMethod.value) {
-        reimbursementMethod.classList.add('invalid');
-        actionStatus.textContent = 'Please select a reimbursement method.';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      if (reimbursementMethod.value === 'PIX' && (!pixNumber.value.trim())) {
-        pixNumber.classList.add('invalid');
-        actionStatus.textContent = 'Please enter a valid PIX number.';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      if (reimbursementMethod.value === 'Venmo' && (!venmoNumber.value.trim())) {
-        venmoNumber.classList.add('invalid');
-        actionStatus.textContent = 'Please enter a valid Venmo username or phone number.';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      if (reimbursementMethod.value === 'Zelle' && (!zelleId.value.trim() || !(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(zelleId.value.trim()) || /^\+?\d{10,15}$/.test(zelleId.value.trim())))) {
-        zelleId.classList.add('invalid');
-        actionStatus.textContent = 'Please enter a valid Zelle email or phone number.';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      if (reimbursementMethod.value === 'PayPal' && (!paypalId.value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(paypalId.value.trim()))) {
-        paypalId.classList.add('invalid');
-        actionStatus.textContent = 'Please enter a valid PayPal email.';
-        actionStatus.className = 'error';
-        return false;
-      }
-
-      if (reimbursementMethod.value === 'WiseTransfer') {
-        if (!wiseEmail.value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wiseEmail.value.trim())) {
-          wiseEmail.classList.add('invalid');
-          actionStatus.textContent = 'Please enter a valid recipient email for WiseTransfer.';
+      // Only validate tree planting fields if user opted in
+      const participateInPlanting = document.getElementById('participateInPlanting').checked;
+      
+      if (participateInPlanting) {
+        if (!Array.from(treeSpecies.selectedOptions).length) {
+          treeSpecies.classList.add('invalid');
+          actionStatus.textContent = 'Please select at least one tree species.';
           actionStatus.className = 'error';
           return false;
         }
-        if (!wiseFullName.value.trim()) {
-          wiseFullName.classList.add('invalid');
-          actionStatus.textContent = 'Please enter a valid recipient full name for WiseTransfer.';
+
+        if (!treeCount.value || parseInt(treeCount.value) < 1) {
+          treeCount.classList.add('invalid');
+          actionStatus.textContent = 'Please enter a valid number of trees (at least 1).';
           actionStatus.className = 'error';
           return false;
         }
-        if (!wiseBankName.value.trim()) {
-          wiseBankName.classList.add('invalid');
-          actionStatus.textContent = 'Please enter a valid bank name for WiseTransfer.';
+
+        if (!reimbursementMethod.value) {
+          reimbursementMethod.classList.add('invalid');
+          actionStatus.textContent = 'Please select a reimbursement method.';
           actionStatus.className = 'error';
           return false;
         }
-        if (!wiseIban.value.trim() && !wiseAccountNumber.value.trim()) {
-          wiseIban.classList.add('invalid');
-          wiseAccountNumber.classList.add('invalid');
-          actionStatus.textContent = 'Please enter either an IBAN or account number for WiseTransfer.';
+      }
+
+      // Only validate reimbursement details if participating in tree planting
+      if (participateInPlanting) {
+        if (reimbursementMethod.value === 'PIX' && (!pixNumber.value.trim())) {
+          pixNumber.classList.add('invalid');
+          actionStatus.textContent = 'Please enter a valid PIX number.';
           actionStatus.className = 'error';
           return false;
+        }
+
+        if (reimbursementMethod.value === 'Venmo' && (!venmoNumber.value.trim())) {
+          venmoNumber.classList.add('invalid');
+          actionStatus.textContent = 'Please enter a valid Venmo username or phone number.';
+          actionStatus.className = 'error';
+          return false;
+        }
+
+        if (reimbursementMethod.value === 'Zelle' && (!zelleId.value.trim() || !(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(zelleId.value.trim()) || /^\+?\d{10,15}$/.test(zelleId.value.trim())))) {
+          zelleId.classList.add('invalid');
+          actionStatus.textContent = 'Please enter a valid Zelle email or phone number.';
+          actionStatus.className = 'error';
+          return false;
+        }
+
+        if (reimbursementMethod.value === 'PayPal' && (!paypalId.value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(paypalId.value.trim()))) {
+          paypalId.classList.add('invalid');
+          actionStatus.textContent = 'Please enter a valid PayPal email.';
+          actionStatus.className = 'error';
+          return false;
+        }
+
+        if (reimbursementMethod.value === 'WiseTransfer') {
+          if (!wiseEmail.value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wiseEmail.value.trim())) {
+            wiseEmail.classList.add('invalid');
+            actionStatus.textContent = 'Please enter a valid recipient email for WiseTransfer.';
+            actionStatus.className = 'error';
+            return false;
+          }
+          if (!wiseFullName.value.trim()) {
+            wiseFullName.classList.add('invalid');
+            actionStatus.textContent = 'Please enter a valid recipient full name for WiseTransfer.';
+            actionStatus.className = 'error';
+            return false;
+          }
+          if (!wiseBankName.value.trim()) {
+            wiseBankName.classList.add('invalid');
+            actionStatus.textContent = 'Please enter a valid bank name for WiseTransfer.';
+            actionStatus.className = 'error';
+            return false;
+          }
+          if (!wiseIban.value.trim() && !wiseAccountNumber.value.trim()) {
+            wiseIban.classList.add('invalid');
+            wiseAccountNumber.classList.add('invalid');
+            actionStatus.textContent = 'Please enter either an IBAN or account number for WiseTransfer.';
+            actionStatus.className = 'error';
+            return false;
+          }
         }
       }
 
@@ -718,7 +752,7 @@
       const descriptionElement = document.getElementById('description');
       const telegramLink = 'https://t.me/TrueSightDAO';
       const whatsappLink = 'https://wa.me/14423405782';
-      const baseText = `Fill in your farm details, select tree species (hold Ctrl or tap multiple options), choose a reimbursement method, take a photo at the entrance of the farm where the trees will be planted, and click "Submit Farm Registration"`;
+      const baseText = `Fill in your farm details, take a photo at the entrance of the farm, and click "Submit Farm Registration". Optionally check the box to participate in the tree planting program for reimbursement`;
       const farmNameText = `Use a unique farm name (e.g., Fazenda São João).`;
       const signatureText = `If your digital signature is not registered, please register it later at <a href="https://truesightdao.github.io/dapp/create_signature.html">create_signature.html</a>.`;
 
@@ -772,10 +806,11 @@
       const plantingArea = document.getElementById('plantingArea').value;
       const landUse = document.getElementById('landUse').value;
       const ownership = document.getElementById('ownership').value;
+      const participateInPlanting = document.getElementById('participateInPlanting').checked;
       const treeSpeciesSelect = document.getElementById('treeSpecies');
-      const treeSpecies = Array.from(treeSpeciesSelect.selectedOptions).map(option => option.value).join(', ');
-      const treeCount = document.getElementById('treeCount').value;
-      const reimbursementMethod = document.getElementById('reimbursementMethod').value;
+      const treeSpecies = participateInPlanting ? Array.from(treeSpeciesSelect.selectedOptions).map(option => option.value).join(', ') : '';
+      const treeCount = participateInPlanting ? document.getElementById('treeCount').value : '';
+      const reimbursementMethod = participateInPlanting ? document.getElementById('reimbursementMethod').value : '';
       const pixNumber = document.getElementById('pixNumber').value;
       const venmoNumber = document.getElementById('venmoNumber').value;
       const zelleId = document.getElementById('zelleId').value;
@@ -786,8 +821,16 @@
       const wiseAccountNumber = document.getElementById('wiseAccountNumber').value;
       const wiseBankName = document.getElementById('wiseBankName').value;
       const wiseSwiftCode = document.getElementById('wiseSwiftCode').value;
+      
+      // Build base WhatsApp message
+      let whatsappMessage = `[FARM REGISTRATION]\n- Farm Name: ${farmName}\n- Farm Location: ${farmLocation}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Area for Tree Planting (hectares): ${plantingArea}\n- Current Land Use: ${landUse}\n- Ownership Status: ${ownership}\n`;
+      if (participateInPlanting) {
+        whatsappMessage += `- Planned Tree Species: ${treeSpecies}\n- Estimated Trees: ${treeCount}\n- Reimbursement Method: ${reimbursementMethod}\n`;
+      }
+      whatsappMessage += '--------';
+      
       const telegramLink = 'https://t.me/TrueSightDAO';
-      const whatsappLink = 'https://wa.me/14423405782?text=' + encodeURIComponent(`[FARM REGISTRATION]\n- Farm Name: ${farmName}\n- Farm Location: ${farmLocation}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Area for Tree Planting (hectares): ${plantingArea}\n- Current Land Use: ${landUse}\n- Ownership Status: ${ownership}\n- Planned Tree Species: ${treeSpecies}\n- Estimated Trees: ${treeCount}\n- Reimbursement Method: ${reimbursementMethod}\n--------`);
+      const whatsappLink = 'https://wa.me/14423405782?text=' + encodeURIComponent(whatsappMessage);
 
       if (!stream) {
         actionStatus.textContent = 'Camera not started. Please ensure camera access is allowed.';
@@ -819,21 +862,28 @@
         const safePublicKey = publicKey.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
         const photoCaptureDestinationURL = `https://github.com/TrueSightDAO/sunmint/tree/main/images/farm_${yyyymmddhhmmss}_${safePublicKey}.jpg`;
 
-        let requestText = `[FARM REGISTRATION]\n- Farm Name: ${farmName}\n- Farm Location: ${farmLocation}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Area for Tree Planting (hectares): ${plantingArea}\n- Current Land Use: ${landUse}\n- Ownership Status: ${ownership}\n- Planned Tree Species: ${treeSpecies}\n- Estimated Trees: ${treeCount}\n- Reimbursement Method: ${reimbursementMethod}\n`;
-        if (reimbursementMethod === 'PIX') {
-          requestText += `- PIX Number: ${pixNumber}\n`;
-        } else if (reimbursementMethod === 'Venmo') {
-          requestText += `- Venmo Number: ${venmoNumber}\n`;
-        } else if (reimbursementMethod === 'Zelle') {
-          requestText += `- Zelle ID: ${zelleId}\n`;
-        } else if (reimbursementMethod === 'PayPal') {
-          requestText += `- PayPal ID: ${paypalId}\n`;
-        } else if (reimbursementMethod === 'WiseTransfer') {
-          requestText += `- Wise Email: ${wiseEmail}\n- Wise Full Name: ${wiseFullName}\n- Wise Bank Name: ${wiseBankName}\n`;
-          if (wiseIban) requestText += `- Wise IBAN: ${wiseIban}\n`;
-          if (wiseAccountNumber) requestText += `- Wise Account Number: ${wiseAccountNumber}\n`;
-          if (wiseSwiftCode) requestText += `- Wise SWIFT/BIC Code: ${wiseSwiftCode}\n`;
+        let requestText = `[FARM REGISTRATION]\n- Farm Name: ${farmName}\n- Farm Location: ${farmLocation}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Area for Tree Planting (hectares): ${plantingArea}\n- Current Land Use: ${landUse}\n- Ownership Status: ${ownership}\n`;
+        
+        // Only include tree planting details if participating
+        if (participateInPlanting) {
+          requestText += `- Planned Tree Species: ${treeSpecies}\n- Estimated Trees: ${treeCount}\n- Reimbursement Method: ${reimbursementMethod}\n`;
+          
+          if (reimbursementMethod === 'PIX') {
+            requestText += `- PIX Number: ${pixNumber}\n`;
+          } else if (reimbursementMethod === 'Venmo') {
+            requestText += `- Venmo Number: ${venmoNumber}\n`;
+          } else if (reimbursementMethod === 'Zelle') {
+            requestText += `- Zelle ID: ${zelleId}\n`;
+          } else if (reimbursementMethod === 'PayPal') {
+            requestText += `- PayPal ID: ${paypalId}\n`;
+          } else if (reimbursementMethod === 'WiseTransfer') {
+            requestText += `- Wise Email: ${wiseEmail}\n- Wise Full Name: ${wiseFullName}\n- Wise Bank Name: ${wiseBankName}\n`;
+            if (wiseIban) requestText += `- Wise IBAN: ${wiseIban}\n`;
+            if (wiseAccountNumber) requestText += `- Wise Account Number: ${wiseAccountNumber}\n`;
+            if (wiseSwiftCode) requestText += `- Wise SWIFT/BIC Code: ${wiseSwiftCode}\n`;
+          }
         }
+        
         requestText += `- Registration Time: ${registrationTime}\n- Photo URL: ${photoCaptureDestinationURL}\n- Submission Source: ${window.location.href}\n--------`;
 
         const privateKeyObj = await window.crypto.subtle.importKey(
@@ -943,6 +993,7 @@
           statusElement.className = 'error fade-in';
           document.getElementById('submitButton').style.display = 'none';
         }
+        document.getElementById('participateInPlanting').addEventListener('change', toggleTreePlantingSection);
         document.getElementById('reimbursementMethod').addEventListener('change', updateReimbursementDetails);
         document.getElementById('submitButton').addEventListener('click', onSubmitFarmRegistration);
         return;
@@ -977,6 +1028,7 @@
           statusElement.className = 'error fade-in';
           document.getElementById('submitButton').style.display = 'none';
         }
+        document.getElementById('participateInPlanting').addEventListener('change', toggleTreePlantingSection);
         document.getElementById('reimbursementMethod').addEventListener('change', updateReimbursementDetails);
         document.getElementById('submitButton').addEventListener('click', onSubmitFarmRegistration);
       } catch (error) {
@@ -998,6 +1050,7 @@
           statusElement.className = 'error fade-in';
           document.getElementById('submitButton').style.display = 'none';
         }
+        document.getElementById('participateInPlanting').addEventListener('change', toggleTreePlantingSection);
         document.getElementById('reimbursementMethod').addEventListener('change', updateReimbursementDetails);
         document.getElementById('submitButton').addEventListener('click', onSubmitFarmRegistration);
       }
