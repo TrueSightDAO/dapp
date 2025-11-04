@@ -68,7 +68,8 @@
         }
 
         .form-group input,
-        .form-group textarea {
+        .form-group textarea,
+        .form-group select {
             width: 100%;
             padding: 15px;
             border: 1px solid #e9ecef;
@@ -76,10 +77,21 @@
             font-size: 1rem;
             font-family: inherit;
             transition: border-color 0.3s ease;
+            background-color: white;
+        }
+
+        .form-group select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            padding-right: 45px;
         }
 
         .form-group input:focus,
-        .form-group textarea:focus {
+        .form-group textarea:focus,
+        .form-group select:focus {
             outline: none;
             border-color: #3498db;
             box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
@@ -94,6 +106,31 @@
             font-size: 0.9rem;
             color: #7f8c8d;
             margin-top: 5px;
+        }
+
+        /* Checkbox styling */
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .form-group label.checkbox-label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            margin-bottom: 0.75rem;
+            font-weight: normal;
+        }
+
+        .form-group label.checkbox-label input[type="checkbox"] {
+            margin-right: 0.75rem;
+            margin-top: 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .form-group label.checkbox-label span {
+            line-height: 1.5;
         }
 
         .btn {
@@ -306,20 +343,35 @@
         <p id="status" class="loading fade-in">Verifying your digital signature...</p>
 
         <div id="info" style="display: none;">
-            <div class="proposal-template">
-                <h4>📋 Proposal Template</h4>
-                <p>
-                    <strong>Title:</strong> Brief, descriptive title for your proposal<br>
-                    <strong>Content:</strong> Detailed description including:<br>
-                    • Problem statement or opportunity<br>
-                    • Proposed solution<br>
-                    • Implementation plan<br>
-                    • Expected outcomes<br>
-                    • Resource requirements (if any)
+            <!-- Response Expectations Notice -->
+            <div class="proposal-template" style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin-bottom: 1.5rem;">
+                <h4>⏰ Response Expectations</h4>
+                <p style="margin: 0.5rem 0;">
+                    <strong>After submission:</strong><br>
+                    • Initial review: 3-5 business days<br>
+                    • If additional info is needed: <strong>You have 48 hours to respond</strong><br>
+                    • Non-response = Proposal automatically withdrawn<br>
+                    <br>
+                    <strong>For Vendors:</strong> Performance data requests are NOT optional. Failure to provide = automatic rejection.
                 </p>
             </div>
 
             <form id="proposalForm">
+                <!-- Proposal Type Selection -->
+                <div class="form-group">
+                    <label for="proposalType">Proposal Type *</label>
+                    <select id="proposalType" name="type" required>
+                        <option value="">-- Select Proposal Type --</option>
+                        <option value="vendor">Vendor/Service Proposal (requires performance data)</option>
+                        <option value="community">Community Initiative</option>
+                        <option value="governance">Governance Change</option>
+                        <option value="funding">Funding Request</option>
+                        <option value="feature">Feature Request</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <div class="form-help">Vendor proposals require additional performance metrics</div>
+                </div>
+
                 <div class="form-group">
                     <label for="proposalTitle">Proposal Title *</label>
                     <input 
@@ -328,6 +380,7 @@
                         name="title" 
                         placeholder="Enter a clear, descriptive title for your proposal"
                         required
+                        maxlength="100"
                     >
                     <div class="form-help">Keep it concise but descriptive (max 100 characters)</div>
                 </div>
@@ -341,6 +394,77 @@
                         required
                     ></textarea>
                     <div class="form-help">Use markdown formatting for better readability</div>
+                </div>
+
+                <!-- Performance Metrics Section (shown only for vendor proposals) -->
+                <div class="form-group" id="performanceMetricsSection" style="display: none;">
+                    <label for="performanceMetrics">Historical Performance Metrics *</label>
+                    <textarea 
+                        id="performanceMetrics" 
+                        name="performance_metrics" 
+                        placeholder="Required for vendor proposals. Provide 2-3 examples from past clients:&#10;&#10;Client 1:&#10;- Industry: [e.g., E-commerce]&#10;- Engagement scope: [e.g., Social media marketing]&#10;- Key metrics achieved: [e.g., 150% increase in engagement, 50K new followers]&#10;- Timeframe: [e.g., 6 months]&#10;&#10;Client 2:&#10;..."
+                        rows="8"
+                    ></textarea>
+                    <div class="form-help" style="color: #d32f2f; font-weight: bold;">
+                        ⚠️ REQUIRED: Vendor proposals without performance benchmarks will be auto-rejected
+                    </div>
+                </div>
+
+                <!-- Terms & Conditions -->
+                <div class="form-group" style="background-color: #f8f9fa; padding: 1rem; border-radius: 4px; margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 1rem;">Terms & Conditions *</h4>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="tc1" required>
+                        <span>I understand proposals may take 7-14 days for DAO review</span>
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="tc2" required>
+                        <span>I will respond to clarification requests within 48 hours</span>
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="tc3" required>
+                        <span><strong>Failure to respond within 48 hours may result in proposal rejection</strong></span>
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="tc4" required>
+                        <span>I understand the DAO reserves the right to request additional information</span>
+                    </label>
+
+                    <!-- Vendor-specific T&Cs (shown only for vendor proposals) -->
+                    <div id="vendorTerms" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
+                        <h5 style="margin-bottom: 0.75rem; color: #d32f2f;">Additional Terms for Vendor Proposals:</h5>
+                        
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="tcVendor1" class="vendor-tc">
+                            <span><strong>I will provide historical performance metrics when requested</strong></span>
+                        </label>
+                        
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="tcVendor2" class="vendor-tc">
+                            <span><strong>I understand performance benchmarks are required for approval</strong></span>
+                        </label>
+                        
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="tcVendor3" class="vendor-tc">
+                            <span>I accept that contract negotiations happen AFTER proposal approval</span>
+                        </label>
+                        
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="tcVendor4" class="vendor-tc">
+                            <span><strong>I understand silence/non-response = automatic withdrawal</strong></span>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="tcLegal" required>
+                            <span style="font-size: 0.9rem;">By submitting this proposal, I agree that all information provided is accurate, I have authority to represent any organization mentioned, and no contractual relationship exists until a formal agreement is signed.</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -433,11 +557,44 @@
             }
         });
         
+        // Handle proposal type change
+        document.getElementById('proposalType').addEventListener('change', function() {
+            const proposalType = this.value;
+            const performanceSection = document.getElementById('performanceMetricsSection');
+            const vendorTerms = document.getElementById('vendorTerms');
+            const performanceMetrics = document.getElementById('performanceMetrics');
+            
+            if (proposalType === 'vendor') {
+                // Show vendor-specific fields
+                performanceSection.style.display = 'block';
+                vendorTerms.style.display = 'block';
+                performanceMetrics.required = true;
+                
+                // Make vendor T&Cs required
+                document.querySelectorAll('.vendor-tc').forEach(cb => cb.required = true);
+            } else {
+                // Hide vendor-specific fields
+                performanceSection.style.display = 'none';
+                vendorTerms.style.display = 'none';
+                performanceMetrics.required = false;
+                
+                // Make vendor T&Cs optional
+                document.querySelectorAll('.vendor-tc').forEach(cb => cb.required = false);
+            }
+        });
+
         document.getElementById('proposalForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            const proposalType = document.getElementById('proposalType').value;
             const title = document.getElementById('proposalTitle').value.trim();
             const content = document.getElementById('proposalContent').value.trim();
+            const performanceMetrics = document.getElementById('performanceMetrics').value.trim();
+            
+            if (!proposalType) {
+                showError('Please select a proposal type.');
+                return;
+            }
             
             if (!title || !content) {
                 showError('Please fill in all required fields.');
@@ -449,10 +606,25 @@
                 return;
             }
             
-            await submitProposal(title, content);
+            // Validate vendor proposals
+            if (proposalType === 'vendor') {
+                if (!performanceMetrics || performanceMetrics.length < 50) {
+                    showError('Vendor proposals require detailed historical performance metrics (minimum 50 characters).');
+                    return;
+                }
+                
+                // Check all vendor T&Cs are checked
+                const vendorTCsChecked = Array.from(document.querySelectorAll('.vendor-tc')).every(cb => cb.checked);
+                if (!vendorTCsChecked) {
+                    showError('Please accept all vendor-specific terms and conditions.');
+                    return;
+                }
+            }
+            
+            await submitProposal(proposalType, title, content, performanceMetrics);
         });
 
-        async function submitProposal(title, content) {
+        async function submitProposal(proposalType, title, content, performanceMetrics) {
             const submitBtn = document.getElementById('submitBtn');
             const originalText = submitBtn.innerHTML;
             
@@ -461,10 +633,19 @@
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<div class="spinner"></div> Submitting...';
                 
-                // Create the proposal text in the same format as other DApps
-                const requestText = `[PROPOSAL CREATION]
+                // Create the proposal text with new fields
+                let requestText = `[PROPOSAL CREATION]
+- Type: ${proposalType}
 - Title: ${title}
-- Content: ${content}
+- Content: ${content}`;
+
+                // Add performance metrics for vendor proposals
+                if (proposalType === 'vendor' && performanceMetrics) {
+                    requestText += `
+- Performance Metrics: ${performanceMetrics}`;
+                }
+
+                requestText += `
 --------`;
 
                 // Import private key and sign the message like other DApp pages
