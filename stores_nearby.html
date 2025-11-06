@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Find nearby stores from the holistic wellness hit list">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stores Nearby</title>
+
+    <!-- Open Graph tags for WhatsApp and social media previews -->
+    <meta property="og:title" content="Stores Nearby">
+    <meta property="og:description" content="Find nearby stores from the holistic wellness hit list">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./menu.js"></script>
+    
+    <!-- Leaflet.js for maps (no API key required) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .form-group {
+            margin: 1rem 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .location-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            margin: 0.5rem 0;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+        }
+        .loading .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .stores-list {
+            margin: 1rem 0;
+        }
+        .store-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .store-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 4px rgba(0,123,255,0.1);
+        }
+        .store-card.expanded {
+            border-color: #007bff;
+            box-shadow: 0 4px 8px rgba(0,123,255,0.15);
+        }
+        .store-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            margin-top: 1rem;
+            padding-top: 0;
+            border-top: none;
+        }
+        .store-card.expanded .store-details {
+            max-height: 2000px;
+            padding-top: 1rem;
+            border-top: 2px solid #dee2e6;
+            margin-top: 1rem;
+        }
+        .store-details-section {
+            margin: 1rem 0;
+        }
+        .store-details-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+        .store-details-content {
+            color: #555;
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+        .store-details-link {
+            color: #007bff;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .store-details-link:hover {
+            text-decoration: underline;
+        }
+        .status-update-select {
+            cursor: pointer;
+        }
+        .status-update-select:disabled {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+        .expand-indicator {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+        .store-card.expanded .expand-indicator {
+            display: none;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        #welcome {
+            text-align: center;
+            font-size: 1.1rem;
+            color: #28a745;
+            margin: 1rem 0;
+            font-weight: 600;
+        }
+        .store-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .store-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+        }
+        .store-distance {
+            background: #007bff;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .store-info {
+            color: #555;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .store-meta {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .store-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        .badge-high {
+            background: #dc3545;
+            color: white;
+        }
+        .badge-medium {
+            background: #ffc107;
+            color: #333;
+        }
+        .badge-low {
+            background: #6c757d;
+            color: white;
+        }
+        .badge-contacted {
+            background: #28a745;
+            color: white;
+        }
+        .badge-research {
+            background: #17a2b8;
+            color: white;
+        }
+        @media (max-width: 600px) {
+            .location-inputs {
+                grid-template-columns: 1fr;
+            }
+            .store-card {
+                padding: 0.8rem;
+            }
+            .store-details-content {
+                font-size: 0.85rem;
+            }
+        }
+        #logo {
+            height: 200px;
+            display: block;
+            margin: 0 auto 1.5rem;
+            max-width: 100%;
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            margin: 1rem 0;
+        }
+        .numbered-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+        @media (max-width: 600px) {
+            #map {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>
+        
+        <h1>Stores Nearby</h1>
+        <p id="description">
+            Find the top 10 stores nearest to your location. Filter by status to see stores that match your criteria.
+        </p>
+
+        <div id="welcome" style="display: none; margin: 1rem 0;"></div>
+        <p id="status" class="fade-in" style="margin: 1rem 0; font-weight: bold; min-height: 24px; font-size: 1rem; text-align: center;">Verifying your digital signature...</p>
+        
+        <div id="storesContent" style="display: none;">
+            <!-- Status Filter - Primary control, most important -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="statusFilter" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Filter by Status:</label>
+                <select id="statusFilter" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+                    <option value="Contacted">Contacted</option>
+                    <option value="Research">Research</option>
+                    <option value="Partnered">Partnered</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Not Appropriate">Not Appropriate</option>
+                    <option value="">All Statuses</option>
+                </select>
+            </div>
+
+            <!-- Location Controls - Primary action -->
+            <div style="margin-bottom: 1.5rem; text-align: center;">
+                <button type="button" class="btn" id="useCurrentLocation" style="width: 100%; max-width: 400px; padding: 0.75rem 1.5rem; font-size: 1rem; margin-bottom: 1rem;">
+                    📍 Use Current Location
+                </button>
+                <p id="locationStatus" style="font-size: 0.9rem; color: #6c757d; margin-top: 0.5rem; min-height: 1.5rem;">
+                    Click to detect your current location
+                </p>
+            </div>
+
+            <!-- Map View - Visual context -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Map View:</label>
+                <div id="map"></div>
+                <p style="font-size: 0.85rem; color: #6c757d; margin-top: 0.5rem; text-align: center;">
+                    Your location and nearby stores are shown on the map
+                </p>
+            </div>
+
+            <!-- Search Button - Secondary action -->
+            <form id="searchForm" style="margin-bottom: 1.5rem;">
+                <button type="submit" class="btn" id="searchBtn" style="width: 100%; max-width: 400px; padding: 0.75rem 1.5rem; font-size: 1rem; display: block; margin: 0 auto;">
+                    🔍 Find Nearby Stores
+                </button>
+            </form>
+
+            <!-- Status Messages -->
+            <div id="statusMessage" style="margin-bottom: 1rem;"></div>
+
+            <!-- Results - Stores List -->
+            <div id="storesContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Google Apps Script deployment URLs
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwB2zqNV9nMCMWs2hSa8FecjA36Oh-mSVuz3pk8TpXrXcy9dvqOqgbWIirNka2LmacgPw/exec';
+        const SIGNATURE_VERIFY_API = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+
+        // Track if this is the first automatic load
+        let isFirstLoad = true;
+        let contributorName = '';
+        let map = null;
+        let userMarker = null;
+        let storeMarkers = [];
+        let currentLat = null;
+        let currentLng = null;
+
+        // Initialize map
+        function initMap() {
+            if (!map) {
+                // Default to San Francisco if location not available
+                map = L.map('map').setView([37.7749, -122.4194], 10);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+            }
+        }
+
+        // Calculate distance between two points (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 3959; // Earth's radius in miles
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        // Solve TSP using nearest neighbor heuristic + 2-opt improvement
+        function solveTSP(startLat, startLng, stores) {
+            if (stores.length === 0) return [];
+
+            // Create distance matrix
+            const n = stores.length;
+            const distances = [];
+            for (let i = 0; i < n; i++) {
+                distances[i] = [];
+                for (let j = 0; j < n; j++) {
+                    distances[i][j] = calculateDistance(
+                        stores[i].latitude, stores[i].longitude,
+                        stores[j].latitude, stores[j].longitude
+                    );
+                }
+            }
+
+            // Nearest neighbor heuristic starting from user location
+            const startDistances = stores.map((store, i) => ({
+                index: i,
+                distance: calculateDistance(startLat, startLng, store.latitude, store.longitude)
+            }));
+            startDistances.sort((a, b) => a.distance - b.distance);
+
+            let route = [startDistances[0].index];
+            let unvisited = new Set();
+            for (let i = 1; i < n; i++) {
+                unvisited.add(startDistances[i].index);
+            }
+
+            // Build route using nearest neighbor
+            while (unvisited.size > 0) {
+                let current = route[route.length - 1];
+                let nearest = null;
+                let minDist = Infinity;
+
+                unvisited.forEach(next => {
+                    const dist = distances[current][next];
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearest = next;
+                    }
+                });
+
+                route.push(nearest);
+                unvisited.delete(nearest);
+            }
+
+            // 2-opt improvement
+            let improved = true;
+            while (improved) {
+                improved = false;
+                for (let i = 0; i < route.length - 2; i++) {
+                    for (let j = i + 2; j < route.length; j++) {
+                        const distBefore = distances[route[i]][route[i + 1]] + 
+                                          distances[route[j]][route[(j + 1) % route.length]];
+                        const distAfter = distances[route[i]][route[j]] + 
+                                         distances[route[i + 1]][route[(j + 1) % route.length]];
+                        
+                        if (distAfter < distBefore) {
+                            // Reverse segment
+                            const segment = route.slice(i + 1, j + 1).reverse();
+                            route.splice(i + 1, j - i, ...segment);
+                            improved = true;
+                        }
+                    }
+                }
+            }
+
+            // Reorder stores and calculate cumulative distances
+            const orderedStores = route.map((idx, orderIndex) => {
+                const store = stores[idx];
+                const prevLat = orderIndex === 0 ? startLat : stores[route[orderIndex - 1]].latitude;
+                const prevLng = orderIndex === 0 ? startLng : stores[route[orderIndex - 1]].longitude;
+                const routeDistance = calculateDistance(prevLat, prevLng, store.latitude, store.longitude);
+                
+                return {
+                    ...store,
+                    routeOrder: orderIndex + 1,
+                    routeDistance: routeDistance
+                };
+            });
+
+            return orderedStores;
+        }
+
+        // Create numbered marker icon using DivIcon
+        function createNumberedIcon(number, color = 'blue') {
+            const iconHtml = `
+                <div style="
+                    background-color: ${color === 'blue' ? '#3388ff' : '#ff3333'};
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 50%;
+                    border: 3px solid white;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-weight: bold;
+                    font-size: 14px;
+                    font-family: Arial, sans-serif;
+                ">${number}</div>
+            `;
+            
+            return L.divIcon({
+                html: iconHtml,
+                className: 'numbered-marker',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+        }
+
+        // Update map with user location and stores (with TSP ordering)
+        function updateMap(lat, lng, stores = []) {
+            currentLat = lat;
+            currentLng = lng;
+            
+            if (!map) {
+                initMap();
+            }
+
+            // Clear existing markers
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+            storeMarkers.forEach(marker => map.removeLayer(marker));
+            storeMarkers = [];
+
+            // Add user location marker
+            userMarker = L.marker([lat, lng], {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(map)
+            .bindPopup('<strong>Your Location (Start)</strong><br>' + lat.toFixed(6) + ', ' + lng.toFixed(6));
+
+            if (stores.length > 0) {
+                // Solve TSP to get optimal route
+                const orderedStores = solveTSP(lat, lng, stores);
+                
+                // Store ordered stores globally for display
+                window.orderedStoresData = orderedStores;
+
+                // Calculate total route distance
+                const totalDistance = orderedStores.reduce((sum, store) => sum + (store.routeDistance || 0), 0);
+
+                // Add store markers with numbers
+                orderedStores.forEach((store) => {
+                    const marker = L.marker([store.latitude, store.longitude], {
+                        icon: createNumberedIcon(store.routeOrder, 'blue')
+                    })
+                    .addTo(map)
+                    .bindPopup(`
+                        <strong>Stop ${store.routeOrder}: ${escapeHtml(store.name)}</strong><br>
+                        ${escapeHtml(store.address || '')}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}<br>
+                        <strong>Distance from previous:</strong> ${store.routeDistance ? store.routeDistance.toFixed(1) : store.distance} miles<br>
+                        <strong>Distance from you:</strong> ${store.distance} miles<br>
+                        <a href="https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}" target="_blank" style="color: #007bff;">View on Google Maps</a>
+                    `);
+
+                    storeMarkers.push(marker);
+                });
+
+                // Draw route line
+                const routeCoordinates = [[lat, lng], ...orderedStores.map(s => [s.latitude, s.longitude])];
+                if (window.routeLine) {
+                    map.removeLayer(window.routeLine);
+                }
+                window.routeLine = L.polyline(routeCoordinates, {
+                    color: '#007bff',
+                    weight: 3,
+                    opacity: 0.7,
+                    dashArray: '10, 10'
+                }).addTo(map);
+
+                // Fit map to show all markers
+                const group = new L.featureGroup([userMarker, ...storeMarkers]);
+                map.fitBounds(group.getBounds().pad(0.1));
+                
+                // Store total route distance for display
+                window.totalRouteDistance = totalDistance;
+            } else {
+                map.setView([lat, lng], 13);
+            }
+        }
+
+        // Digital signature verification on page load
+        window.addEventListener('load', async () => {
+            const publicKey = localStorage.getItem('publicKey');
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading fade-in';
+
+            if (!publicKey) {
+                let seconds = 2;
+                statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                statusElement.className = 'error fade-in';
+                const countdown = setInterval(() => {
+                    seconds--;
+                    if (seconds > 0) {
+                        statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                    } else {
+                        clearInterval(countdown);
+                        window.location.href = './create_signature.html';
+                    }
+                }, 1000);
+                return;
+            }
+
+            try {
+                // Add timeout to fetch request
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                
+                const response = await fetch(`${SIGNATURE_VERIFY_API}?signature=${encodeURIComponent(publicKey)}`, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+
+                if (data.error) {
+                    if (data.error.includes('No matching')) {
+                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                        statusElement.className = 'error fade-in';
+                        return;
+                    } else {
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error fade-in';
+                        // Still allow access if verification fails with other errors
+                        document.getElementById('storesContent').style.display = 'block';
+                        initMap();
+                        getCurrentLocation(true);
+                        return;
+                    }
+                }
+
+                contributorName = data.contributor_name;
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                document.getElementById('storesContent').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+
+                // Hide status after 3 seconds
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 3000);
+
+                // Initialize map
+                initMap();
+                
+                // Now proceed with location detection and auto-search
+                getCurrentLocation(true);
+            } catch (error) {
+                console.error('Signature verification error:', error);
+                
+                // If it's a network error, allow access but show warning
+                if (error.name === 'AbortError' || error.message.includes('fetch') || error.message.includes('network')) {
+                    statusElement.innerHTML = '⚠️ Could not verify signature (network error). Access granted with limited functionality.';
+                    statusElement.className = 'error fade-in';
+                    // Still allow access
+                    document.getElementById('storesContent').style.display = 'block';
+                    initMap();
+                    getCurrentLocation(true);
+                    
+                    // Hide warning after 5 seconds
+                    setTimeout(() => {
+                        statusElement.style.display = 'none';
+                    }, 5000);
+                } else {
+                    statusElement.textContent = 'Error verifying signature: ' + error.message;
+                    statusElement.className = 'error fade-in';
+                    // Still allow access for other errors
+                    document.getElementById('storesContent').style.display = 'block';
+                    initMap();
+                    getCurrentLocation(true);
+                }
+            }
+        });
+
+        // Function to get current location
+        function getCurrentLocation(autoSearch = false) {
+            const locationStatusEl = document.getElementById('locationStatus');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            if (!navigator.geolocation) {
+                const errorMsg = 'Geolocation is not supported by your browser.';
+                if (locationStatusEl) {
+                    locationStatusEl.innerHTML = `<span style="color: #dc3545;">❌ ${errorMsg}</span>`;
+                }
+                if (statusMessage) {
+                    statusMessage.innerHTML = `<div class="error">${errorMsg}</div>`;
+                }
+                return;
+            }
+            
+            // Update location status
+            if (locationStatusEl) {
+                locationStatusEl.innerHTML = '<span style="color: #007bff;">📍 Detecting your location...</span>';
+            }
+            if (statusMessage) {
+                statusMessage.innerHTML = '<div class="loading"><div class="spinner"></div>Getting your location...</div>';
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    currentLat = lat;
+                    currentLng = lng;
+                    
+                    // Update location status
+                    if (locationStatusEl) {
+                        locationStatusEl.innerHTML = `<span style="color: #28a745;">✅ Location detected: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
+                    }
+                    
+                    // Update map with user location
+                    updateMap(lat, lng, []);
+                    
+                    if (autoSearch) {
+                        // Automatically search after getting location
+                        searchStores();
+                    } else {
+                        if (statusMessage) {
+                            statusMessage.innerHTML = '<div class="status">Location found! Click "Find Nearby Stores" to search.</div>';
+                        }
+                    }
+                },
+                function(error) {
+                    const errorMsg = error.message || 'Unknown error';
+                    if (locationStatusEl) {
+                        locationStatusEl.innerHTML = `<span style="color: #dc3545;">❌ Error: ${errorMsg}</span>`;
+                    }
+                    if (statusMessage) {
+                        statusMessage.innerHTML = `<div class="error">Error getting location: ${errorMsg}</div>`;
+                    }
+                }
+            );
+        }
+
+        // Note: Location detection is now triggered after signature verification
+
+        // Manual location button (doesn't auto-search, just updates location)
+        document.getElementById('useCurrentLocation').addEventListener('click', function() {
+            getCurrentLocation(false); // false = don't auto-search, just update location
+        });
+
+        // Auto-update when status filter changes
+        document.getElementById('statusFilter').addEventListener('change', function() {
+            // Only auto-search if we have valid coordinates
+            if (currentLat && currentLng) {
+                searchStores();
+            }
+        });
+
+        // Handle form submission
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            searchStores();
+        });
+
+        function searchStores() {
+            const lat = currentLat;
+            const lng = currentLng;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+                const statusMessage = document.getElementById('statusMessage');
+                statusMessage.innerHTML = '<div class="error">Location not detected. Please use "Use Current Location" button.</div>';
+                return;
+            }
+
+            // Show loading state
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.innerHTML = '<div class="loading"><div class="spinner"></div>Searching for nearby stores...</div>';
+            document.getElementById('storesContainer').innerHTML = '';
+            document.getElementById('searchBtn').disabled = true;
+
+            // Build URL with parameters
+            const params = new URLSearchParams({
+                lat: lat.toString(),
+                lng: lng.toString(),
+                limit: '10'
+            });
+            
+            // Always include status parameter (empty string means "all statuses")
+            params.append('status', statusFilter || '');
+
+            // Fetch stores
+            fetch(`${API_URL}?${params.toString()}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('searchBtn').disabled = false;
+                    
+                    if (data.success) {
+                        // Update map with stores (this will apply TSP ordering)
+                        updateMap(lat, lng, data.stores);
+                        
+                        // Display stores (using the TSP-ordered stores from updateMap)
+                        displayStores(data.stores, statusFilter);
+                        
+                        const statusText = statusFilter && statusFilter !== '' ? ` (Status: ${statusFilter})` : ' (All Statuses)';
+                        const routeInfo = window.totalRouteDistance ? ` • Route: ${window.totalRouteDistance.toFixed(1)} miles` : '';
+                        statusMessage.innerHTML = 
+                            `<div class="status">Found ${data.count} store${data.count !== 1 ? 's' : ''} nearby${statusText}${routeInfo}</div>`;
+                    } else {
+                        statusMessage.innerHTML = 
+                            `<div class="error">Error: ${data.error || data.message || 'Unknown error'}</div>`;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('searchBtn').disabled = false;
+                    statusMessage.innerHTML = 
+                        `<div class="error">Error fetching stores: ${error.message}</div>`;
+                    console.error('Error:', error);
+                });
+        }
+
+        function displayStores(stores, statusFilter) {
+            const container = document.getElementById('storesContainer');
+            
+            if (stores.length === 0) {
+                container.innerHTML = '<div class="status">No stores found matching your criteria.</div>';
+                return;
+            }
+
+            // Use ordered stores from TSP if available, otherwise use original order
+            const displayStores = window.orderedStoresData || stores;
+            
+            let html = '<div class="stores-list">';
+            
+            // Show total route distance if TSP was applied
+            if (window.totalRouteDistance !== undefined && window.orderedStoresData) {
+                html += `
+                    <div style="background: #e7f3ff; border: 1px solid #007bff; border-radius: 5px; padding: 1rem; margin-bottom: 1rem; text-align: center;">
+                        <strong>🗺️ Optimized Route</strong><br>
+                        <span style="font-size: 0.9rem;">Total route distance: <strong>${window.totalRouteDistance.toFixed(1)} miles</strong></span>
+                    </div>
+                `;
+            }
+            
+            displayStores.forEach((store, index) => {
+                const priorityBadge = getPriorityBadge(store.priority);
+                const statusBadge = getStatusBadge(store.status);
+                const routeOrder = store.routeOrder || (index + 1);
+                
+                html += `
+                    <div class="store-card" onclick="toggleStoreDetails(${index}, event)" data-store-index="${index}">
+                        <div class="store-header">
+                            <div class="store-name">Stop ${routeOrder}: ${escapeHtml(store.name)}</div>
+                            <div class="store-distance">${store.distance} mi</div>
+                        </div>
+                        <div class="store-info">
+                            ${escapeHtml(store.address)}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}
+                        </div>
+                        <div class="store-meta">
+                            ${store.routeDistance ? `<span style="color: #007bff; font-weight: 600;">Route: ${store.routeDistance.toFixed(1)} mi from previous</span>` : ''}
+                            ${priorityBadge}
+                            ${statusBadge}
+                            ${store.shop_type ? '<span>Type: ' + escapeHtml(store.shop_type) + '</span>' : ''}
+                        </div>
+                        <div class="expand-indicator">Tap to view details</div>
+                        <div class="store-details" id="details-${index}">
+                            ${buildStoreDetails(store, index)}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+            
+            // Store data globally for access
+            window.storesData = displayStores;
+        }
+
+        function getPriorityBadge(priority) {
+            if (!priority) return '';
+            const priorityLower = priority.toLowerCase();
+            let badgeClass = 'badge-medium';
+            if (priorityLower === 'high') badgeClass = 'badge-high';
+            else if (priorityLower === 'low') badgeClass = 'badge-low';
+            return `<span class="store-badge ${badgeClass}">${escapeHtml(priority)} Priority</span>`;
+        }
+
+        function getStatusBadge(status) {
+            if (!status) return '';
+            const statusLower = status.toLowerCase();
+            let badgeClass = 'badge-research';
+            if (statusLower === 'contacted') badgeClass = 'badge-contacted';
+            else if (statusLower === 'partnered') badgeClass = 'badge-partnered';
+            else if (statusLower === 'rejected') badgeClass = 'badge-rejected';
+            else if (statusLower === 'not appropriate') badgeClass = 'badge-rejected'; // Use rejected style for not appropriate
+            return `<span class="store-badge ${badgeClass}">${escapeHtml(status)}</span>`;
+        }
+
+        function buildStoreDetails(store, index) {
+            // Build Google Maps URL
+            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`;
+            const fullAddress = `${escapeHtml(store.address || '')}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}`.trim();
+            
+            let html = `
+                <div class="store-details-section">
+                    <div class="store-details-title">📍 Location</div>
+                    <div class="store-details-content">
+                        <strong>Address:</strong> ${escapeHtml(store.address || 'N/A')}<br>
+                        <strong>City:</strong> ${escapeHtml(store.city || 'N/A')}<br>
+                        <strong>State:</strong> ${escapeHtml(store.state || 'N/A')}<br>
+                        <strong>Distance:</strong> ${store.distance} miles away<br>
+                        <strong>Coordinates:</strong> ${store.latitude.toFixed(6)}, ${store.longitude.toFixed(6)}<br>
+                        <a href="${mapsUrl}" target="_blank" class="store-details-link" style="display: inline-block; margin-top: 0.5rem; font-weight: 600;">🗺️ View on Google Maps</a>
+                    </div>
+                </div>
+            `;
+
+            if (store.shop_type) {
+                html += `
+                    <div class="store-details-section">
+                        <div class="store-details-title">🏪 Shop Type</div>
+                        <div class="store-details-content">${escapeHtml(store.shop_type)}</div>
+                    </div>
+                `;
+            }
+
+            if (store.phone || store.email || store.website || store.instagram) {
+                html += `
+                    <div class="store-details-section">
+                        <div class="store-details-title">📞 Contact Information</div>
+                        <div class="store-details-content">
+                            ${store.phone ? '<strong>Phone:</strong> <a href="tel:' + escapeHtml(store.phone) + '" class="store-details-link">' + escapeHtml(store.phone) + '</a><br>' : ''}
+                            ${store.email ? '<strong>Email:</strong> <a href="mailto:' + escapeHtml(store.email) + '" class="store-details-link">' + escapeHtml(store.email) + '</a><br>' : ''}
+                            ${store.website ? '<strong>Website:</strong> <a href="' + escapeHtml(store.website) + '" target="_blank" class="store-details-link">' + escapeHtml(store.website) + '</a><br>' : ''}
+                            ${store.instagram ? '<strong>Instagram:</strong> <a href="' + escapeHtml(store.instagram) + '" target="_blank" class="store-details-link">View Profile</a><br>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (store.contact_date || store.contact_method) {
+                html += `
+                    <div class="store-details-section">
+                        <div class="store-details-title">📅 Contact History</div>
+                        <div class="store-details-content">
+                            ${store.contact_date ? '<strong>Contact Date:</strong> ' + escapeHtml(store.contact_date) + '<br>' : ''}
+                            ${store.contact_method ? '<strong>Contact Method:</strong> ' + escapeHtml(store.contact_method) + '<br>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (store.notes) {
+                html += `
+                    <div class="store-details-section">
+                        <div class="store-details-title">📝 Notes</div>
+                        <div class="store-details-content">${escapeHtml(store.notes)}</div>
+                    </div>
+                `;
+            }
+
+            // Add status update section
+            // Use index-based ID to avoid issues with special characters in shop names
+            const statusSelectId = `statusUpdate-${index}`;
+            const statusMessageId = `statusUpdateMessage-${index}`;
+            const shopNameEscaped = escapeHtml(store.name).replace(/'/g, "\\'");
+            
+            html += `
+                <div class="store-details-section">
+                    <div class="store-details-title">✏️ Update Status</div>
+                    <div class="store-details-content">
+                        <label for="${statusSelectId}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Status:</label>
+                        <select id="${statusSelectId}" 
+                                data-shop-index="${index}"
+                                class="status-update-select"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.5rem;">
+                            <option value="Contacted" ${store.status === 'Contacted' ? 'selected' : ''}>Contacted</option>
+                            <option value="Research" ${store.status === 'Research' ? 'selected' : ''}>Research</option>
+                            <option value="Partnered" ${store.status === 'Partnered' ? 'selected' : ''}>Partnered</option>
+                            <option value="Rejected" ${store.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
+                            <option value="Not Appropriate" ${store.status === 'Not Appropriate' ? 'selected' : ''}>Not Appropriate</option>
+                        </select>
+                        <button onclick="updateStoreStatusByIndex(${index})" 
+                                class="btn" 
+                                style="width: 100%; padding: 0.6rem; font-size: 0.95rem; margin-top: 0.5rem;">
+                            Update Status
+                        </button>
+                        <div id="${statusMessageId}" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+            `;
+
+            return html;
+        }
+
+        function toggleStoreDetails(index, event) {
+            // Don't toggle if click was on a button or select element
+            if (event && (event.target.tagName === 'BUTTON' || event.target.tagName === 'SELECT' || event.target.closest('button') || event.target.closest('select'))) {
+                return;
+            }
+            
+            const card = document.querySelector(`[data-store-index="${index}"]`);
+            if (!card) return;
+
+            // Close other expanded cards (optional - remove if you want multiple open)
+            document.querySelectorAll('.store-card.expanded').forEach(expandedCard => {
+                if (expandedCard !== card) {
+                    expandedCard.classList.remove('expanded');
+                }
+            });
+
+            // Toggle this card
+            card.classList.toggle('expanded');
+        }
+
+        function updateStoreStatusByIndex(index) {
+            const store = window.storesData[index];
+            if (!store) {
+                console.error('Store not found at index:', index);
+                return;
+            }
+
+            const shopName = store.name;
+            const selectElement = document.getElementById(`statusUpdate-${index}`);
+            const messageElement = document.getElementById(`statusUpdateMessage-${index}`);
+            
+            if (!selectElement || !messageElement) {
+                console.error('Status update elements not found');
+                return;
+            }
+            
+            const newStatus = selectElement.value;
+            const currentStatus = store.status;
+
+            // Don't update if status hasn't changed
+            if (newStatus === currentStatus) {
+                messageElement.innerHTML = '<span style="color: #6c757d;">Status unchanged</span>';
+                return;
+            }
+
+            // Show loading state
+            messageElement.innerHTML = '<span style="color: #007bff;">Updating status...</span>';
+            selectElement.disabled = true;
+
+            // Get digital signature (public key) from localStorage
+            const publicKey = localStorage.getItem('publicKey');
+            
+            // Build URL for status update
+            const params = new URLSearchParams({
+                action: 'update_status',
+                shop_name: shopName,
+                new_status: newStatus
+            });
+            
+            // Add digital signature if available
+            if (publicKey) {
+                params.append('digital_signature', publicKey);
+            }
+
+            // Call API to update status
+            fetch(`${API_URL}?${params.toString()}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        messageElement.innerHTML = `<span style="color: #28a745;">✅ ${data.message}</span>`;
+                        
+                        // Update the store data
+                        window.storesData[index].status = newStatus;
+                        
+                        // Update the badge in the card
+                        const card = document.querySelector(`[data-store-index="${index}"]`);
+                        if (card) {
+                            const badgeContainer = card.querySelector('.store-meta');
+                            if (badgeContainer) {
+                                // Find and update status badge
+                                const statusBadge = getStatusBadge(newStatus);
+                                // Replace the status badge (it's the second badge)
+                                const badges = badgeContainer.querySelectorAll('.store-badge');
+                                if (badges.length > 1) {
+                                    badges[1].outerHTML = statusBadge;
+                                }
+                            }
+                        }
+                        
+                        // Refresh the stores list after a short delay to show updated status
+                        setTimeout(() => {
+                            if (currentLat && currentLng) {
+                                // Re-search to get updated data from the sheet
+                                searchStores();
+                            }
+                        }, 1500);
+                    } else {
+                        messageElement.innerHTML = `<span style="color: #dc3545;">❌ Error: ${data.error || data.message || 'Unknown error'}</span>`;
+                        selectElement.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    messageElement.innerHTML = `<span style="color: #dc3545;">❌ Error updating status: ${error.message}</span>`;
+                    selectElement.disabled = false;
+                    console.error('Error:', error);
+                });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+    <!-- Reload latest version link -->
+    <script>
+        (function() {
+            const div = document.createElement('div');
+            div.style.textAlign = 'center';
+            div.style.marginTop = '1rem';
+            const url = new URL(window.location.href);
+            url.searchParams.set('reload', 'true');
+            const a = document.createElement('a');
+            a.href = url.toString();
+            a.textContent = 'Reload Latest Version';
+            a.style.fontSize = '0.8rem';
+            a.style.color = '#007bff';
+            a.style.textDecoration = 'none';
+            div.appendChild(a);
+            document.body.appendChild(div);
+        })();
+    </script>
+    <!-- View Source Code link -->
+    <script>
+        (function() {
+            const div = document.createElement('div');
+            div.style.textAlign = 'center';
+            div.style.marginTop = '1rem';
+            const a = document.createElement('a');
+            a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/stores_nearby.html';
+            a.textContent = 'View Source Code';
+            a.style.fontSize = '0.8rem';
+            a.style.color = '#007bff';
+            a.style.textDecoration = 'none';
+            div.appendChild(a);
+            document.body.appendChild(div);
+        })();
+    </script>
+</body>
+</html>
+
