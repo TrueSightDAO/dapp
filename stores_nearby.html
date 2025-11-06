@@ -283,6 +283,16 @@
             background: #17a2b8;
             color: white;
         }
+        .badge-followup {
+            background: #ffc107;
+            color: #333;
+            font-weight: 600;
+        }
+        .badge-followedup {
+            background: #6f42c1;
+            color: white;
+            font-weight: 500;
+        }
         @media (max-width: 600px) {
             .location-inputs {
                 grid-template-columns: 1fr;
@@ -339,12 +349,17 @@
                 <label for="statusFilter" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Filter by Status:</label>
                 <select id="statusFilter" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
                     <option value="Contacted">Contacted</option>
+                    <option value="Manager Follow-up">Manager Follow-up</option>
+                    <option value="Followed Up">Followed Up</option>
                     <option value="Research">Research</option>
                     <option value="Partnered">Partnered</option>
                     <option value="Rejected">Rejected</option>
                     <option value="Not Appropriate">Not Appropriate</option>
                     <option value="">All Statuses</option>
                 </select>
+                <div id="statusDescription" style="margin-top: 0.5rem; padding: 0.75rem; background-color: #f8f9fa; border-left: 3px solid #007bff; border-radius: 4px; font-size: 0.9rem; color: #495057; line-height: 1.5;">
+                    <strong>📋 Status:</strong> <span id="statusDescriptionText">Select a status to see its meaning</span>
+                </div>
             </div>
 
             <!-- Location Controls - Primary action -->
@@ -681,6 +696,12 @@
                 // Initialize map
                 initMap();
                 
+                // Initialize status description
+                const statusFilter = document.getElementById('statusFilter');
+                if (statusFilter) {
+                    updateStatusDescription(statusFilter.value || '');
+                }
+                
                 // Now proceed with location detection and auto-search
                 getCurrentLocation(true);
             } catch (error) {
@@ -693,6 +714,10 @@
                     // Still allow access
                     document.getElementById('storesContent').style.display = 'block';
                     initMap();
+                    const statusFilter = document.getElementById('statusFilter');
+                    if (statusFilter) {
+                        updateStatusDescription(statusFilter.value || '');
+                    }
                     getCurrentLocation(true);
                     
                     // Hide warning after 5 seconds
@@ -705,6 +730,10 @@
                     // Still allow access for other errors
                     document.getElementById('storesContent').style.display = 'block';
                     initMap();
+                    const statusFilter = document.getElementById('statusFilter');
+                    if (statusFilter) {
+                        updateStatusDescription(statusFilter.value || '');
+                    }
                     getCurrentLocation(true);
                 }
             }
@@ -777,13 +806,39 @@
             getCurrentLocation(false); // false = don't auto-search, just update location
         });
 
+        // Status descriptions
+        const statusDescriptions = {
+            'Contacted': 'Initial contact has been made with the store. This is the first step in the outreach process.',
+            'Manager Follow-up': 'Store visit completed. Staff indicated to follow up with the manager using provided contact details. Action required.',
+            'Followed Up': 'Follow-up contact with the manager has been completed. Waiting for their response or next steps.',
+            'Research': 'Store is being researched. Gathering information about the store, their products, and potential fit.',
+            'Partnered': 'Store is an active partner. They carry our products and have an established business relationship.',
+            'Rejected': 'Store declined partnership or is not interested in carrying our products.',
+            'Not Appropriate': 'Store does not align with our values or target market. Not a good fit for partnership.',
+            '': 'Showing all stores regardless of status. Use this to see the complete list.'
+        };
+
+        // Update status description when filter changes
+        function updateStatusDescription(statusValue) {
+            const descriptionEl = document.getElementById('statusDescriptionText');
+            if (descriptionEl) {
+                const description = statusDescriptions[statusValue] || 'No description available for this status.';
+                descriptionEl.textContent = description;
+            }
+        }
+
         // Auto-update when status filter changes
         document.getElementById('statusFilter').addEventListener('change', function() {
+            const selectedStatus = this.value;
+            updateStatusDescription(selectedStatus);
+            
             // Only auto-search if we have valid coordinates
             if (currentLat && currentLng) {
                 searchStores();
             }
         });
+
+        // Note: Status description is initialized when storesContent is shown (after signature verification)
 
         // Handle form submission
         document.getElementById('searchForm').addEventListener('submit', function(e) {
@@ -920,6 +975,8 @@
             const statusLower = status.toLowerCase();
             let badgeClass = 'badge-research';
             if (statusLower === 'contacted') badgeClass = 'badge-contacted';
+            else if (statusLower === 'manager follow-up' || statusLower === 'manager followup') badgeClass = 'badge-followup';
+            else if (statusLower === 'followed up' || statusLower === 'followedup') badgeClass = 'badge-followedup';
             else if (statusLower === 'partnered') badgeClass = 'badge-partnered';
             else if (statusLower === 'rejected') badgeClass = 'badge-rejected';
             else if (statusLower === 'not appropriate') badgeClass = 'badge-rejected'; // Use rejected style for not appropriate
@@ -1005,6 +1062,8 @@
                                 class="status-update-select"
                                 style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.5rem;">
                             <option value="Contacted" ${store.status === 'Contacted' ? 'selected' : ''}>Contacted</option>
+                            <option value="Manager Follow-up" ${store.status === 'Manager Follow-up' ? 'selected' : ''}>Manager Follow-up</option>
+                            <option value="Followed Up" ${store.status === 'Followed Up' ? 'selected' : ''}>Followed Up</option>
                             <option value="Research" ${store.status === 'Research' ? 'selected' : ''}>Research</option>
                             <option value="Partnered" ${store.status === 'Partnered' ? 'selected' : ''}>Partnered</option>
                             <option value="Rejected" ${store.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
