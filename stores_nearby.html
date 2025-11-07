@@ -255,6 +255,15 @@
             font-size: 0.9rem;
             color: #6c757d;
         }
+        .store-followup {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #495057;
+            line-height: 1.4;
+        }
+        .store-followup strong {
+            font-weight: 600;
+        }
         .store-badge {
             display: inline-block;
             padding: 0.2rem 0.5rem;
@@ -292,6 +301,13 @@
             background: #6f42c1;
             color: white;
             font-weight: 500;
+        }
+        .store-details-link {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .store-details-link:hover {
+            text-decoration: underline;
         }
         @media (max-width: 600px) {
             .location-inputs {
@@ -946,6 +962,13 @@
                             ${statusBadge}
                             ${store.shop_type ? '<span>Type: ' + escapeHtml(store.shop_type) + '</span>' : ''}
                         </div>
+                        ${store.follow_up_date || store.follow_up_event_link || store.contact_person ? `
+                            <div class="store-followup">
+                                ${store.follow_up_date ? '📅 <strong>Follow-up:</strong> ' + escapeHtml(store.follow_up_date) : ''}
+                                ${store.contact_person ? (store.follow_up_date ? '<br>' : '') + '<strong>Contact:</strong> ' + escapeHtml(store.contact_person) : ''}
+                                ${store.follow_up_event_link ? '<br><a href="' + encodeURI(store.follow_up_event_link) + '" target="_blank" class="store-details-link" onclick="event.stopPropagation();">Open Calendar Event</a>' : ''}
+                            </div>
+                        ` : ''}
                         <div class="expand-indicator">Tap to view details</div>
                         <div class="store-details" id="details-${index}">
                             ${buildStoreDetails(store, index)}
@@ -1037,11 +1060,53 @@
                 `;
             }
 
-            if (store.notes) {
+            const followUpLines = [];
+            if (store.follow_up_date) {
+                followUpLines.push('<strong>Follow-up Date:</strong> ' + escapeHtml(store.follow_up_date));
+            }
+            if (store.contact_person) {
+                followUpLines.push('<strong>Contact Person:</strong> ' + escapeHtml(store.contact_person));
+            }
+            if (store.owner_name) {
+                followUpLines.push('<strong>Owner:</strong> ' + escapeHtml(store.owner_name));
+            }
+            if (store.referral) {
+                followUpLines.push('<strong>Referral:</strong> ' + escapeHtml(store.referral));
+            }
+            if (store.product_interest) {
+                followUpLines.push('<strong>Product Interest:</strong> ' + escapeHtml(store.product_interest));
+            }
+            if (store.visit_date) {
+                followUpLines.push('<strong>Visit Date:</strong> ' + escapeHtml(store.visit_date));
+            }
+            if (store.outcome) {
+                followUpLines.push('<strong>Outcome:</strong> ' + escapeHtml(store.outcome));
+            }
+            if (store.follow_up_event_link) {
+                const eventUrl = encodeURI(store.follow_up_event_link);
+                followUpLines.push('<a href="' + eventUrl + '" target="_blank" class="store-details-link">📅 View Calendar Event</a>');
+            }
+            if (followUpLines.length > 0) {
+                html += `
+                    <div class="store-details-section">
+                        <div class="store-details-title">📞 Follow-up Plan</div>
+                        <div class="store-details-content">${followUpLines.join('<br>')}</div>
+                    </div>
+                `;
+            }
+
+            if (store.notes || store.sales_process_notes) {
+                const notesLines = [];
+                if (store.notes) {
+                    notesLines.push('<strong>Store Notes:</strong><br>' + escapeHtml(store.notes));
+                }
+                if (store.sales_process_notes) {
+                    notesLines.push('<strong>Sales Process Notes:</strong><br>' + escapeHtml(store.sales_process_notes));
+                }
                 html += `
                     <div class="store-details-section">
                         <div class="store-details-title">📝 Notes</div>
-                        <div class="store-details-content">${escapeHtml(store.notes)}</div>
+                        <div class="store-details-content">${notesLines.join('<br><br>')}</div>
                     </div>
                 `;
             }
@@ -1083,8 +1148,15 @@
         }
 
         function toggleStoreDetails(index, event) {
-            // Don't toggle if click was on a button or select element
-            if (event && (event.target.tagName === 'BUTTON' || event.target.tagName === 'SELECT' || event.target.closest('button') || event.target.closest('select'))) {
+            // Don't toggle if click was on a button, select, or link element
+            if (event && (
+                event.target.tagName === 'BUTTON' ||
+                event.target.tagName === 'SELECT' ||
+                event.target.tagName === 'A' ||
+                event.target.closest('button') ||
+                event.target.closest('select') ||
+                event.target.closest('a')
+            )) {
                 return;
             }
             
