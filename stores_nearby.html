@@ -848,41 +848,20 @@
             if (store.name) {
                 lines.push(store.name);
             }
-            const descriptors = [];
-            if (store.status) {
-                descriptors.push(`Status: ${store.status}`);
+            const addressParts = [
+                store.address || '',
+                store.city || '',
+                store.state || ''
+            ].filter(Boolean);
+            if (addressParts.length > 0) {
+                lines.push(addressParts.join(', '));
             }
-            if (store.shop_type) {
-                descriptors.push(`Type: ${store.shop_type}`);
+            const link = buildStoreShareLink(store);
+            if (link) {
+                lines.push('');
+                lines.push('For more context:');
+                lines.push(link);
             }
-            if (store.distance) {
-                descriptors.push(`${store.distance} miles away`);
-            }
-            if (descriptors.length > 0) {
-                lines.push(descriptors.join(' • '));
-            }
-            if (store.address || store.city || store.state) {
-                const addressParts = [
-                    store.address || '',
-                    store.city || '',
-                    store.state || ''
-                ].filter(Boolean);
-                if (addressParts.length > 0) {
-                    lines.push(addressParts.join(', '));
-                }
-            }
-            if (store.website) {
-                lines.push(`Website: ${store.website}`);
-            }
-            if (store.instagram) {
-                lines.push(`Instagram: ${store.instagram}`);
-            }
-            if (store.notes) {
-                lines.push(`Notes: ${store.notes}`);
-            } else if (store.follow_up_date) {
-                lines.push(`Follow-up: ${store.follow_up_date}`);
-            }
-            lines.push(buildStoreShareLink(store));
             return lines.join('\n');
         }
 
@@ -1055,6 +1034,44 @@
             }
             pendingStoreDeepLink = null;
             focusStoreCard(index);
+        }
+
+        function applyDeepLinkCoordinates(autoSearch = false) {
+            if (!deepLinkCoordinates) {
+                return false;
+            }
+            const { lat, lng } = deepLinkCoordinates;
+            if (typeof lat !== 'number' || Number.isNaN(lat) ||
+                typeof lng !== 'number' || Number.isNaN(lng)) {
+                return false;
+            }
+            const alreadyApplied = deepLinkLocationApplied;
+            deepLinkLocationApplied = true;
+            currentLocationLabel = 'Shared Location (Start)';
+            currentLat = lat;
+            currentLng = lng;
+            if (!alreadyApplied) {
+                const locationStatusEl = document.getElementById('locationStatus');
+                if (locationStatusEl) {
+                    locationStatusEl.innerHTML = `<span style="color: #17a2b8;">📍 Using shared location: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
+                }
+                const statusMessage = document.getElementById('statusMessage');
+                if (statusMessage) {
+                    statusMessage.innerHTML = '<div class="status">Exploring this area from a shared link...</div>';
+                }
+                updateMap(lat, lng, []);
+            }
+            if (autoSearch) {
+                searchStores();
+            }
+            return true;
+        }
+
+        function startInitialLocationFlow(autoSearch = false) {
+            if (applyDeepLinkCoordinates(autoSearch)) {
+                return;
+            }
+            getCurrentLocation(autoSearch);
         }
 
         function showSignatureNoticeOnce(message) {
@@ -1290,7 +1307,7 @@
                     shadowSize: [41, 41]
                 })
             }).addTo(map)
-            .bindPopup('<strong>Your Location (Start)</strong><br>' + lat.toFixed(6) + ', ' + lng.toFixed(6));
+            .bindPopup(`<strong>${currentLocationLabel}</strong><br>` + lat.toFixed(6) + ', ' + lng.toFixed(6));
 
             if (stores.length > 0) {
                 // Solve TSP to get optimal route
@@ -1370,7 +1387,7 @@
                     updateStatusDescription(statusFilter.value || '');
                 }
                 setInteractionMode('view-only');
-                getCurrentLocation(true);
+                startInitialLocationFlow(true);
                 return;
             }
 
@@ -1401,7 +1418,7 @@
                             updateStatusDescription(statusFilter.value || '');
                         }
                         setInteractionMode('view-only');
-                        getCurrentLocation(true);
+                        startInitialLocationFlow(true);
                         return;
                     } else {
                         statusElement.textContent = 'Error: ' + data.error;
@@ -1409,7 +1426,7 @@
                         // Still allow access if verification fails with other errors
                         showStoresContent();                                                                                                                   
                         initMap();
-                        getCurrentLocation(true);
+                        startInitialLocationFlow(true);
                         setInteractionMode('view-only');
                         return;
                     }
@@ -1438,7 +1455,7 @@
                 }
                 
                 // Now proceed with location detection and auto-search
-                getCurrentLocation(true);
+                startInitialLocationFlow(true);
             } catch (error) {
                 console.error('Signature verification error:', error);
                 
@@ -1453,7 +1470,7 @@
                     if (statusFilter) {
                         updateStatusDescription(statusFilter.value || '');
                     }
-                    getCurrentLocation(true);
+                    startInitialLocationFlow(true);
                     setInteractionMode('view-only');
                     
                     // Hide warning after 5 seconds
@@ -1470,7 +1487,7 @@
                     if (statusFilter) {
                         updateStatusDescription(statusFilter.value || '');
                     }
-                    getCurrentLocation(true);
+                    startInitialLocationFlow(true);
                     setInteractionMode('view-only');
                 }
             }
@@ -1504,6 +1521,7 @@
                 function(position) {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
+                    currentLocationLabel = 'Your Location (Start)';
                     currentLat = lat;
                     currentLng = lng;
                     
