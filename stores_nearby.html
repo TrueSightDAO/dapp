@@ -753,11 +753,23 @@
                 const params = new URLSearchParams(window.location.search);
                 const storeKey = params.get('store');
                 const statusParam = params.get('status');
+                const latParam = params.get('lat');
+                const lngParam = params.get('lng');
                 if (statusParam) {
                     const statusFilterEl = document.getElementById('statusFilter');
                     if (statusFilterEl) {
                         statusFilterEl.value = statusParam;
                         updateStatusDescription(statusParam);
+                    }
+                }
+                if (latParam && lngParam) {
+                    const parsedLat = parseFloat(latParam);
+                    const parsedLng = parseFloat(lngParam);
+                    if (!Number.isNaN(parsedLat) && !Number.isNaN(parsedLng)) {
+                        deepLinkCoordinates = {
+                            lat: parsedLat,
+                            lng: parsedLng
+                        };
                     }
                 }
                 if (storeKey) {
@@ -821,6 +833,12 @@
             }
             if (store.status) {
                 url.searchParams.set('status', store.status);
+            }
+            if (typeof store.latitude === 'number' && !Number.isNaN(store.latitude)) {
+                url.searchParams.set('lat', store.latitude.toFixed(6));
+            }
+            if (typeof store.longitude === 'number' && !Number.isNaN(store.longitude)) {
+                url.searchParams.set('lng', store.longitude.toFixed(6));
             }
             return url.toString();
         }
