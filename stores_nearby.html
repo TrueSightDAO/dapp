@@ -359,6 +359,60 @@
         .store-details-link:hover {
             text-decoration: underline;
         }
+        .store-card.highlight {
+            animation: highlightFade 2.5s ease-out;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.35);
+        }
+        @keyframes highlightFade {
+            0% { box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.75); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
+        }
+        .share-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .share-message {
+            font-size: 0.85rem;
+            color: #007bff;
+            margin-top: 0.25rem;
+        }
+        .share-message.error {
+            color: #dc3545;
+        }
+        .share-message.success {
+            color: #28a745;
+        }
+        .signature-banner {
+            display: none;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .signature-banner a {
+            color: #0c5460;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .signature-banner a:hover {
+            text-decoration: underline;
+        }
+        .signature-locked-hint {
+            display: none;
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+        .requires-signature-soft-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
         @media (max-width: 600px) {
             .location-inputs {
                 grid-template-columns: 1fr;
@@ -411,6 +465,9 @@
 
         <div id="welcome" style="display: none; margin: 1rem 0;"></div>
         <p id="status" class="fade-in" style="margin: 1rem 0; font-weight: bold; min-height: 24px; font-size: 1rem; text-align: center;">Verifying your digital signature...</p>
+        <div id="signaturePromptBanner" class="signature-banner">
+            You are currently viewing stores in read-only mode. <a href="./create_signature.html">Generate your digital signature</a> to add or update store information.
+        </div>
         
         <div id="storesContent" style="display: none;">
             <!-- New Store Quick Capture -->
@@ -420,6 +477,7 @@
                     <button type="button"
                             class="btn btn-secondary"
                             id="newStoreToggleBtn"
+                            data-requires-signature="true"
                             style="width: auto; padding: 0.4rem 1rem;">
                         Open Form
                     </button>
@@ -429,10 +487,10 @@
                         <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 1rem;">
                             Capture a new shop while you are on-site. We'll use your current location to fill in the basics so you can stay in the flow.
                         </p>
-                        <form id="newStoreForm">
+                        <form id="newStoreForm" data-requires-signature="true">
                             <div class="form-group">
                                 <label for="newStoreName">Shop Name *</label>
-                                <input type="text" id="newStoreName" required placeholder="e.g. Mystic Flora Apothecary">                                   
+                                <input type="text" id="newStoreName" required placeholder="e.g. Mystic Flora Apothecary">
                                 <div id="newStoreAutocompleteHost" style="display: none;"></div>
                             </div>
 
@@ -567,6 +625,9 @@
                                 Save New Store
                             </button>
                         </form>
+                        <div id="newStoreLockedMessage" class="signature-locked-hint">
+                            Connect your digital signature to capture new stores on the fly.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -660,6 +721,314 @@
             error: null
         };
         let placeAutocompleteElement = null;
+        let interactionMode = 'view-only';
+        let pendingStoreDeepLink = null;
+        let lastSignatureNotice = 0;
+
+        function initializeDeepLinkFromQuery() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const storeKey = params.get('store');
+                const statusParam = params.get('status');
+                if (statusParam) {
+                    const statusFilterEl = document.getElementById('statusFilter');
+                    if (statusFilterEl) {
+                        statusFilterEl.value = statusParam;
+                        updateStatusDescription(statusParam);
+                    }
+                }
+                if (storeKey) {
+                    pendingStoreDeepLink = {
+                        storeKey: storeKey.toLowerCase()
+                    };
+                }
+            } catch (error) {
+                console.warn('Deep link parse error:', error);
+            }
+        }
+
+        function normalizeForKey(value) {
+            return (value || '')
+                .toString()
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, '-')
+                .replace(/[^a-z0-9\-]/g, '');
+        }
+
+        function createStoreKey(store) {
+            const parts = [
+                normalizeForKey(store.name),
+                normalizeForKey(store.address),
+                normalizeForKey(store.city),
+                normalizeForKey(store.state)
+            ].filter(Boolean);
+            return parts.join('__') || normalizeForKey(store.name) || '';
+        }
+
+        function buildStoreShareLink(store) {
+            const baseUrl = `${window.location.origin}${window.location.pathname}`;
+            const url = new URL(baseUrl);
+            const storeKey = createStoreKey(store);
+            if (storeKey) {
+                url.searchParams.set('store', storeKey);
+            }
+            if (store.status) {
+                url.searchParams.set('status', store.status);
+            }
+            return url.toString();
+        }
+
+        function buildStoreShareText(store) {
+            const lines = [];
+            if (store.name) {
+                lines.push(store.name);
+            }
+            const descriptors = [];
+            if (store.status) {
+                descriptors.push(`Status: ${store.status}`);
+            }
+            if (store.shop_type) {
+                descriptors.push(`Type: ${store.shop_type}`);
+            }
+            if (store.distance) {
+                descriptors.push(`${store.distance} miles away`);
+            }
+            if (descriptors.length > 0) {
+                lines.push(descriptors.join(' • '));
+            }
+            if (store.address || store.city || store.state) {
+                const addressParts = [
+                    store.address || '',
+                    store.city || '',
+                    store.state || ''
+                ].filter(Boolean);
+                if (addressParts.length > 0) {
+                    lines.push(addressParts.join(', '));
+                }
+            }
+            if (store.website) {
+                lines.push(`Website: ${store.website}`);
+            }
+            if (store.instagram) {
+                lines.push(`Instagram: ${store.instagram}`);
+            }
+            if (store.notes) {
+                lines.push(`Notes: ${store.notes}`);
+            } else if (store.follow_up_date) {
+                lines.push(`Follow-up: ${store.follow_up_date}`);
+            }
+            lines.push(buildStoreShareLink(store));
+            return lines.join('\n');
+        }
+
+        function showShareMessage(elementId, type, message) {
+            const el = typeof elementId === 'string' ? document.getElementById(elementId) : elementId;
+            if (!el) return;
+            el.textContent = message;
+            el.classList.remove('error', 'success');
+            if (type === 'error') {
+                el.classList.add('error');
+            } else if (type === 'success') {
+                el.classList.add('success');
+            }
+            el.classList.add('share-message');
+        }
+
+        function handleStoreShare(event, index) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            if (!window.storesData || !window.storesData[index]) {
+                return;
+            }
+            const store = window.storesData[index];
+            const messageId = `shareMessage-${index}`;
+            const shareText = buildStoreShareText(store);
+            const shareLink = buildStoreShareLink(store);
+
+            async function shareNative() {
+                try {
+                    await navigator.share({
+                        title: store.name || 'Store Highlight',
+                        text: shareText,
+                        url: shareLink
+                    });
+                    showShareMessage(messageId, 'success', 'Shared via system dialog.');
+                } catch (error) {
+                    if (error && error.name === 'AbortError') {
+                        return;
+                    }
+                    throw error;
+                }
+            }
+
+            function shareViaWhatsApp() {
+                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                window.open(whatsappUrl, '_blank');
+                showShareMessage(messageId, 'success', 'Opening WhatsApp share...');
+            }
+
+            if (navigator.share) {
+                shareNative().catch(() => {
+                    shareViaWhatsApp();
+                });
+            } else {
+                shareViaWhatsApp();
+            }
+        }
+
+        async function copyStoreShare(event, index) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            if (!window.storesData || !window.storesData[index]) {
+                return;
+            }
+            const store = window.storesData[index];
+            const messageId = `shareMessage-${index}`;
+            const shareText = buildStoreShareText(store);
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(shareText);
+                    showShareMessage(messageId, 'success', 'Copied summary to clipboard.');
+                    return;
+                } catch (error) {
+                    console.warn('Clipboard write failed, falling back:', error);
+                }
+            }
+
+            // Fallback: create temporary textarea
+            const textarea = document.createElement('textarea');
+            textarea.value = shareText;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showShareMessage(messageId, 'success', 'Copied summary to clipboard.');
+            } catch (error) {
+                console.error('Unable to copy share text:', error);
+                showShareMessage(messageId, 'error', 'Unable to copy text. Please copy manually.');
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+
+        function scrollStoreCardIntoView(index) {
+            const card = document.getElementById(`store-card-${index}`);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function highlightStoreCard(index) {
+            const card = document.getElementById(`store-card-${index}`);
+            if (!card) return;
+            card.classList.add('highlight');
+            setTimeout(() => {
+                card.classList.remove('highlight');
+            }, 2600);
+        }
+
+        function focusStoreCard(index) {
+            const card = document.querySelector(`[data-store-index="${index}"]`);
+            if (!card) return;
+            document.querySelectorAll('.store-card.expanded').forEach(expandedCard => {
+                if (expandedCard !== card) {
+                    expandedCard.classList.remove('expanded');
+                }
+            });
+            card.classList.add('expanded');
+            scrollStoreCardIntoView(index);
+            highlightStoreCard(index);
+        }
+
+        function focusStoreFromDeepLinkIfNeeded() {
+            if (!pendingStoreDeepLink || !Array.isArray(window.storesData)) {
+                return;
+            }
+            const targetKey = pendingStoreDeepLink.storeKey;
+            if (!targetKey) {
+                pendingStoreDeepLink = null;
+                return;
+            }
+            const index = window.storesData.findIndex(store => {
+                const key = store.storeKey || createStoreKey(store);
+                return key.toLowerCase() === targetKey;
+            });
+            if (index === -1) {
+                return;
+            }
+            pendingStoreDeepLink = null;
+            focusStoreCard(index);
+        }
+
+        function showSignatureNoticeOnce(message) {
+            const now = Date.now();
+            if (now - lastSignatureNotice < 3000) {
+                return;
+            }
+            lastSignatureNotice = now;
+            const statusElement = document.getElementById('status');
+            if (statusElement) {
+                statusElement.textContent = message;
+                statusElement.style.display = 'block';
+                statusElement.className = 'error fade-in';
+                setTimeout(() => {
+                    statusElement.textContent = '';
+                }, 2500);
+            }
+        }
+
+        function refreshSignatureDependentControls() {
+            const enabled = interactionMode === 'interactive';
+            document.querySelectorAll('[data-requires-signature="true"]').forEach(element => {
+                const tag = element.tagName;
+                const isFormControl = ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(tag);
+                if (isFormControl) {
+                    element.disabled = !enabled;
+                }
+                element.classList.toggle('requires-signature-soft-disabled', !enabled);
+                if (element.matches('form[data-requires-signature="true"]')) {
+                    element.querySelectorAll('input, select, textarea, button').forEach(child => {
+                        child.disabled = !enabled;
+                        child.classList.toggle('requires-signature-soft-disabled', !enabled);
+                    });
+                }
+            });
+            const lockedMessage = document.getElementById('newStoreLockedMessage');
+            if (lockedMessage) {
+                lockedMessage.style.display = enabled ? 'none' : 'block';
+            }
+            const toggleBtn = document.getElementById('newStoreToggleBtn');
+            if (toggleBtn) {
+                if (!toggleBtn.dataset.originalLabel) {
+                    toggleBtn.dataset.originalLabel = toggleBtn.textContent;
+                }
+                toggleBtn.textContent = enabled ? toggleBtn.dataset.originalLabel : 'Requires Signature';
+            }
+        }
+
+        function setInteractionMode(mode) {
+            interactionMode = mode;
+            const banner = document.getElementById('signaturePromptBanner');
+            if (banner) {
+                banner.style.display = mode === 'interactive' ? 'none' : 'block';
+            }
+            if (mode === 'view-only') {
+                setNewStoreCardExpanded(false);
+            }
+            refreshSignatureDependentControls();
+        }
+
+        initializeDeepLinkFromQuery();
+        setInteractionMode('view-only');
 
         function showStoresContent() {
             const contentEl = document.getElementById('storesContent');
@@ -904,18 +1273,16 @@
             statusElement.className = 'loading fade-in';
 
             if (!publicKey) {
-                let seconds = 2;
-                statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                statusElement.textContent = 'No digital signature found. Viewing in read-only mode.';
                 statusElement.className = 'error fade-in';
-                const countdown = setInterval(() => {
-                    seconds--;
-                    if (seconds > 0) {
-                        statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
-                    } else {
-                        clearInterval(countdown);
-                        window.location.href = './create_signature.html';
-                    }
-                }, 1000);
+                showStoresContent();
+                initMap();
+                const statusFilter = document.getElementById('statusFilter');
+                if (statusFilter) {
+                    updateStatusDescription(statusFilter.value || '');
+                }
+                setInteractionMode('view-only');
+                getCurrentLocation(true);
                 return;
             }
 
@@ -939,6 +1306,14 @@
                     if (data.error.includes('No matching')) {
                         statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
                         statusElement.className = 'error fade-in';
+                        showStoresContent();
+                        initMap();
+                        const statusFilter = document.getElementById('statusFilter');
+                        if (statusFilter) {
+                            updateStatusDescription(statusFilter.value || '');
+                        }
+                        setInteractionMode('view-only');
+                        getCurrentLocation(true);
                         return;
                     } else {
                         statusElement.textContent = 'Error: ' + data.error;
@@ -947,6 +1322,7 @@
                         showStoresContent();                                                                                                                   
                         initMap();
                         getCurrentLocation(true);
+                        setInteractionMode('view-only');
                         return;
                     }
                 }
@@ -957,6 +1333,7 @@
                 showStoresContent();                                                                                                                           
                 statusElement.textContent = 'Signature verified successfully';
                 statusElement.className = 'status fade-in';
+                setInteractionMode('interactive');
 
                 // Hide status after 3 seconds
                 setTimeout(() => {
@@ -989,6 +1366,7 @@
                         updateStatusDescription(statusFilter.value || '');
                     }
                     getCurrentLocation(true);
+                    setInteractionMode('view-only');
                     
                     // Hide warning after 5 seconds
                     setTimeout(() => {
@@ -1005,6 +1383,7 @@
                         updateStatusDescription(statusFilter.value || '');
                     }
                     getCurrentLocation(true);
+                    setInteractionMode('view-only');
                 }
             }
         });
@@ -1198,12 +1577,14 @@
             }
             
             displayStores.forEach((store, index) => {
+                const storeKey = createStoreKey(store);
+                store.storeKey = storeKey;
                 const priorityBadge = getPriorityBadge(store.priority);
                 const statusBadge = getStatusBadge(store.status);
                 const routeOrder = store.routeOrder || (index + 1);
                 
                 html += `
-                    <div class="store-card" onclick="toggleStoreDetails(${index}, event)" data-store-index="${index}">
+                    <div class="store-card" id="store-card-${index}" onclick="toggleStoreDetails(${index}, event)" data-store-index="${index}" data-store-key="${storeKey}">
                         <div class="store-header">
                             <div class="store-name">Stop ${routeOrder}: ${escapeHtml(store.name)}</div>
                             <div class="store-distance">${store.distance} mi</div>
@@ -1237,6 +1618,8 @@
             
             // Store data globally for access
             window.storesData = displayStores;
+            refreshSignatureDependentControls();
+            focusStoreFromDeepLinkIfNeeded();
         }
 
         function getPriorityBadge(priority) {
@@ -1290,8 +1673,14 @@
                     const { PlaceAutocompleteElement } = googleMapsState.placesLib;
                     const autocompleteElement = new PlaceAutocompleteElement();
                     autocompleteElement.inputElement = input;
-                    autocompleteElement.componentRestrictions = { country: ['us'] };
-                    autocompleteElement.fields = [
+
+                    if ('componentRestrictions' in autocompleteElement) {
+                        autocompleteElement.componentRestrictions = { country: ['us'] };
+                    } else {
+                        autocompleteElement.setAttribute('component-restrictions', JSON.stringify({ country: ['us'] }));
+                    }
+
+                    const fields = [
                         'place_id',
                         'displayName',
                         'formattedAddress',
@@ -1301,6 +1690,12 @@
                         'internationalPhoneNumber',
                         'websiteUri'
                     ];
+                    if ('fields' in autocompleteElement) {
+                        autocompleteElement.fields = fields;
+                    } else {
+                        autocompleteElement.setAttribute('fields', fields.join(','));
+                    }
+
                     autocompleteElement.addEventListener('gmpx-placeautocomplete-select', handlePlaceSelection);
                     host.appendChild(autocompleteElement);
                     placeAutocompleteElement = autocompleteElement;
@@ -1499,6 +1894,7 @@
 
             form.addEventListener('submit', handleNewStoreFormSubmit);
             queueGoogleMapsCallback(initPlaceAutocompleteElement);
+            refreshSignatureDependentControls();
             newStoreFormInitialized = true;
         }
 
@@ -1520,6 +1916,10 @@
 
         async function captureLocationForNewStore(event) {
             if (event) event.preventDefault();
+            if (interactionMode !== 'interactive') {
+                showSignatureNoticeOnce('Connect your digital signature to capture locations.');
+                return;
+            }
             const statusEl = document.getElementById('newStoreLocationStatus');
             if (!navigator.geolocation) {
                 if (statusEl) {
@@ -1637,6 +2037,14 @@
             const locationStatusEl = document.getElementById('newStoreLocationStatus');
 
             if (messageEl) messageEl.innerHTML = '';
+
+            if (interactionMode !== 'interactive') {
+                if (messageEl) {
+                    messageEl.innerHTML = '<span style="color: #dc3545;">Connect your digital signature to submit new stores.</span>';
+                }
+                showSignatureNoticeOnce('Digital signature required to add stores.');
+                return;
+            }
 
             const shopName = document.getElementById('newStoreName').value.trim();
             const address = document.getElementById('newStoreAddress').value.trim();
@@ -1839,6 +2247,26 @@
                 `;
             }
 
+            const shareMessageId = `shareMessage-${index}`;
+            html += `
+                <div class="store-details-section">
+                    <div class="store-details-title">📣 Share This Store</div>
+                    <div class="store-details-content share-actions">
+                        <button type="button"
+                                class="btn"
+                                onclick="handleStoreShare(event, ${index})">
+                            Share to WhatsApp
+                        </button>
+                        <button type="button"
+                                class="btn btn-secondary"
+                                onclick="copyStoreShare(event, ${index})">
+                            Copy Summary
+                        </button>
+                        <div id="${shareMessageId}" class="share-message" aria-live="polite"></div>
+                    </div>
+                </div>
+            `;
+
             // Add status update section
             // Use index-based ID to avoid issues with special characters in shop names
             const statusSelectId = `statusUpdate-${index}`;
@@ -1853,6 +2281,7 @@
                         <select id="${statusSelectId}" 
                                 data-shop-index="${index}"
                                 class="status-update-select"
+                                data-requires-signature="true"
                                 style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.5rem;">
                             <option value="Contacted" ${store.status === 'Contacted' ? 'selected' : ''}>Contacted</option>
                             <option value="Manager Follow-up" ${store.status === 'Manager Follow-up' ? 'selected' : ''}>Manager Follow-up</option>
@@ -1867,9 +2296,13 @@
                         <textarea id="statusRemarks-${index}"
                                   rows="3"
                                   placeholder="Add context, next steps, or notes captured in the field..."
+                                  data-requires-signature="true"
                                   style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.95rem; resize: vertical;"></textarea>
                         <button onclick="updateStoreStatusByIndex(${index})" 
                                 class="btn" 
+                                type="button"
+                                data-status-update="true"
+                                data-requires-signature="true"
                                 style="width: 100%; padding: 0.6rem; font-size: 0.95rem; margin-top: 0.5rem;">
                             Update Status
                         </button>
@@ -1921,6 +2354,14 @@
             const messageElement = document.getElementById(`statusUpdateMessage-${index}`);
             const remarksElement = document.getElementById(`statusRemarks-${index}`);
             
+            if (interactionMode !== 'interactive') {
+                if (messageElement) {
+                    messageElement.innerHTML = '<span style="color: #dc3545;">Connect your digital signature to update statuses.</span>';
+                }
+                showSignatureNoticeOnce('Digital signature required to update store status.');
+                return;
+            }
+
             if (!selectElement || !messageElement) {
                 console.error('Status update elements not found');
                 return;
