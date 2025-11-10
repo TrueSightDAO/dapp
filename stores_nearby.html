@@ -470,22 +470,22 @@
         </div>
         
         <div id="storesContent" style="display: none;">
-            <!-- New Store Quick Capture -->
+            <!-- Store Suggestion Quick Capture -->
             <div class="store-card" id="newStoreCard">
                 <div class="store-header">
-                    <div class="store-name">➕ Add New Store</div>
+                    <div class="store-name">💡 Suggest a Store</div>
                     <button type="button"
                             class="btn btn-secondary"
                             id="newStoreToggleBtn"
                             data-requires-signature="true"
                             style="width: auto; padding: 0.4rem 1rem;">
-                        Open Form
+                        Share Details
                     </button>
                 </div>
                 <div class="store-details" id="newStoreDetails">
                     <div class="store-details-content">
                         <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 1rem;">
-                            Capture a new shop while you are on-site. We'll use your current location to fill in the basics so you can stay in the flow.
+                            Spotlight a hidden gem in your neighborhood. We’ll pre-fill what we can from your location so you can stay present in the moment.
                         </p>
                         <form id="newStoreForm" data-requires-signature="true">
                             <div class="form-group">
@@ -626,7 +626,7 @@
                             </button>
                         </form>
                         <div id="newStoreLockedMessage" class="signature-locked-hint">
-                            Connect your digital signature to capture new stores on the fly.
+                            Ready to recommend a store? <a href="./create_signature.html">Generate your digital signature</a> to unlock the form.
                         </div>
                     </div>
                 </div>
@@ -705,6 +705,26 @@
             'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY'
         };
 
+        const statusDescriptions = {
+            'Contacted': 'Initial contact has been made with the store. This is the first step in the outreach process.',
+            'Manager Follow-up': 'Store visit completed. Staff indicated to follow up with the manager using provided contact details. Action required.',
+            'Followed Up': 'Follow-up contact with the manager has been completed. Waiting for their response or next steps.',
+            'Research': 'Store is being researched. Gathering information about the store, their products, and potential fit.',
+            'Shortlisted': 'Store looks promising and is queued for outreach or in-person visit. Prepare materials and plan next steps.',
+            'Partnered': 'Store is an active partner. They carry our products and have an established business relationship.',
+            'Rejected': 'Store declined partnership or is not interested in carrying our products.',
+            'Not Appropriate': 'Store does not align with our values or target market. Not a good fit for partnership.',
+            '': 'Showing all stores regardless of status. Use this to see the complete list.'
+        };
+
+        function updateStatusDescription(statusValue) {
+            const descriptionEl = document.getElementById('statusDescriptionText');
+            if (descriptionEl) {
+                const description = statusDescriptions[statusValue] || 'No description available for this status.';
+                descriptionEl.textContent = description;
+            }
+        }
+
         // Track if this is the first automatic load
         let isFirstLoad = true;
         let contributorName = '';
@@ -714,6 +734,9 @@
         let currentLat = null;
         let currentLng = null;
         let newStoreFormInitialized = false;
+        let deepLinkCoordinates = null;
+        let deepLinkLocationApplied = false;
+        let currentLocationLabel = 'Your Location (Start)';
         const googleMapsState = window.__tsdGoogleMaps || {
             ready: false,
             callbacks: [],
@@ -764,6 +787,29 @@
                 normalizeForKey(store.state)
             ].filter(Boolean);
             return parts.join('__') || normalizeForKey(store.name) || '';
+        }
+
+        function findStoreIndexByKey(targetKey) {
+            if (!Array.isArray(window.storesData) || !targetKey) {
+                return -1;
+            }
+            const normalizedTarget = targetKey.toLowerCase();
+            let index = window.storesData.findIndex(store => {
+                const key = (store.storeKey || createStoreKey(store) || '').toLowerCase();
+                return key === normalizedTarget;
+            });
+            if (index !== -1) {
+                return index;
+            }
+            const targetName = normalizedTarget.split('__')[0];
+            if (!targetName) {
+                return -1;
+            }
+            index = window.storesData.findIndex(store => normalizeForKey(store.name) === targetName);
+            if (index !== -1) {
+                return index;
+            }
+            return -1;
         }
 
         function buildStoreShareLink(store) {
@@ -835,6 +881,13 @@
             el.classList.add('share-message');
         }
 
+        function isMobileDevice() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera || '';
+            const touchCapable = navigator.maxTouchPoints && navigator.maxTouchPoints > 1;
+            return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase()) ||
+                   (touchCapable && window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+        }
+
         function handleStoreShare(event, index) {
             if (event) {
                 event.stopPropagation();
@@ -870,16 +923,20 @@
                 showShareMessage(messageId, 'success', 'Opening WhatsApp share...');
             }
 
-            if (navigator.share) {
+            const onDesktopCopy = () => {
+                copyStoreShare(event, index, 'Copied share text to clipboard. Paste into WhatsApp or your channel.');
+            };
+
+            if (isMobileDevice() && navigator.share) {
                 shareNative().catch(() => {
                     shareViaWhatsApp();
                 });
             } else {
-                shareViaWhatsApp();
+                onDesktopCopy();
             }
         }
 
-        async function copyStoreShare(event, index) {
+        async function copyStoreShare(event, index, successMessage) {
             if (event) {
                 event.stopPropagation();
                 event.preventDefault();
@@ -894,7 +951,7 @@
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 try {
                     await navigator.clipboard.writeText(shareText);
-                    showShareMessage(messageId, 'success', 'Copied summary to clipboard.');
+                    showShareMessage(messageId, 'success', successMessage || 'Copied summary to clipboard.');
                     return;
                 } catch (error) {
                     console.warn('Clipboard write failed, falling back:', error);
@@ -911,7 +968,7 @@
             textarea.select();
             try {
                 document.execCommand('copy');
-                showShareMessage(messageId, 'success', 'Copied summary to clipboard.');
+                showShareMessage(messageId, 'success', successMessage || 'Copied summary to clipboard.');
             } catch (error) {
                 console.error('Unable to copy share text:', error);
                 showShareMessage(messageId, 'error', 'Unable to copy text. Please copy manually.');
@@ -920,10 +977,16 @@
             }
         }
 
-        function scrollStoreCardIntoView(index) {
+        function scrollStoreCardIntoView(index, options = {}) {
             const card = document.getElementById(`store-card-${index}`);
             if (card) {
-                card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const viewportOffset = options.offset !== undefined ? options.offset : 120;
+                const rect = card.getBoundingClientRect();
+                const targetTop = window.pageYOffset + rect.top - viewportOffset;
+                window.scrollTo({
+                    top: targetTop < 0 ? 0 : targetTop,
+                    behavior: 'smooth'
+                });
             }
         }
 
@@ -942,11 +1005,21 @@
             document.querySelectorAll('.store-card.expanded').forEach(expandedCard => {
                 if (expandedCard !== card) {
                     expandedCard.classList.remove('expanded');
+                    const expandedDetails = expandedCard.querySelector('.store-details');
+                    if (expandedDetails) {
+                        expandedDetails.style.maxHeight = '';
+                    }
                 }
             });
             card.classList.add('expanded');
-            scrollStoreCardIntoView(index);
-            highlightStoreCard(index);
+            const details = card.querySelector('.store-details');
+            if (details) {
+                details.style.maxHeight = details.scrollHeight + 'px';
+            }
+            requestAnimationFrame(() => {
+                scrollStoreCardIntoView(index);
+                highlightStoreCard(index);
+            });
         }
 
         function focusStoreFromDeepLinkIfNeeded() {
@@ -958,10 +1031,7 @@
                 pendingStoreDeepLink = null;
                 return;
             }
-            const index = window.storesData.findIndex(store => {
-                const key = store.storeKey || createStoreKey(store);
-                return key.toLowerCase() === targetKey;
-            });
+            const index = findStoreIndexByKey(targetKey);
             if (index === -1) {
                 return;
             }
@@ -1455,28 +1525,6 @@
             getCurrentLocation(false); // false = don't auto-search, just update location
         });
 
-        // Status descriptions
-        const statusDescriptions = {
-            'Contacted': 'Initial contact has been made with the store. This is the first step in the outreach process.',
-            'Manager Follow-up': 'Store visit completed. Staff indicated to follow up with the manager using provided contact details. Action required.',
-            'Followed Up': 'Follow-up contact with the manager has been completed. Waiting for their response or next steps.',
-            'Research': 'Store is being researched. Gathering information about the store, their products, and potential fit.',
-            'Shortlisted': 'Store looks promising and is queued for outreach or in-person visit. Prepare materials and plan next steps.',
-            'Partnered': 'Store is an active partner. They carry our products and have an established business relationship.',
-            'Rejected': 'Store declined partnership or is not interested in carrying our products.',
-            'Not Appropriate': 'Store does not align with our values or target market. Not a good fit for partnership.',
-            '': 'Showing all stores regardless of status. Use this to see the complete list.'
-        };
-
-        // Update status description when filter changes
-        function updateStatusDescription(statusValue) {
-            const descriptionEl = document.getElementById('statusDescriptionText');
-            if (descriptionEl) {
-                const description = statusDescriptions[statusValue] || 'No description available for this status.';
-                descriptionEl.textContent = description;
-            }
-        }
-
         // Auto-update when status filter changes
         document.getElementById('statusFilter').addEventListener('change', function() {
             const selectedStatus = this.value;
@@ -1514,10 +1562,11 @@
             document.getElementById('searchBtn').disabled = true;
 
             // Build URL with parameters
+            const resultLimit = pendingStoreDeepLink && pendingStoreDeepLink.storeKey ? '50' : '10';
             const params = new URLSearchParams({
                 lat: lat.toString(),
                 lng: lng.toString(),
-                limit: '10'
+                limit: resultLimit
             });
             
             // Always include status parameter (empty string means "all statuses")
@@ -2255,12 +2304,7 @@
                         <button type="button"
                                 class="btn"
                                 onclick="handleStoreShare(event, ${index})">
-                            Share to WhatsApp
-                        </button>
-                        <button type="button"
-                                class="btn btn-secondary"
-                                onclick="copyStoreShare(event, ${index})">
-                            Copy Summary
+                            Share Updates
                         </button>
                         <div id="${shareMessageId}" class="share-message" aria-live="polite"></div>
                     </div>
@@ -2335,11 +2379,23 @@
             document.querySelectorAll('.store-card.expanded').forEach(expandedCard => {
                 if (expandedCard !== card) {
                     expandedCard.classList.remove('expanded');
+                    const expandedDetails = expandedCard.querySelector('.store-details');
+                    if (expandedDetails) {
+                        expandedDetails.style.maxHeight = '';
+                    }
                 }
             });
 
             // Toggle this card
-            card.classList.toggle('expanded');
+            const isExpanded = card.classList.toggle('expanded');
+            const details = card.querySelector('.store-details');
+            if (details) {
+                if (isExpanded) {
+                    details.style.maxHeight = details.scrollHeight + 'px';
+                } else {
+                    details.style.maxHeight = '';
+                }
+            }
         }
 
         function updateStoreStatusByIndex(index) {
