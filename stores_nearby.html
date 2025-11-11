@@ -834,12 +834,6 @@
             if (store.status) {
                 url.searchParams.set('status', store.status);
             }
-            if (typeof store.latitude === 'number' && !Number.isNaN(store.latitude)) {
-                url.searchParams.set('lat', store.latitude.toFixed(6));
-            }
-            if (typeof store.longitude === 'number' && !Number.isNaN(store.longitude)) {
-                url.searchParams.set('lng', store.longitude.toFixed(6));
-            }
             return url.toString();
         }
 
