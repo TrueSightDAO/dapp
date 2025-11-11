@@ -834,12 +834,6 @@
             if (store.status) {
                 url.searchParams.set('status', store.status);
             }
-            if (typeof store.latitude === 'number' && !Number.isNaN(store.latitude)) {
-                url.searchParams.set('lat', store.latitude.toFixed(6));
-            }
-            if (typeof store.longitude === 'number' && !Number.isNaN(store.longitude)) {
-                url.searchParams.set('lng', store.longitude.toFixed(6));
-            }
             return url.toString();
         }
 
@@ -1957,6 +1951,9 @@
             const toggleBtn = document.getElementById('newStoreToggleBtn');
             const form = document.getElementById('newStoreForm');
             const locationBtn = document.getElementById('newStoreUseLocation');
+            const addressInput = document.getElementById('newStoreAddress');
+            const cityInput = document.getElementById('newStoreCity');
+            const stateSelect = document.getElementById('newStoreState');
 
             if (!card || !details || !toggleBtn || !form) {
                 return;
@@ -1978,6 +1975,19 @@
             }
 
             form.addEventListener('submit', handleNewStoreFormSubmit);
+            const attemptGeocode = () => ensureNewStoreCoordinates(false);
+            if (addressInput) {
+                addressInput.addEventListener('blur', attemptGeocode);
+                addressInput.addEventListener('change', attemptGeocode);
+            }
+            if (cityInput) {
+                cityInput.addEventListener('blur', attemptGeocode);
+                cityInput.addEventListener('change', attemptGeocode);
+            }
+            if (stateSelect) {
+                stateSelect.addEventListener('change', attemptGeocode);
+            }
+
             queueGoogleMapsCallback(initPlaceAutocompleteElement);
             refreshSignatureDependentControls();
             newStoreFormInitialized = true;
@@ -2090,6 +2100,90 @@
             }
         }
 
+        async function geocodeAddress(query) {
+            if (!query) {
+                return null;
+            }
+            const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=${encodeURIComponent(query)}`;
+            const response = await fetch(url, {
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'TrueSightDAO-DApp/1.0 (+https://truesightdao.github.io/dapp/)'
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Forward geocoding failed');
+            }
+            const results = await response.json();
+            if (Array.isArray(results) && results.length > 0) {
+                const result = results[0];
+                const lat = parseFloat(result.lat);
+                const lng = parseFloat(result.lon);
+                if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+                    return { lat, lng, displayName: result.display_name || '' };
+                }
+            }
+            return null;
+        }
+
+        async function ensureNewStoreCoordinates(showStatus = true) {
+            const latInput = document.getElementById('newStoreLat');
+            const lngInput = document.getElementById('newStoreLng');
+            const statusEl = document.getElementById('newStoreLocationStatus');
+            const addressInput = document.getElementById('newStoreAddress');
+            const cityInput = document.getElementById('newStoreCity');
+            const stateSelect = document.getElementById('newStoreState');
+
+            if (latInput && lngInput && latInput.value && lngInput.value) {
+                return true;
+            }
+
+            const parts = [];
+            if (addressInput && addressInput.value.trim()) {
+                parts.push(addressInput.value.trim());
+            }
+            if (cityInput && cityInput.value.trim()) {
+                parts.push(cityInput.value.trim());
+            }
+            if (stateSelect && stateSelect.value.trim()) {
+                parts.push(stateSelect.value.trim());
+            }
+            parts.push('USA');
+
+            const query = parts.filter(Boolean).join(', ');
+            if (!query || parts.length < 2) {
+                if (showStatus && statusEl) {
+                    statusEl.innerHTML = '<span style="color: #dc3545;">Add an address, city, or state to capture coordinates.</span>';
+                }
+                return false;
+            }
+
+            if (showStatus && statusEl) {
+                statusEl.innerHTML = '<span style="color: #007bff;">🔍 Looking up coordinates...</span>';
+            }
+
+            try {
+                const result = await geocodeAddress(query);
+                if (result) {
+                    if (latInput) latInput.value = result.lat;
+                    if (lngInput) lngInput.value = result.lng;
+                    if (showStatus && statusEl) {
+                        statusEl.innerHTML = `<span style="color: #28a745;">📍 Coordinates found: ${result.lat.toFixed(4)}, ${result.lng.toFixed(4)}</span>`;
+                    }
+                    return true;
+                }
+                if (showStatus && statusEl) {
+                    statusEl.innerHTML = '<span style="color: #dc3545;">Could not determine coordinates from the address. Please refine details or use "Use Current Location".</span>';
+                }
+            } catch (error) {
+                console.warn('Geocoding error:', error);
+                if (showStatus && statusEl) {
+                    statusEl.innerHTML = '<span style="color: #dc3545;">Error capturing coordinates. Please try again or use "Use Current Location".</span>';
+                }
+            }
+            return false;
+        }
+
         function normalizeWebsiteUrl(url) {
             if (!url) return '';
             let value = url.trim();
@@ -2141,8 +2235,16 @@
             const shopType = document.getElementById('newStoreShopType').value.trim();
             const status = document.getElementById('newStoreStatus').value.trim() || 'Shortlisted';
             const remarks = document.getElementById('newStoreRemarks').value.trim();
-            const latitude = document.getElementById('newStoreLat').value.trim();
-            const longitude = document.getElementById('newStoreLng').value.trim();
+            let latitude = document.getElementById('newStoreLat').value.trim();
+            let longitude = document.getElementById('newStoreLng').value.trim();
+
+            if (!latitude || !longitude) {
+                const coordsFound = await ensureNewStoreCoordinates(true);
+                if (coordsFound) {
+                    latitude = document.getElementById('newStoreLat').value.trim();
+                    longitude = document.getElementById('newStoreLng').value.trim();
+                }
+            }
 
             if (!shopName) {
                 if (messageEl) messageEl.innerHTML = '<span style="color: #dc3545;">Shop name is required.</span>';
@@ -2150,7 +2252,7 @@
             }
 
             if (!latitude || !longitude) {
-                if (messageEl) messageEl.innerHTML = '<span style="color: #dc3545;">Please capture the location using "Use Current Location" before saving.</span>';
+                if (messageEl) messageEl.innerHTML = '<span style="color: #dc3545;">Unable to determine store coordinates. Please refine the address or use "Use Current Location".</span>';
                 return;
             }
 
