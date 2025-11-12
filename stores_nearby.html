@@ -837,7 +837,8 @@
             return url.toString();
         }
 
-        function buildStoreShareText(store) {
+        function buildStoreShareText(store, options = {}) {
+            const includeLink = options.includeLink !== false;
             const lines = [];
             if (store.name) {
                 lines.push(store.name);
@@ -850,8 +851,8 @@
             if (addressParts.length > 0) {
                 lines.push(addressParts.join(', '));
             }
-            const link = buildStoreShareLink(store);
-            if (link) {
+            const link = includeLink ? buildStoreShareLink(store) : null;
+            if (includeLink && link) {
                 lines.push('');
                 lines.push('For more context:');
                 lines.push(link);
@@ -889,14 +890,15 @@
             }
             const store = window.storesData[index];
             const messageId = `shareMessage-${index}`;
-            const shareText = buildStoreShareText(store);
+            const shareTextFull = buildStoreShareText(store, { includeLink: true });
+            const shareTextPreview = buildStoreShareText(store, { includeLink: false });
             const shareLink = buildStoreShareLink(store);
 
             async function shareNative() {
                 try {
                     await navigator.share({
                         title: store.name || 'Store Highlight',
-                        text: shareText,
+                        text: shareTextPreview,
                         url: shareLink
                     });
                     showShareMessage(messageId, 'success', 'Shared via system dialog.');
@@ -909,7 +911,7 @@
             }
 
             function shareViaWhatsApp() {
-                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareTextFull)}`;
                 window.open(whatsappUrl, '_blank');
                 showShareMessage(messageId, 'success', 'Opening WhatsApp share...');
             }
