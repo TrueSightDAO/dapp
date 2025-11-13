@@ -256,6 +256,36 @@
         .store-card.expanded .expand-indicator {
             display: none;
         }
+        .duplicate-notice {
+            background-color: #fff8e1;
+            border-left: 3px solid #ffb300;
+            padding: 0.75rem;
+            border-radius: 4px;
+            color: #7a5300;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+        .duplicate-notice strong {
+            font-weight: 600;
+        }
+        .duplicate-notice button {
+            background: none;
+            border: none;
+            color: #007bff;
+            padding: 0;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 0.9rem;
+            margin-top: 0.35rem;
+        }
+        .duplicate-highlight {
+            animation: duplicatePulse 1.2s ease-in-out 2;
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.35);
+        }
+        @keyframes duplicatePulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.6); }
+            100% { box-shadow: 0 0 0 8px rgba(255, 193, 7, 0); }
+        }
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
@@ -564,15 +594,17 @@
                             </div>
 
                             <div class="form-group">
-                                <button type="button" class="btn btn-secondary" id="newStoreUseLocation" style="width: 100%; margin-top: 0;">
-                                    📍 Use Current Location
-                                </button>
                                 <input type="hidden" id="newStoreLat">
                                 <input type="hidden" id="newStoreLng">
-                                <div id="newStoreCoordinatesDisplay" style="font-size: 0.85rem; color: #343a40; margin-top: 0.3rem; display: none;">
+                                <div id="newStoreCoordinatesDisplay" style="font-size: 0.85rem; color: #343a40; margin-bottom: 0.25rem; display: none;">
                                     <strong>Coordinates:</strong> <span id="newStoreCoordinatesText"></span>
                                 </div>
-                                <div id="newStoreLocationStatus" style="font-size: 0.85rem; color: #6c757d; margin-top: 0.3rem;"></div>
+                                <div id="newStoreLocationStatus" style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.35rem;"></div>
+                                <button type="button"
+                                        id="newStoreUseLocation"
+                                        style="background: none; border: none; padding: 0; color: #007bff; font-size: 0.85rem; cursor: pointer; text-decoration: underline;">
+                                    Use current location instead
+                                </button>
                             </div>
 
                             <div class="form-group">
@@ -750,6 +782,7 @@
         let interactionMode = 'view-only';
         let pendingStoreDeepLink = null;
         let lastSignatureNotice = 0;
+        const knownStoresByKey = new Map();
 
         function updateNewStoreCoordinatesUI() {
             const latInput = document.getElementById('newStoreLat');
@@ -1671,6 +1704,7 @@
 
             // Use ordered stores from TSP if available, otherwise use original order
             const displayStores = window.orderedStoresData || stores;
+            knownStoresByKey.clear();
             
             let html = '<div class="stores-list">';
             
@@ -1687,6 +1721,12 @@
             displayStores.forEach((store, index) => {
                 const storeKey = createStoreKey(store);
                 store.storeKey = storeKey;
+                if (storeKey) {
+                    knownStoresByKey.set(storeKey.toLowerCase(), {
+                        store,
+                        index
+                    });
+                }
                 const priorityBadge = getPriorityBadge(store.priority);
                 const statusBadge = getStatusBadge(store.status);
                 const routeOrder = store.routeOrder || (index + 1);
@@ -2269,6 +2309,44 @@
             const remarks = document.getElementById('newStoreRemarks').value.trim();
             let latitude = document.getElementById('newStoreLat').value.trim();
             let longitude = document.getElementById('newStoreLng').value.trim();
+
+            const candidateKey = createStoreKey({
+                name: shopName,
+                address,
+                city,
+                state
+            });
+
+            if (candidateKey) {
+                const existingEntry = knownStoresByKey.get(candidateKey.toLowerCase());
+                if (existingEntry) {
+                    const existingStore = existingEntry.store || {};
+                    if (messageEl) {
+                        const statusLabel = existingStore.status ? ` (Status: ${escapeHtml(existingStore.status)})` : '';
+                        messageEl.innerHTML = `
+                            <div class="duplicate-notice">
+                                ⚠️ Already on the hit list as <strong>${escapeHtml(existingStore.name || shopName)}</strong>${statusLabel}.
+                                <button type="button" id="viewExistingStoreBtn">View existing entry</button>
+                            </div>
+                        `;
+                        const viewBtn = document.getElementById('viewExistingStoreBtn');
+                        if (viewBtn) {
+                            viewBtn.addEventListener('click', () => {
+                                focusStoreCard(existingEntry.index);
+                                const card = document.getElementById(\`store-card-\${existingEntry.index}\`);
+                                if (card) {
+                                    card.classList.add('duplicate-highlight');
+                                    setTimeout(() => {
+                                        card.classList.remove('duplicate-highlight');
+                                    }, 2400);
+                                }
+                            });
+                        }
+                    }
+                    if (submitBtn) submitBtn.disabled = false;
+                    return;
+                }
+            }
 
             if (!latitude || !longitude) {
                 const coordsFound = await ensureNewStoreCoordinates(true);
