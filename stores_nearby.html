@@ -515,7 +515,7 @@
                 <div class="store-details" id="newStoreDetails">
                     <div class="store-details-content">
                         <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 1rem;">
-                            Spotlight a hidden gem in your neighborhood. We’ll pre-fill what we can from your location so you can stay present in the moment.
+                            Spotlight a hidden gem in your neighborhood. We'll pre-fill what we can from your location so you can stay present in the moment.
                         </p>
                         <form id="newStoreForm" data-requires-signature="true">
                             <div class="form-group">
@@ -2331,12 +2331,12 @@
                         `;
                         const viewBtn = document.getElementById('viewExistingStoreBtn');
                         if (viewBtn) {
-                            viewBtn.addEventListener('click', () => {
+                            viewBtn.addEventListener('click', function() {
                                 focusStoreCard(existingEntry.index);
-                                const card = document.getElementById(\`store-card-\${existingEntry.index}\`);
+                                const card = document.getElementById('store-card-' + existingEntry.index);
                                 if (card) {
                                     card.classList.add('duplicate-highlight');
-                                    setTimeout(() => {
+                                    setTimeout(function() {
                                         card.classList.remove('duplicate-highlight');
                                     }, 2400);
                                 }
