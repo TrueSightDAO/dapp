@@ -569,6 +569,9 @@
                                 </button>
                                 <input type="hidden" id="newStoreLat">
                                 <input type="hidden" id="newStoreLng">
+                                <div id="newStoreCoordinatesDisplay" style="font-size: 0.85rem; color: #343a40; margin-top: 0.3rem; display: none;">
+                                    <strong>Coordinates:</strong> <span id="newStoreCoordinatesText"></span>
+                                </div>
                                 <div id="newStoreLocationStatus" style="font-size: 0.85rem; color: #6c757d; margin-top: 0.3rem;"></div>
                             </div>
 
@@ -747,6 +750,30 @@
         let interactionMode = 'view-only';
         let pendingStoreDeepLink = null;
         let lastSignatureNotice = 0;
+
+        function updateNewStoreCoordinatesUI() {
+            const latInput = document.getElementById('newStoreLat');
+            const lngInput = document.getElementById('newStoreLng');
+            const displayEl = document.getElementById('newStoreCoordinatesDisplay');
+            const textEl = document.getElementById('newStoreCoordinatesText');
+
+            if (!latInput || !lngInput || !displayEl || !textEl) {
+                return;
+            }
+
+            const latValue = latInput.value.trim();
+            const lngValue = lngInput.value.trim();
+            const latNumber = parseFloat(latValue);
+            const lngNumber = parseFloat(lngValue);
+
+            if (latValue && lngValue && !Number.isNaN(latNumber) && !Number.isNaN(lngNumber)) {
+                textEl.textContent = `${latNumber.toFixed(4)}, ${lngNumber.toFixed(4)}`;
+                displayEl.style.display = 'block';
+            } else {
+                textEl.textContent = '';
+                displayEl.style.display = 'none';
+            }
+        }
 
         function initializeDeepLinkFromQuery() {
             try {
@@ -1992,6 +2019,7 @@
 
             queueGoogleMapsCallback(initPlaceAutocompleteElement);
             refreshSignatureDependentControls();
+            updateNewStoreCoordinatesUI();
             newStoreFormInitialized = true;
         }
 
@@ -2034,6 +2062,7 @@
                 const lngInput = document.getElementById('newStoreLng');
                 if (latInput) latInput.value = lat;
                 if (lngInput) lngInput.value = lng;
+                updateNewStoreCoordinatesUI();
                 if (statusEl) {
                     statusEl.innerHTML = `<span style="color: #28a745;">Location captured: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
                 }
@@ -2169,6 +2198,7 @@
                 if (result) {
                     if (latInput) latInput.value = result.lat;
                     if (lngInput) lngInput.value = result.lng;
+                    updateNewStoreCoordinatesUI();
                     if (showStatus && statusEl) {
                         statusEl.innerHTML = `<span style="color: #28a745;">📍 Coordinates found: ${result.lat.toFixed(4)}, ${result.lng.toFixed(4)}</span>`;
                     }
@@ -2300,6 +2330,7 @@
                     }
                     document.getElementById('newStoreLat').value = '';
                     document.getElementById('newStoreLng').value = '';
+                    updateNewStoreCoordinatesUI();
                     setNewStoreCardExpanded(false);
                     if (currentLat !== null && currentLng !== null) {
                         setTimeout(() => {
