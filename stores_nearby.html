@@ -335,6 +335,15 @@
             font-size: 0.9rem;
             color: #6c757d;
         }
+        .store-coordinates {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.85rem;
+            background: #e8f4ff;
+            color: #0d6efd;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            border: 1px solid rgba(13, 110, 253, 0.25);
+        }
         .store-followup {
             margin-top: 0.5rem;
             font-size: 0.9rem;
@@ -1730,6 +1739,12 @@
                 const priorityBadge = getPriorityBadge(store.priority);
                 const statusBadge = getStatusBadge(store.status);
                 const routeOrder = store.routeOrder || (index + 1);
+                const latNumber = store.latitude !== undefined ? parseFloat(store.latitude) : NaN;
+                const lngNumber = store.longitude !== undefined ? parseFloat(store.longitude) : NaN;
+                const hasCoordinates = !Number.isNaN(latNumber) && !Number.isNaN(lngNumber);
+                const coordinatesBadge = hasCoordinates
+                    ? `<span class="store-coordinates" title="Coordinates captured for this shop">📍 ${latNumber.toFixed(4)}, ${lngNumber.toFixed(4)}</span>`
+                    : '';
                 
                 html += `
                     <div class="store-card" id="store-card-${index}" onclick="toggleStoreDetails(${index}, event)" data-store-index="${index}" data-store-key="${storeKey}">
@@ -1745,6 +1760,7 @@
                             ${priorityBadge}
                             ${statusBadge}
                             ${store.shop_type ? '<span>Type: ' + escapeHtml(store.shop_type) + '</span>' : ''}
+                            ${coordinatesBadge}
                         </div>
                         ${store.follow_up_date || store.follow_up_event_link || store.contact_person ? `
                             <div class="store-followup">
