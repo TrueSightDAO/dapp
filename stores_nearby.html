@@ -2021,6 +2021,7 @@
                 const lng = place.location.lng();
                 if (latInput) latInput.value = lat;
                 if (lngInput) lngInput.value = lng;
+                updateNewStoreCoordinatesUI();
                 if (locationStatusEl) {
                     locationStatusEl.innerHTML = `<span style="color: #28a745;">Location captured: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
                 }
