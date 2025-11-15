@@ -798,6 +798,7 @@
             const lngInput = document.getElementById('newStoreLng');
             const displayEl = document.getElementById('newStoreCoordinatesDisplay');
             const textEl = document.getElementById('newStoreCoordinatesText');
+            const statusEl = document.getElementById('newStoreLocationStatus');
 
             if (!latInput || !lngInput || !displayEl || !textEl) {
                 return;
@@ -811,9 +812,15 @@
             if (latValue && lngValue && !Number.isNaN(latNumber) && !Number.isNaN(lngNumber)) {
                 textEl.textContent = `${latNumber.toFixed(4)}, ${lngNumber.toFixed(4)}`;
                 displayEl.style.display = 'block';
+                if (statusEl && !statusEl.innerHTML) {
+                    statusEl.innerHTML = `<span style="color: #28a745;">Coordinates ready for submission</span>`;
+                }
             } else {
                 textEl.textContent = '';
                 displayEl.style.display = 'none';
+                if (statusEl && statusEl.innerHTML === '<span style="color: #28a745;">Coordinates ready for submission</span>') {
+                    statusEl.innerHTML = '';
+                }
             }
         }
 
@@ -2021,7 +2028,7 @@
                 if (lngInput) lngInput.value = lng;
                 updateNewStoreCoordinatesUI();
                 if (locationStatusEl) {
-                    locationStatusEl.innerHTML = `<span style="color: #28a745;">Location captured: ${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}</span>`;
+                    locationStatusEl.innerHTML = '';
                 }
             }
 
