@@ -2016,14 +2016,29 @@
                 websiteInput.value = website;
             }
 
-            if (place.location && typeof place.location.lat === 'function' && typeof place.location.lng === 'function') {
-                const lat = place.location.lat();
-                const lng = place.location.lng();
+            function setCoordinates(lat, lng) {
                 if (latInput) latInput.value = lat;
                 if (lngInput) lngInput.value = lng;
                 updateNewStoreCoordinatesUI();
                 if (locationStatusEl) {
-                    locationStatusEl.innerHTML = `<span style="color: #28a745;">Location captured: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
+                    locationStatusEl.innerHTML = `<span style="color: #28a745;">Location captured: ${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}</span>`;
+                }
+            }
+
+            if (place.location) {
+                if (typeof place.location.lat === 'function' && typeof place.location.lng === 'function') {
+                    const lat = place.location.lat();
+                    const lng = place.location.lng();
+                    setCoordinates(lat, lng);
+                } else if (typeof place.location.lat === 'number' && typeof place.location.lng === 'number') {
+                    setCoordinates(place.location.lat, place.location.lng);
+                } else if (place.location.latLng && typeof place.location.latLng.lat === 'number' && typeof place.location.latLng.lng === 'number') {
+                    setCoordinates(place.location.latLng.lat, place.location.latLng.lng);
+                }
+            } else if (place.geometry && place.geometry.location) {
+                const geom = place.geometry.location;
+                if (typeof geom.lat === 'function' && typeof geom.lng === 'function') {
+                    setCoordinates(geom.lat(), geom.lng());
                 }
             }
 
