@@ -2059,11 +2059,6 @@
                 nameInput.value = displayName;
             }
 
-            const formattedAddress = place.formattedAddress || place.formatted_address || '';
-            if (formattedAddress && addressInput) {
-                addressInput.value = formattedAddress;
-            }
-
             const addressComponents = place.addressComponents || place.address_components || [];
             if (addressComponents.length) {
                 const findComponent = (types) => {
@@ -2081,10 +2076,17 @@
                 const streetNumber = streetNumberComponent ? (streetNumberComponent.longText || streetNumberComponent.long_name || streetNumberComponent.shortText || streetNumberComponent.short_name || '') : '';                                                  
                 const route = routeComponent ? (routeComponent.longText || routeComponent.long_name || routeComponent.shortText || routeComponent.short_name || '') : '';
 
+                // Prefer parsed street address over formatted address to avoid redundant city/state in geocoding
                 if (addressInput) {
                     const street = [streetNumber, route].filter(Boolean).join(' ').trim();
-                    if (street && !addressInput.value) {
+                    if (street) {
                         addressInput.value = street;
+                    } else {
+                        // Fallback to formatted address if we can't parse components
+                        const formattedAddress = place.formattedAddress || place.formatted_address || '';
+                        if (formattedAddress && !addressInput.value) {
+                            addressInput.value = formattedAddress;
+                        }
                     }
                 }
 
@@ -2123,30 +2125,77 @@
             }
 
             function setCoordinates(lat, lng) {
-                if (latInput) latInput.value = lat;
-                if (lngInput) lngInput.value = lng;
-                updateNewStoreCoordinatesUI();
-                if (locationStatusEl) {
-                    locationStatusEl.innerHTML = '';
+                if (latInput && lngInput && !isNaN(lat) && !isNaN(lng)) {
+                    latInput.value = lat;
+                    lngInput.value = lng;
+                    updateNewStoreCoordinatesUI();
+                    if (locationStatusEl) {
+                        locationStatusEl.innerHTML = `<span style="color: #28a745;">📍 Coordinates set: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
+                    }
+                    return true;
+                }
+                return false;
+            }
+
+            let coordinatesSet = false;
+
+            // Helper to extract lat/lng from various formats
+            function extractLatLng(obj) {
+                if (!obj) return null;
+                
+                // Try function-based access (Google Maps LatLng object)
+                if (typeof obj.lat === 'function' && typeof obj.lng === 'function') {
+                    return { lat: obj.lat(), lng: obj.lng() };
+                }
+                
+                // Try direct number access
+                if (typeof obj.lat === 'number' && typeof obj.lng === 'number') {
+                    return { lat: obj.lat, lng: obj.lng };
+                }
+                
+                // Try nested latLng
+                if (obj.latLng) {
+                    const result = extractLatLng(obj.latLng);
+                    if (result) return result;
+                }
+                
+                return null;
+            }
+
+            // Try new Places API format first (place.location)
+            if (place.location) {
+                const coords = extractLatLng(place.location);
+                if (coords) {
+                    coordinatesSet = setCoordinates(coords.lat, coords.lng);
+                }
+            }
+            
+            // Try legacy format (place.geometry.location)
+            if (!coordinatesSet && place.geometry) {
+                if (place.geometry.location) {
+                    const coords = extractLatLng(place.geometry.location);
+                    if (coords) {
+                        coordinatesSet = setCoordinates(coords.lat, coords.lng);
+                    }
+                }
+                // Also try geometry.viewport center as fallback
+                if (!coordinatesSet && place.geometry.viewport) {
+                    const viewport = place.geometry.viewport;
+                    if (viewport.getCenter && typeof viewport.getCenter === 'function') {
+                        const center = viewport.getCenter();
+                        const coords = extractLatLng(center);
+                        if (coords) {
+                            coordinatesSet = setCoordinates(coords.lat, coords.lng);
+                        }
+                    }
                 }
             }
 
-            if (place.location) {
-                if (typeof place.location.lat === 'function' && typeof place.location.lng === 'function') {
-                    const lat = place.location.lat();
-                    const lng = place.location.lng();
-                    setCoordinates(lat, lng);
-                } else if (typeof place.location.lat === 'number' && typeof place.location.lng === 'number') {
-                    setCoordinates(place.location.lat, place.location.lng);
-                } else if (place.location.latLng && typeof place.location.latLng.lat === 'number' && typeof place.location.latLng.lng === 'number') {
-                    setCoordinates(place.location.latLng.lat, place.location.latLng.lng);
-                }
-            } else if (place.geometry && place.geometry.location) {
-                const geom = place.geometry.location;
-                if (typeof geom.lat === 'function' && typeof geom.lng === 'function') {
-                    setCoordinates(geom.lat(), geom.lng());
-                } else if (typeof geom.lat === 'number' && typeof geom.lng === 'number') {
-                    setCoordinates(geom.lat, geom.lng);
+            // If coordinates weren't set, log for debugging
+            if (!coordinatesSet) {
+                console.warn('Could not extract coordinates from place object:', place);
+                if (locationStatusEl) {
+                    locationStatusEl.innerHTML = '<span style="color: #ffc107;">⚠️ Coordinates not available from address selection. Will attempt geocoding on submit.</span>';
                 }
             }
 
@@ -2508,20 +2557,42 @@
                 return true;
             }
 
+            // Build geocoding query from address components
             const parts = [];
             if (addressInput && addressInput.value.trim()) {
-                parts.push(addressInput.value.trim());
+                const addressValue = addressInput.value.trim();
+                // If address already contains city/state (formatted address), use it as-is
+                // Otherwise, build from components
+                if (addressValue.includes(',') && (cityInput?.value || stateSelect?.value)) {
+                    // Likely a formatted address, use it alone
+                    parts.push(addressValue);
+                } else {
+                    // Just street address, add city and state
+                    parts.push(addressValue);
+                    if (cityInput && cityInput.value.trim()) {
+                        parts.push(cityInput.value.trim());
+                    }
+                    if (stateSelect && stateSelect.value.trim()) {
+                        parts.push(stateSelect.value.trim());
+                    }
+                }
+            } else {
+                // No address, try city and state
+                if (cityInput && cityInput.value.trim()) {
+                    parts.push(cityInput.value.trim());
+                }
+                if (stateSelect && stateSelect.value.trim()) {
+                    parts.push(stateSelect.value.trim());
+                }
             }
-            if (cityInput && cityInput.value.trim()) {
-                parts.push(cityInput.value.trim());
+            
+            // Only add USA if we have at least one component
+            if (parts.length > 0) {
+                parts.push('USA');
             }
-            if (stateSelect && stateSelect.value.trim()) {
-                parts.push(stateSelect.value.trim());
-            }
-            parts.push('USA');
 
             const query = parts.filter(Boolean).join(', ');
-            if (!query || parts.length < 2) {
+            if (!query || query.trim() === 'USA') {
                 if (showStatus && statusEl) {
                     statusEl.innerHTML = '<span style="color: #dc3545;">Add an address, city, or state to capture coordinates.</span>';
                 }
