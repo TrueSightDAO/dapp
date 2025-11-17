@@ -654,16 +654,15 @@
                 margin-bottom: 0.5rem;
             }
             #map.expanded {
-                padding-bottom: 140px; /* More space for mobile header */
+                bottom: 0;
+                padding-bottom: 180px; /* More space for mobile header with two filters */
             }
             .expanded-map-header select {
                 width: 100%;
+                margin-bottom: 0.5rem;
             }
             .expanded-map-header .close-btn {
                 width: 100%;
-            }
-            #map.expanded {
-                bottom: 0;
             }
             #map.expanded .map-controls {
                 top: 10px;
@@ -830,6 +829,9 @@
                                     <option value="Health Food Store">Health Food Store</option>
                                     <option value="Conscious Cafe">Conscious Cafe</option>
                                     <option value="Boutique Chocolate">Boutique Chocolate</option>
+                                    <option value="Antique Store">Antique Store</option>
+                                    <option value="Gift Shop">Gift Shop</option>
+                                    <option value="Candy Store">Candy Store</option>
                                     <option value="Yoga Studio">Yoga Studio</option>
                                     <option value="Other">Other</option>
                                 </select>
@@ -868,18 +870,38 @@
             </div>
             <!-- Status Filter - Primary control, most important -->
             <div class="form-group" style="margin-bottom: 1.5rem;">
-                <label for="statusFilter" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Filter by Status:</label>
-                <select id="statusFilter" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
-                    <option value="Contacted">Contacted</option>
-                    <option value="Manager Follow-up">Manager Follow-up</option>
-                    <option value="Followed Up">Followed Up</option>
-                    <option value="Research">Research</option>
-                    <option value="Shortlisted">Shortlisted</option>
-                    <option value="Partnered">Partnered</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="Not Appropriate">Not Appropriate</option>
-                    <option value="">All Statuses</option>
-                </select>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label for="statusFilter" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Filter by Status:</label>
+                        <select id="statusFilter" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+                            <option value="Contacted">Contacted</option>
+                            <option value="Manager Follow-up">Manager Follow-up</option>
+                            <option value="Followed Up">Followed Up</option>
+                            <option value="Research">Research</option>
+                            <option value="Shortlisted">Shortlisted</option>
+                            <option value="Partnered">Partnered</option>
+                            <option value="Rejected">Rejected</option>
+                            <option value="Not Appropriate">Not Appropriate</option>
+                            <option value="">All Statuses</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="shopTypeFilter" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Filter by Shop Type:</label>
+                        <select id="shopTypeFilter" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+                            <option value="">All Shop Types</option>
+                            <option value="Metaphysical/Spiritual">Metaphysical / Spiritual</option>
+                            <option value="Wellness Center">Wellness Center</option>
+                            <option value="Health Food Store">Health Food Store</option>
+                            <option value="Conscious Cafe">Conscious Cafe</option>
+                            <option value="Boutique Chocolate">Boutique Chocolate</option>
+                            <option value="Antique Store">Antique Store</option>
+                            <option value="Gift Shop">Gift Shop</option>
+                            <option value="Candy Store">Candy Store</option>
+                            <option value="Yoga Studio">Yoga Studio</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="statusDescription" style="margin-top: 0.5rem; padding: 0.75rem; background-color: #f8f9fa; border-left: 3px solid #007bff; border-radius: 4px; font-size: 0.9rem; color: #495057; line-height: 1.5;">
                     <strong>📋 Status:</strong> <span id="statusDescriptionText">Select a status to see its meaning</span>
                 </div>
@@ -916,13 +938,26 @@
             <!-- Expanded Map Header -->
             <div class="expanded-map-header" id="expandedMapHeader">
                 <h3>Map View - Explore Stores</h3>
-                <select id="expandedStatusFilter" style="min-width: 200px;">
+                <select id="expandedStatusFilter" style="min-width: 150px;">
                     <option value="">All Statuses</option>
                     <option value="Contacted">Contacted</option>
                     <option value="Manager Follow-up">Manager Follow-up</option>
                     <option value="Followed Up">Followed Up</option>
                     <option value="Shortlisted">Shortlisted</option>
                     <option value="Research">Research</option>
+                </select>
+                <select id="expandedShopTypeFilter" style="min-width: 150px;">
+                    <option value="">All Shop Types</option>
+                    <option value="Metaphysical/Spiritual">Metaphysical / Spiritual</option>
+                    <option value="Wellness Center">Wellness Center</option>
+                    <option value="Health Food Store">Health Food Store</option>
+                    <option value="Conscious Cafe">Conscious Cafe</option>
+                    <option value="Boutique Chocolate">Boutique Chocolate</option>
+                    <option value="Antique Store">Antique Store</option>
+                    <option value="Gift Shop">Gift Shop</option>
+                    <option value="Candy Store">Candy Store</option>
+                    <option value="Yoga Studio">Yoga Studio</option>
+                    <option value="Other">Other</option>
                 </select>
                 <button class="close-btn" id="closeExpandedMapBtn">Close Map</button>
             </div>
@@ -1473,6 +1508,8 @@
             const bounds = map.getBounds();
             const statusFilter = document.getElementById('expandedStatusFilter')?.value || 
                                  document.getElementById('statusFilter')?.value || '';
+            const shopTypeFilter = document.getElementById('expandedShopTypeFilter')?.value || 
+                                   document.getElementById('shopTypeFilter')?.value || '';
             
             // Check if we need to load more stores
             const center = bounds.getCenter();
@@ -1497,6 +1534,10 @@
                 
                 if (statusFilter) {
                     params.append('status', statusFilter);
+                }
+                
+                if (shopTypeFilter) {
+                    params.append('shop_type', shopTypeFilter);
                 }
                 
                 const response = await fetch(`${API_URL}?${params.toString()}`);
@@ -1622,6 +1663,13 @@
                 expandedStatusFilter.value = statusFilter.value;
             }
             
+            // Sync shop type filter
+            const expandedShopTypeFilter = document.getElementById('expandedShopTypeFilter');
+            const shopTypeFilter = document.getElementById('shopTypeFilter');
+            if (expandedShopTypeFilter && shopTypeFilter) {
+                expandedShopTypeFilter.value = shopTypeFilter.value;
+            }
+            
             isMapExpanded = true;
             loadedStoreKeys.clear();
             
@@ -1734,6 +1782,39 @@
                     // Reload stores for current bounds
                     loadStoresForBounds();
                 });
+            }
+            
+            // Sync shop type filter changes in expanded view
+            const expandedShopTypeFilter = document.getElementById('expandedShopTypeFilter');
+            const shopTypeFilter = document.getElementById('shopTypeFilter');
+            
+            if (expandedShopTypeFilter) {
+                expandedShopTypeFilter.addEventListener('change', function() {
+                    // Sync to main filter
+                    if (shopTypeFilter) {
+                        shopTypeFilter.value = this.value;
+                    }
+                    
+                    // Clear loaded stores and reload
+                    loadedStoreKeys.clear();
+                    window.allStoresData = [];
+                    // Clear existing markers except user marker
+                    storeMarkers.forEach(marker => map.removeLayer(marker));
+                    storeMarkers = [];
+                    // Clear route line
+                    if (window.routeLine) {
+                        map.removeLayer(window.routeLine);
+                        window.routeLine = null;
+                    }
+                    
+                    // Reload stores for current bounds
+                    loadStoresForBounds();
+                });
+            }
+            
+            // Sync shop type filter when expanding map
+            if (expandedShopTypeFilter && shopTypeFilter) {
+                // This will be called in expandMap function
             }
         }
 
@@ -2320,6 +2401,14 @@
                 searchStores();
             }
         });
+        
+        // Auto-update when shop type filter changes
+        document.getElementById('shopTypeFilter').addEventListener('change', function() {
+            // Only auto-search if we have valid coordinates
+            if (currentLat && currentLng) {
+                searchStores();
+            }
+        });
 
         // Note: Status description is initialized when storesContent is shown (after signature verification)
 
@@ -2333,6 +2422,7 @@
             const lat = currentLat;
             const lng = currentLng;
             const statusFilter = document.getElementById('statusFilter').value;
+            const shopTypeFilter = document.getElementById('shopTypeFilter').value;
 
             if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
                 const statusMessage = document.getElementById('statusMessage');
@@ -2356,6 +2446,11 @@
             
             // Always include status parameter (empty string means "all statuses")
             params.append('status', statusFilter || '');
+            
+            // Include shop type filter if selected
+            if (shopTypeFilter) {
+                params.append('shop_type', shopTypeFilter);
+            }
 
             // Fetch stores
             fetch(`${API_URL}?${params.toString()}`)
@@ -2371,9 +2466,10 @@
                         displayStores(data.stores, statusFilter);
                         
                         const statusText = statusFilter && statusFilter !== '' ? ` (Status: ${statusFilter})` : ' (All Statuses)';
+                        const shopTypeText = shopTypeFilter && shopTypeFilter !== '' ? ` (Shop Type: ${shopTypeFilter})` : '';
                         const routeInfo = window.totalRouteDistance ? ` • Route: ${window.totalRouteDistance.toFixed(1)} miles` : '';
                         statusMessage.innerHTML = 
-                            `<div class="status">Found ${data.count} store${data.count !== 1 ? 's' : ''} nearby${statusText}${routeInfo}</div>`;
+                            `<div class="status">Found ${data.count} store${data.count !== 1 ? 's' : ''} nearby${statusText}${shopTypeText}${routeInfo}</div>`;
                     } else {
                         statusMessage.innerHTML = 
                             `<div class="error">Error: ${data.error || data.message || 'Unknown error'}</div>`;
@@ -3096,6 +3192,58 @@
                 toggleBtn.textContent = 'Open Form';
             }
         }
+        
+        // Reset new store form
+        function resetNewStoreForm() {
+            const form = document.getElementById('newStoreForm');
+            const submitBtn = document.getElementById('newStoreSubmitBtn');
+            const messageEl = document.getElementById('newStoreStatusMessage');
+            const locationStatusEl = document.getElementById('newStoreLocationStatus');
+            
+            // Clear all form fields explicitly
+            const fields = [
+                'newStoreName', 'newStoreAddress', 'newStoreCity', 'newStoreState',
+                'newStorePhone', 'newStoreEmail', 'newStoreWebsite', 'newStoreInstagram',
+                'newStoreShopType', 'newStoreStatus', 'newStoreRemarks',
+                'newStoreLat', 'newStoreLng'
+            ];
+            
+            fields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.value = '';
+                }
+            });
+            
+            // Reset form (this will also clear any autocomplete values)
+            if (form) {
+                form.reset();
+            }
+            
+            // Reset button to original state
+            const currentSubmitBtn = document.getElementById('newStoreSubmitBtn');
+            if (currentSubmitBtn) {
+                // Remove any existing click handlers by cloning the button
+                const newBtn = currentSubmitBtn.cloneNode(true);
+                currentSubmitBtn.parentNode.replaceChild(newBtn, currentSubmitBtn);
+                // Set button back to original state
+                newBtn.textContent = 'Save New Store';
+                newBtn.type = 'submit';
+                newBtn.disabled = false;
+                // The form's submit handler will automatically work with the new button
+            }
+            
+            // Clear messages
+            if (messageEl) {
+                messageEl.innerHTML = '';
+            }
+            if (locationStatusEl) {
+                locationStatusEl.innerHTML = '';
+            }
+            
+            // Update coordinates UI
+            updateNewStoreCoordinatesUI();
+        }
 
         async function captureLocationForNewStore(event) {
             if (event) event.preventDefault();
@@ -3384,7 +3532,22 @@
                             });
                         }
                     }
-                    if (submitBtn) submitBtn.disabled = false;
+                    // Change button to "Reset Form" when duplicate is detected
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Reset Form';
+                        submitBtn.type = 'button';
+                        submitBtn.disabled = false;
+                        // Store original button state
+                        if (!submitBtn.dataset.originalType) {
+                            submitBtn.dataset.originalType = 'submit';
+                            submitBtn.dataset.originalText = 'Save New Store';
+                        }
+                        // Remove any existing click handlers by replacing the button
+                        const newBtn = submitBtn.cloneNode(true);
+                        submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+                        // Add reset form handler to the new button
+                        newBtn.addEventListener('click', resetNewStoreForm);
+                    }
                     return;
                 }
             }
@@ -3610,14 +3773,14 @@
             
             html += `
                 <div class="store-details-section">
-                    <div class="store-details-title">✏️ Update Status</div>
+                    <div class="store-details-title">✏️ Update Status & Shop Type</div>
                     <div class="store-details-content">
                         <label for="${statusSelectId}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Status:</label>
                         <select id="${statusSelectId}" 
                                 data-shop-index="${index}"
                                 class="status-update-select"
                                 data-requires-signature="true"
-                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.5rem;">
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
                             <option value="Contacted" ${store.status === 'Contacted' ? 'selected' : ''}>Contacted</option>
                             <option value="Manager Follow-up" ${store.status === 'Manager Follow-up' ? 'selected' : ''}>Manager Follow-up</option>
                             <option value="Followed Up" ${store.status === 'Followed Up' ? 'selected' : ''}>Followed Up</option>
@@ -3626,6 +3789,24 @@
                             <option value="Partnered" ${store.status === 'Partnered' ? 'selected' : ''}>Partnered</option>
                             <option value="Rejected" ${store.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
                             <option value="Not Appropriate" ${store.status === 'Not Appropriate' ? 'selected' : ''}>Not Appropriate</option>
+                        </select>
+                        <label for="shopTypeUpdate-${index}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Shop Type:</label>
+                        <select id="shopTypeUpdate-${index}" 
+                                data-shop-index="${index}"
+                                class="shop-type-update-select"
+                                data-requires-signature="true"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                            <option value="">-- Select Shop Type --</option>
+                            <option value="Metaphysical/Spiritual" ${store.shop_type === 'Metaphysical/Spiritual' ? 'selected' : ''}>Metaphysical / Spiritual</option>
+                            <option value="Wellness Center" ${store.shop_type === 'Wellness Center' ? 'selected' : ''}>Wellness Center</option>
+                            <option value="Health Food Store" ${store.shop_type === 'Health Food Store' ? 'selected' : ''}>Health Food Store</option>
+                            <option value="Conscious Cafe" ${store.shop_type === 'Conscious Cafe' ? 'selected' : ''}>Conscious Cafe</option>
+                            <option value="Boutique Chocolate" ${store.shop_type === 'Boutique Chocolate' ? 'selected' : ''}>Boutique Chocolate</option>
+                            <option value="Antique Store" ${store.shop_type === 'Antique Store' ? 'selected' : ''}>Antique Store</option>
+                            <option value="Gift Shop" ${store.shop_type === 'Gift Shop' ? 'selected' : ''}>Gift Shop</option>
+                            <option value="Candy Store" ${store.shop_type === 'Candy Store' ? 'selected' : ''}>Candy Store</option>
+                            <option value="Yoga Studio" ${store.shop_type === 'Yoga Studio' ? 'selected' : ''}>Yoga Studio</option>
+                            <option value="Other" ${store.shop_type === 'Other' ? 'selected' : ''}>Other</option>
                         </select>
                         <label for="statusRemarks-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Remarks (optional):</label>
                         <textarea id="statusRemarks-${index}"
@@ -3639,7 +3820,7 @@
                                 data-status-update="true"
                                 data-requires-signature="true"
                                 style="width: 100%; padding: 0.6rem; font-size: 0.95rem; margin-top: 0.5rem;">
-                            Update Status
+                            Update Status & Shop Type
                         </button>
                         <div id="${statusMessageId}" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
                     </div>
@@ -3698,6 +3879,7 @@
 
             const shopName = store.name;
             const selectElement = document.getElementById(`statusUpdate-${index}`);
+            const shopTypeElement = document.getElementById(`shopTypeUpdate-${index}`);
             const messageElement = document.getElementById(`statusUpdateMessage-${index}`);
             const remarksElement = document.getElementById(`statusRemarks-${index}`);
             
@@ -3715,18 +3897,23 @@
             }
             
             const newStatus = selectElement.value;
+            const newShopType = shopTypeElement ? shopTypeElement.value.trim() : '';
             const currentStatus = store.status;
+            const currentShopType = store.shop_type || '';
             const remarks = remarksElement ? remarksElement.value.trim() : '';
 
             // Don't update if nothing changed
-            if (newStatus === currentStatus && !remarks) {
-                messageElement.innerHTML = '<span style="color: #6c757d;">Status unchanged and no remarks added</span>';                                         
+            if (newStatus === currentStatus && newShopType === currentShopType && !remarks) {
+                messageElement.innerHTML = '<span style="color: #6c757d;">Status and shop type unchanged and no remarks added</span>';                                         
                 return;
             }
 
             // Show loading state
-            messageElement.innerHTML = '<span style="color: #007bff;">Updating status...</span>';
+            messageElement.innerHTML = '<span style="color: #007bff;">Updating status and shop type...</span>';
             selectElement.disabled = true;
+            if (shopTypeElement) {
+                shopTypeElement.disabled = true;
+            }
             if (remarksElement) {
                 remarksElement.disabled = true;
             }
@@ -3740,6 +3927,9 @@
                 shop_name: shopName,
                 new_status: newStatus
             });
+            if (newShopType) {
+                params.append('shop_type', newShopType);
+            }
             if (remarks) {
                 params.append('remarks', remarks);
             }
@@ -3759,6 +3949,9 @@
                         
                         // Update the store data
                         window.storesData[index].status = newStatus;
+                        if (newShopType) {
+                            window.storesData[index].shop_type = newShopType;
+                        }
                         if (remarksElement) {
                             remarksElement.value = '';
                         }
@@ -3774,6 +3967,26 @@
                                 const badges = badgeContainer.querySelectorAll('.store-badge');
                                 if (badges.length > 1) {
                                     badges[1].outerHTML = statusBadge;
+                                }
+                                
+                                // Update shop type display if changed
+                                if (newShopType) {
+                                    const shopTypeSpans = badgeContainer.querySelectorAll('span');
+                                    let shopTypeSpan = null;
+                                    shopTypeSpans.forEach(span => {
+                                        if (span.textContent && span.textContent.startsWith('Type:')) {
+                                            shopTypeSpan = span;
+                                        }
+                                    });
+                                    
+                                    if (shopTypeSpan) {
+                                        shopTypeSpan.textContent = 'Type: ' + newShopType;
+                                    } else {
+                                        // Create new shop type span if it doesn't exist
+                                        const newSpan = document.createElement('span');
+                                        newSpan.textContent = 'Type: ' + newShopType;
+                                        badgeContainer.appendChild(newSpan);
+                                    }
                                 }
                             }
                         }
