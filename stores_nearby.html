@@ -536,6 +536,8 @@
                             <div class="form-group">
                                 <label for="newStoreAddress">Street Address</label>
                                 <input type="text" id="newStoreAddress" placeholder="Street address">
+                                <div id="newStoreAddressAutocompleteHost" style="display: none;"></div>
+                                <small style="color: var(--muted); font-size: 0.875rem; margin-top: 0.25rem; display: block;">Start typing an address to auto-populate fields</small>
                             </div>
 
                             <div class="form-group location-two-column">
@@ -619,6 +621,11 @@
                             <div class="form-group">
                                 <label for="newStorePhone">Phone</label>
                                 <input type="tel" id="newStorePhone" placeholder="(xxx) xxx-xxxx">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="newStoreEmail">Email</label>
+                                <input type="email" id="newStoreEmail" placeholder="email@example.com">
                             </div>
 
                             <div class="form-group">
@@ -788,6 +795,7 @@
             error: null
         };
         let placeAutocompleteElement = null;
+        let addressAutocompleteElement = null;
         let interactionMode = 'view-only';
         let pendingStoreDeepLink = null;
         let lastSignatureNotice = 0;
@@ -1902,6 +1910,249 @@
             }
         }
 
+        function initAddressAutocompleteElement() {
+            const input = document.getElementById('newStoreAddress');
+            if (!input || !googleMapsState || googleMapsState.error) {
+                return;
+            }
+            if (addressAutocompleteElement) {
+                return;
+            }
+
+            const host = document.getElementById('newStoreAddressAutocompleteHost') || document.body;
+
+            if (googleMapsState.placesLib && typeof googleMapsState.placesLib.PlaceAutocompleteElement === 'function') {
+                try {
+                    const { PlaceAutocompleteElement } = googleMapsState.placesLib;
+                    const autocompleteElement = new PlaceAutocompleteElement();
+                    autocompleteElement.inputElement = input;
+
+                    if ('componentRestrictions' in autocompleteElement) {
+                        autocompleteElement.componentRestrictions = { country: ['us'] };
+                    } else {
+                        autocompleteElement.setAttribute('component-restrictions', JSON.stringify({ country: ['us'] }));
+                    }
+
+                    // Use 'address' type instead of 'establishment' to search for addresses
+                    if ('requestedResultTypes' in autocompleteElement) {
+                        autocompleteElement.requestedResultTypes = ['address'];
+                    } else {
+                        autocompleteElement.setAttribute('requested-result-types', 'address');
+                    }
+
+                    const fields = [
+                        'place_id',
+                        'displayName',
+                        'formattedAddress',
+                        'addressComponents',
+                        'location',
+                        'formattedPhoneNumber',
+                        'internationalPhoneNumber',
+                        'websiteUri'
+                    ];
+                    if ('fields' in autocompleteElement) {
+                        autocompleteElement.fields = fields;
+                    } else {
+                        autocompleteElement.setAttribute('fields', fields.join(','));
+                    }
+
+                    autocompleteElement.addEventListener('gmpx-placeautocomplete-select', handleAddressSelection);
+                    host.appendChild(autocompleteElement);
+                    addressAutocompleteElement = autocompleteElement;
+                    return;
+                } catch (error) {
+                    console.warn('Failed to initialize Address PlaceAutocompleteElement, falling back to legacy Autocomplete:', error);
+                }
+            }
+
+            if (window.google && google.maps && google.maps.places && typeof google.maps.places.Autocomplete === 'function') {
+                const legacyAutocomplete = new google.maps.places.Autocomplete(input, {
+                    types: ['address'], // Use 'address' type for address search
+                    fields: [
+                        'place_id',
+                        'name',
+                        'formatted_address',
+                        'address_components',
+                        'geometry',
+                        'formatted_phone_number',
+                        'international_phone_number',
+                        'website'
+                    ]
+                });
+
+                legacyAutocomplete.addListener('place_changed', () => {
+                    const legacyPlace = legacyAutocomplete.getPlace();
+                    if (legacyPlace) {
+                        applyPlaceDetailsFromAddress(legacyPlace);
+                    }
+                });
+
+                addressAutocompleteElement = legacyAutocomplete;
+            }
+        }
+
+        async function handleAddressSelection(event) {
+            if (!event || !googleMapsState || googleMapsState.error) {
+                return;
+            }
+
+            const selectedPlace = event.detail && event.detail.place ? event.detail.place : null;
+            if (!selectedPlace) {
+                return;
+            }
+
+            let placeDetails = selectedPlace;
+
+            try {
+                if (typeof selectedPlace.fetchFields === 'function') {
+                    placeDetails = await selectedPlace.fetchFields({
+                        fields: [
+                            'id',
+                            'displayName',
+                            'formattedAddress',
+                            'addressComponents',
+                            'location',
+                            'formattedPhoneNumber',
+                            'internationalPhoneNumber',
+                            'websiteUri'
+                        ]
+                    });
+                } else if (googleMapsState.placesLib && typeof googleMapsState.placesLib.Place === 'function' && (selectedPlace.placeId || selectedPlace.id)) {                                            
+                    placeDetails = await googleMapsState.placesLib.Place.fetchFields({
+                        placeId: selectedPlace.placeId || selectedPlace.id,
+                        fields: [
+                            'id',
+                            'displayName',
+                            'formattedAddress',
+                            'addressComponents',
+                            'location',
+                            'formattedPhoneNumber',
+                            'internationalPhoneNumber',
+                            'websiteUri'
+                        ]
+                    });
+                }
+            } catch (error) {
+                console.warn('Unable to fetch additional place fields:', error);
+            }
+
+            // When address is selected, populate all fields but don't overwrite shop name if it's already filled
+            applyPlaceDetailsFromAddress(placeDetails);
+        }
+
+        function applyPlaceDetailsFromAddress(place) {
+            if (!place) return;
+
+            const nameInput = document.getElementById('newStoreName');
+            const addressInput = document.getElementById('newStoreAddress');
+            const cityInput = document.getElementById('newStoreCity');
+            const stateSelect = document.getElementById('newStoreState');
+            const phoneInput = document.getElementById('newStorePhone');
+            const websiteInput = document.getElementById('newStoreWebsite');
+            const latInput = document.getElementById('newStoreLat');
+            const lngInput = document.getElementById('newStoreLng');
+            const locationStatusEl = document.getElementById('newStoreLocationStatus');
+
+            // Only set shop name if it's empty
+            const displayName = place.displayName && place.displayName.text ? place.displayName.text : place.name || '';
+            if (displayName && nameInput && !nameInput.value.trim()) {
+                nameInput.value = displayName;
+            }
+
+            const formattedAddress = place.formattedAddress || place.formatted_address || '';
+            if (formattedAddress && addressInput) {
+                addressInput.value = formattedAddress;
+            }
+
+            const addressComponents = place.addressComponents || place.address_components || [];
+            if (addressComponents.length) {
+                const findComponent = (types) => {
+                    return addressComponents.find(component => {
+                        const componentTypes = component.types || [];
+                        return types.some(type => componentTypes.includes(type));
+                    });
+                };
+
+                const streetNumberComponent = findComponent(['street_number']);
+                const routeComponent = findComponent(['route']);
+                const localityComponent = findComponent(['locality', 'sublocality', 'postal_town']);
+                const stateComponent = findComponent(['administrative_area_level_1']);
+
+                const streetNumber = streetNumberComponent ? (streetNumberComponent.longText || streetNumberComponent.long_name || streetNumberComponent.shortText || streetNumberComponent.short_name || '') : '';                                                  
+                const route = routeComponent ? (routeComponent.longText || routeComponent.long_name || routeComponent.shortText || routeComponent.short_name || '') : '';
+
+                if (addressInput) {
+                    const street = [streetNumber, route].filter(Boolean).join(' ').trim();
+                    if (street && !addressInput.value) {
+                        addressInput.value = street;
+                    }
+                }
+
+                if (cityInput && localityComponent) {
+                    const cityValue = localityComponent.longText || localityComponent.long_name || localityComponent.shortText || localityComponent.short_name || '';
+                    if (cityValue) {
+                        cityInput.value = cityValue;
+                    }
+                }
+
+                if (stateSelect && stateComponent) {
+                    const stateValue = stateComponent.shortText || stateComponent.short_name || stateComponent.longText || stateComponent.long_name || '';
+                    const normalized = (stateValue || '').toUpperCase();
+                    if (normalized && Array.from(stateSelect.options).some(opt => opt.value === normalized)) {
+                        stateSelect.value = normalized;
+                    }
+                }
+            }
+
+            const phoneNumber = place.formattedPhoneNumber || place.formatted_phone_number || place.internationalPhoneNumber || place.international_phone_number;
+            if (phoneInput && phoneNumber && !phoneInput.value) {
+                phoneInput.value = phoneNumber;
+            }
+
+            // Note: Google Places API doesn't typically provide email addresses
+            // This field is available for manual entry or if email is found during research
+            // If you have a custom data source that provides email, you can populate it here
+            const email = place.email || place.emailAddress || '';
+            if (emailInput && email && !emailInput.value) {
+                emailInput.value = email;
+            }
+
+            const website = place.websiteUri || place.website || '';
+            if (websiteInput && website && !websiteInput.value) {
+                websiteInput.value = website;
+            }
+
+            function setCoordinates(lat, lng) {
+                if (latInput) latInput.value = lat;
+                if (lngInput) lngInput.value = lng;
+                updateNewStoreCoordinatesUI();
+                if (locationStatusEl) {
+                    locationStatusEl.innerHTML = '';
+                }
+            }
+
+            if (place.location) {
+                if (typeof place.location.lat === 'function' && typeof place.location.lng === 'function') {
+                    const lat = place.location.lat();
+                    const lng = place.location.lng();
+                    setCoordinates(lat, lng);
+                } else if (typeof place.location.lat === 'number' && typeof place.location.lng === 'number') {
+                    setCoordinates(place.location.lat, place.location.lng);
+                } else if (place.location.latLng && typeof place.location.latLng.lat === 'number' && typeof place.location.latLng.lng === 'number') {
+                    setCoordinates(place.location.latLng.lat, place.location.latLng.lng);
+                }
+            } else if (place.geometry && place.geometry.location) {
+                const geom = place.geometry.location;
+                if (typeof geom.lat === 'function' && typeof geom.lng === 'function') {
+                    setCoordinates(geom.lat(), geom.lng());
+                } else if (typeof geom.lat === 'number' && typeof geom.lng === 'number') {
+                    setCoordinates(geom.lat, geom.lng);
+                }
+            }
+
+            setNewStoreCardExpanded(true);
+        }
+
         async function handlePlaceSelection(event) {
             if (!event || !googleMapsState || googleMapsState.error) {
                 return;
@@ -1958,6 +2209,7 @@
             const cityInput = document.getElementById('newStoreCity');
             const stateSelect = document.getElementById('newStoreState');
             const phoneInput = document.getElementById('newStorePhone');
+            const emailInput = document.getElementById('newStoreEmail');
             const websiteInput = document.getElementById('newStoreWebsite');
             const latInput = document.getElementById('newStoreLat');
             const lngInput = document.getElementById('newStoreLng');
@@ -2016,6 +2268,13 @@
             const phoneNumber = place.formattedPhoneNumber || place.formatted_phone_number || place.internationalPhoneNumber || place.international_phone_number;
             if (phoneInput && phoneNumber) {
                 phoneInput.value = phoneNumber;
+            }
+
+            // Note: Google Places API doesn't typically provide email addresses
+            // This field is available for manual entry or if email is found during research
+            const email = place.email || place.emailAddress || '';
+            if (emailInput && email) {
+                emailInput.value = email;
             }
 
             const website = place.websiteUri || place.website || '';
@@ -2097,6 +2356,7 @@
             }
 
             queueGoogleMapsCallback(initPlaceAutocompleteElement);
+            queueGoogleMapsCallback(initAddressAutocompleteElement);
             refreshSignatureDependentControls();
             updateNewStoreCoordinatesUI();
             newStoreFormInitialized = true;
@@ -2341,6 +2601,7 @@
             const city = document.getElementById('newStoreCity').value.trim();
             const state = document.getElementById('newStoreState').value.trim();
             const phone = document.getElementById('newStorePhone').value.trim();
+            const email = document.getElementById('newStoreEmail').value.trim();
             const websiteRaw = document.getElementById('newStoreWebsite').value.trim();
             const instagramRaw = document.getElementById('newStoreInstagram').value.trim();
             const shopType = document.getElementById('newStoreShopType').value.trim();
@@ -2418,6 +2679,7 @@
             params.append('city', city || '');
             params.append('state', state || '');
             params.append('phone', phone || '');
+            if (email) params.append('email', email);
             if (website) params.append('website', website);
             if (instagram) params.append('instagram', instagram);
             params.append('latitude', latitude);
