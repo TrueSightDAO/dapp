@@ -478,6 +478,157 @@
             border-radius: 8px;
             border: 1px solid #ddd;
             margin: 1rem 0;
+            position: relative;
+            transition: height 0.3s ease, width 0.3s ease;
+        }
+        /* Leaflet attribution styling */
+        .leaflet-control-attribution {
+            font-size: 0.75rem !important;
+            padding: 2px 5px !important;
+            line-height: 1.3 !important;
+        }
+        #map.expanded {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            border-radius: 0;
+            margin: 0;
+            border: none;
+        }
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            gap: 0.5rem;
+            flex-direction: column;
+        }
+        .map-control-btn {
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-size: 1.2rem;
+            transition: all 0.2s ease;
+            z-index: 1001;
+        }
+        .map-control-btn:hover {
+            background: #007bff;
+            color: white;
+            transform: scale(1.1);
+        }
+        .map-control-btn:active {
+            transform: scale(0.95);
+        }
+        .map-loading-indicator {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #007bff;
+        }
+        .map-loading-indicator.show {
+            display: flex;
+        }
+        .map-loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e0e0e0;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .expanded-map-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9998;
+            display: none;
+        }
+        .expanded-map-overlay.show {
+            display: block;
+        }
+        .expanded-map-header {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 1rem 1.5rem;
+            z-index: 10000;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+            display: none;
+            align-items: center;
+            gap: 1rem;
+        }
+        .expanded-map-header.show {
+            display: flex;
+        }
+        .expanded-map-header h3 {
+            margin: 0;
+            flex: 1;
+            font-size: 1.1rem;
+            line-height: 1.4;
+            font-weight: 600;
+        }
+        .expanded-map-header select {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .expanded-map-header .close-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .expanded-map-header .close-btn:hover {
+            background: #c82333;
+        }
+        #map.expanded {
+            bottom: 0;
+            padding-bottom: 80px; /* Space for bottom header */
+        }
+        #map.expanded .map-controls {
+            top: 10px;
+            z-index: 10001;
+        }
+        #map.expanded .map-loading-indicator {
+            top: 60px;
+            z-index: 10001;
         }
         .numbered-marker {
             background: transparent !important;
@@ -486,6 +637,39 @@
         @media (max-width: 600px) {
             #map {
                 height: 300px;
+            }
+            .map-control-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+            .expanded-map-header {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 0.75rem 1rem;
+            }
+            .expanded-map-header h3 {
+                font-size: 1rem;
+                line-height: 1.4;
+                margin-bottom: 0.5rem;
+            }
+            #map.expanded {
+                padding-bottom: 140px; /* More space for mobile header */
+            }
+            .expanded-map-header select {
+                width: 100%;
+            }
+            .expanded-map-header .close-btn {
+                width: 100%;
+            }
+            #map.expanded {
+                bottom: 0;
+            }
+            #map.expanded .map-controls {
+                top: 10px;
+            }
+            #map.expanded .map-loading-indicator {
+                top: 60px;
             }
         }
     </style>
@@ -714,11 +898,37 @@
             <!-- Map View - Visual context -->
             <div class="form-group" style="margin-bottom: 1.5rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Map View:</label>
-                <div id="map"></div>
-                <p style="font-size: 0.85rem; color: #6c757d; margin-top: 0.5rem; text-align: center;">
+                <div id="map">
+                    <div class="map-controls">
+                        <button class="map-control-btn" id="expandMapBtn" title="Maximize map" style="display: none;">⛶</button>
+                        <button class="map-control-btn" id="collapseMapBtn" title="Minimize map" style="display: none;">⛶</button>
+                    </div>
+                    <div class="map-loading-indicator" id="mapLoadingIndicator">
+                        <div class="map-loading-spinner"></div>
+                        <span>Loading stores...</span>
+                    </div>
+                </div>
+                <p style="font-size: 0.9rem; color: #6c757d; margin-top: 0.75rem; margin-bottom: 0.5rem; text-align: center; line-height: 1.5;">
                     Your location and nearby stores are shown on the map
                 </p>
             </div>
+            
+            <!-- Expanded Map Header -->
+            <div class="expanded-map-header" id="expandedMapHeader">
+                <h3>Map View - Explore Stores</h3>
+                <select id="expandedStatusFilter" style="min-width: 200px;">
+                    <option value="">All Statuses</option>
+                    <option value="Contacted">Contacted</option>
+                    <option value="Manager Follow-up">Manager Follow-up</option>
+                    <option value="Followed Up">Followed Up</option>
+                    <option value="Shortlisted">Shortlisted</option>
+                    <option value="Research">Research</option>
+                </select>
+                <button class="close-btn" id="closeExpandedMapBtn">Close Map</button>
+            </div>
+            
+            <!-- Expanded Map Overlay -->
+            <div class="expanded-map-overlay" id="expandedMapOverlay"></div>
 
             <!-- Search Button - Secondary action -->
             <form id="searchForm" style="margin-bottom: 1.5rem;">
@@ -1223,6 +1433,13 @@
             }
         }
 
+        // Map expansion state
+        let isMapExpanded = false;
+        let mapExpandedBounds = null;
+        let boundsChangeTimeout = null;
+        let loadedStoreKeys = new Set();
+        let isMapLoading = false;
+
         // Initialize map
         function initMap() {
             if (!map) {
@@ -1231,6 +1448,292 @@
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors'
                 }).addTo(map);
+                
+                // Add bounds change listener for lazy loading
+                map.on('moveend', handleMapBoundsChange);
+                map.on('zoomend', handleMapBoundsChange);
+            }
+        }
+
+        // Handle map bounds change for lazy loading
+        function handleMapBoundsChange() {
+            if (!isMapExpanded || isMapLoading) return;
+            
+            // Debounce bounds changes
+            clearTimeout(boundsChangeTimeout);
+            boundsChangeTimeout = setTimeout(() => {
+                loadStoresForBounds();
+            }, 500); // Wait 500ms after user stops moving
+        }
+
+        // Load stores for current map bounds
+        async function loadStoresForBounds() {
+            if (!map || !isMapExpanded || isMapLoading) return;
+            
+            const bounds = map.getBounds();
+            const statusFilter = document.getElementById('expandedStatusFilter')?.value || 
+                                 document.getElementById('statusFilter')?.value || '';
+            
+            // Check if we need to load more stores
+            const center = bounds.getCenter();
+            const ne = bounds.getNorthEast();
+            const sw = bounds.getSouthWest();
+            
+            // Show loading indicator
+            showMapLoading(true);
+            isMapLoading = true;
+            
+            try {
+                // Build query with bounds
+                const params = new URLSearchParams({
+                    lat: center.lat.toString(),
+                    lng: center.lng.toString(),
+                    limit: '100', // Load more in expanded view
+                    ne_lat: ne.lat.toString(),
+                    ne_lng: ne.lng.toString(),
+                    sw_lat: sw.lat.toString(),
+                    sw_lng: sw.lng.toString()
+                });
+                
+                if (statusFilter) {
+                    params.append('status', statusFilter);
+                }
+                
+                const response = await fetch(`${API_URL}?${params.toString()}`);
+                const data = await response.json();
+                
+                if (data.success && data.stores) {
+                    // Filter out already loaded stores and add new ones
+                    const newStores = data.stores.filter(store => {
+                        const storeKey = createStoreKey(store);
+                        if (loadedStoreKeys.has(storeKey)) {
+                            return false;
+                        }
+                        loadedStoreKeys.add(storeKey);
+                        return true;
+                    });
+                    
+                    if (newStores.length > 0) {
+                        // Add new markers to map
+                        addStoresToMap(newStores);
+                        
+                        // Update route with all visible stores
+                        updateExpandedMapRoute();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading stores for bounds:', error);
+            } finally {
+                showMapLoading(false);
+                isMapLoading = false;
+            }
+        }
+
+        // Add stores to map without clearing existing markers
+        function addStoresToMap(stores) {
+            if (!map || !stores || stores.length === 0) return;
+            
+            // Store in allStoresData for route calculation
+            if (!window.allStoresData) {
+                window.allStoresData = [];
+            }
+            
+            stores.forEach((store) => {
+                // Check if marker already exists
+                const existingMarker = storeMarkers.find(m => {
+                    const pos = m.getLatLng();
+                    return Math.abs(pos.lat - store.latitude) < 0.0001 && 
+                           Math.abs(pos.lng - store.longitude) < 0.0001;
+                });
+                
+                if (existingMarker) return;
+                
+                // Add to allStoresData if not already there
+                const existing = window.allStoresData.find(s => 
+                    Math.abs(s.latitude - store.latitude) < 0.0001 && 
+                    Math.abs(s.longitude - store.longitude) < 0.0001
+                );
+                if (!existing) {
+                    window.allStoresData.push(store);
+                }
+                
+                const mapsQueryParts = [
+                    store.name || '',
+                    store.address || '',
+                    store.city || '',
+                    store.state || ''
+                ].join(' ').trim();
+                const mapsQuery = mapsQueryParts ? encodeURIComponent(mapsQueryParts) : '';
+                const mapsUrl = mapsQuery
+                    ? `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`
+                    : `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`;
+
+                const marker = L.marker([store.latitude, store.longitude], {
+                    icon: createNumberedIcon(storeMarkers.length + 1, 'blue')
+                })
+                .addTo(map)
+                .bindPopup(`
+                    <strong>${escapeHtml(store.name)}</strong><br>
+                    ${escapeHtml(store.address || '')}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}<br>
+                    <strong>Distance:</strong> ${store.distance ? store.distance.toFixed(1) : 'N/A'} miles<br>
+                    <a href="${mapsUrl}" target="_blank" style="color: #007bff;">View on Google Maps</a>
+                `);
+
+                storeMarkers.push(marker);
+            });
+        }
+
+        // Show/hide map loading indicator
+        function showMapLoading(show) {
+            const indicator = document.getElementById('mapLoadingIndicator');
+            if (indicator) {
+                if (show) {
+                    indicator.classList.add('show');
+                } else {
+                    indicator.classList.remove('show');
+                }
+            }
+        }
+
+        // Expand map to full screen
+        function expandMap() {
+            const mapEl = document.getElementById('map');
+            const expandBtn = document.getElementById('expandMapBtn');
+            const collapseBtn = document.getElementById('collapseMapBtn');
+            const header = document.getElementById('expandedMapHeader');
+            const overlay = document.getElementById('expandedMapOverlay');
+            const expandedStatusFilter = document.getElementById('expandedStatusFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            
+            if (!mapEl || !map) return;
+            
+            // Save current bounds for restoration
+            mapExpandedBounds = map.getBounds();
+            
+            // Update UI
+            mapEl.classList.add('expanded');
+            if (expandBtn) expandBtn.style.display = 'none';
+            if (collapseBtn) collapseBtn.style.display = 'flex';
+            if (header) header.classList.add('show');
+            if (overlay) overlay.classList.add('show');
+            
+            // Sync status filter
+            if (expandedStatusFilter && statusFilter) {
+                expandedStatusFilter.value = statusFilter.value;
+            }
+            
+            isMapExpanded = true;
+            loadedStoreKeys.clear();
+            
+            // Initialize allStoresData if needed
+            if (!window.allStoresData) {
+                window.allStoresData = [];
+            }
+            
+            // Invalidate map size and trigger resize
+            setTimeout(() => {
+                map.invalidateSize();
+                // Load stores for current view
+                loadStoresForBounds();
+                // Update route if we already have stores
+                if (storeMarkers.length > 0) {
+                    updateExpandedMapRoute();
+                }
+            }, 100);
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Collapse map to normal view
+        function collapseMap() {
+            const mapEl = document.getElementById('map');
+            const expandBtn = document.getElementById('expandMapBtn');
+            const collapseBtn = document.getElementById('collapseMapBtn');
+            const header = document.getElementById('expandedMapHeader');
+            const overlay = document.getElementById('expandedMapOverlay');
+            
+            if (!mapEl || !map) return;
+            
+            // Update UI
+            mapEl.classList.remove('expanded');
+            if (expandBtn) expandBtn.style.display = 'flex';
+            if (collapseBtn) collapseBtn.style.display = 'none';
+            if (header) header.classList.remove('show');
+            if (overlay) overlay.classList.remove('show');
+            
+            isMapExpanded = false;
+            
+            // Restore map size
+            setTimeout(() => {
+                map.invalidateSize();
+                
+                // Restore to route view if we have stores
+                if (window.orderedStoresData && window.orderedStoresData.length > 0 && currentLat && currentLng) {
+                    // Restore to show route
+                    const allMarkers = userMarker ? [userMarker, ...storeMarkers] : storeMarkers;
+                    if (allMarkers.length > 0) {
+                        const group = new L.featureGroup(allMarkers);
+                        map.fitBounds(group.getBounds().pad(0.1));
+                    } else {
+                        map.setView([currentLat, currentLng], 13);
+                    }
+                } else if (currentLat && currentLng) {
+                    map.setView([currentLat, currentLng], 13);
+                }
+            }, 100);
+            
+            // Restore body scroll
+            document.body.style.overflow = '';
+        }
+
+        // Initialize map controls
+        function initMapControls() {
+            const expandBtn = document.getElementById('expandMapBtn');
+            const collapseBtn = document.getElementById('collapseMapBtn');
+            const closeBtn = document.getElementById('closeExpandedMapBtn');
+            const expandedStatusFilter = document.getElementById('expandedStatusFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            
+            if (expandBtn) {
+                expandBtn.addEventListener('click', expandMap);
+                // Show expand button when map has content
+                if (map && storeMarkers.length > 0) {
+                    expandBtn.style.display = 'flex';
+                }
+            }
+            
+            if (collapseBtn) {
+                collapseBtn.addEventListener('click', collapseMap);
+            }
+            
+            if (closeBtn) {
+                closeBtn.addEventListener('click', collapseMap);
+            }
+            
+            // Sync status filter changes
+            if (expandedStatusFilter) {
+                expandedStatusFilter.addEventListener('change', function() {
+                    // Sync to main filter
+                    if (statusFilter) {
+                        statusFilter.value = this.value;
+                    }
+                    
+                    // Clear loaded stores and reload
+                    loadedStoreKeys.clear();
+                    window.allStoresData = [];
+                    // Clear existing markers except user marker
+                    storeMarkers.forEach(marker => map.removeLayer(marker));
+                    storeMarkers = [];
+                    // Clear route line
+                    if (window.routeLine) {
+                        map.removeLayer(window.routeLine);
+                        window.routeLine = null;
+                    }
+                    
+                    // Reload stores for current bounds
+                    loadStoresForBounds();
+                });
             }
         }
 
@@ -1247,7 +1750,9 @@
         }
 
         // Solve TSP using nearest neighbor heuristic + 2-opt improvement
-        function solveTSP(startLat, startLng, stores) {
+        // If startFromNearestStore is true, the route starts from the store closest to startLat/startLng
+        // Otherwise, it starts from the user location
+        function solveTSP(startLat, startLng, stores, startFromNearestStore = false) {
             if (stores.length === 0) return [];
 
             // Create distance matrix
@@ -1263,17 +1768,33 @@
                 }
             }
 
-            // Nearest neighbor heuristic starting from user location
+            // Nearest neighbor heuristic starting from user location or nearest store
             const startDistances = stores.map((store, i) => ({
                 index: i,
                 distance: calculateDistance(startLat, startLng, store.latitude, store.longitude)
             }));
             startDistances.sort((a, b) => a.distance - b.distance);
+            
+            // If starting from nearest store, use that store as the first point
+            const firstStoreIndex = startFromNearestStore ? startDistances[0].index : null;
 
-            let route = [startDistances[0].index];
+            let route;
             let unvisited = new Set();
-            for (let i = 1; i < n; i++) {
-                unvisited.add(startDistances[i].index);
+            
+            if (startFromNearestStore && firstStoreIndex !== null) {
+                // Start from the nearest store
+                route = [firstStoreIndex];
+                for (let i = 0; i < n; i++) {
+                    if (i !== firstStoreIndex) {
+                        unvisited.add(i);
+                    }
+                }
+            } else {
+                // Start from user location (original behavior)
+                route = [startDistances[0].index];
+                for (let i = 1; i < n; i++) {
+                    unvisited.add(startDistances[i].index);
+                }
             }
 
             // Build route using nearest neighbor
@@ -1318,9 +1839,25 @@
             // Reorder stores and calculate cumulative distances
             const orderedStores = route.map((idx, orderIndex) => {
                 const store = stores[idx];
-                const prevLat = orderIndex === 0 ? startLat : stores[route[orderIndex - 1]].latitude;
-                const prevLng = orderIndex === 0 ? startLng : stores[route[orderIndex - 1]].longitude;
-                const routeDistance = calculateDistance(prevLat, prevLng, store.latitude, store.longitude);
+                let prevLat, prevLng;
+                
+                if (orderIndex === 0) {
+                    if (startFromNearestStore) {
+                        // First store - no previous point, distance is 0
+                        prevLat = store.latitude;
+                        prevLng = store.longitude;
+                    } else {
+                        // Start from user location
+                        prevLat = startLat;
+                        prevLng = startLng;
+                    }
+                } else {
+                    prevLat = stores[route[orderIndex - 1]].latitude;
+                    prevLng = stores[route[orderIndex - 1]].longitude;
+                }
+                
+                const routeDistance = orderIndex === 0 && startFromNearestStore ? 0 : 
+                    calculateDistance(prevLat, prevLng, store.latitude, store.longitude);
                 
                 return {
                     ...store,
@@ -1330,6 +1867,61 @@
             });
 
             return orderedStores;
+        }
+        
+        // Update route in expanded view with all visible stores
+        function updateExpandedMapRoute() {
+            if (!isMapExpanded || !map || !currentLat || !currentLng) return;
+            
+            // Get all visible store markers
+            const visibleStores = storeMarkers.map(marker => {
+                const pos = marker.getLatLng();
+                // Find the store data from window.orderedStoresData or reconstruct from marker
+                const storeData = window.allStoresData?.find(s => 
+                    Math.abs(s.latitude - pos.lat) < 0.0001 && 
+                    Math.abs(s.longitude - pos.lng) < 0.0001
+                );
+                return storeData || {
+                    latitude: pos.lat,
+                    longitude: pos.lng,
+                    name: '',
+                    address: '',
+                    city: '',
+                    state: ''
+                };
+            });
+            
+            if (visibleStores.length === 0) return;
+            
+            // Solve TSP starting from nearest store
+            const orderedStores = solveTSP(currentLat, currentLng, visibleStores, true);
+            
+            // Update marker numbers based on new route order
+            orderedStores.forEach((store, index) => {
+                const marker = storeMarkers.find(m => {
+                    const pos = m.getLatLng();
+                    return Math.abs(pos.lat - store.latitude) < 0.0001 && 
+                           Math.abs(pos.lng - store.longitude) < 0.0001;
+                });
+                if (marker) {
+                    marker.setIcon(createNumberedIcon(index + 1, 'blue'));
+                }
+            });
+            
+            // Draw route line (store to store, not from user location)
+            const routeCoordinates = orderedStores.map(s => [s.latitude, s.longitude]);
+            if (window.routeLine) {
+                map.removeLayer(window.routeLine);
+            }
+            window.routeLine = L.polyline(routeCoordinates, {
+                color: '#007bff',
+                weight: 3,
+                opacity: 0.7,
+                dashArray: '10, 10'
+            }).addTo(map);
+            
+            // Store ordered stores for reference
+            window.expandedOrderedStores = orderedStores;
         }
 
         // Create numbered marker icon using DivIcon
@@ -1369,12 +1961,21 @@
                 initMap();
             }
 
-            // Clear existing markers
-            if (userMarker) {
-                map.removeLayer(userMarker);
+            // Only clear markers if not in expanded mode (to preserve lazy-loaded stores)
+            if (!isMapExpanded) {
+                // Clear existing markers
+                if (userMarker) {
+                    map.removeLayer(userMarker);
+                }
+                storeMarkers.forEach(marker => map.removeLayer(marker));
+                storeMarkers = [];
+                loadedStoreKeys.clear();
+            } else {
+                // In expanded mode, only clear user marker if needed
+                if (userMarker) {
+                    map.removeLayer(userMarker);
+                }
             }
-            storeMarkers.forEach(marker => map.removeLayer(marker));
-            storeMarkers = [];
 
             // Add user location marker
             userMarker = L.marker([lat, lng], {
@@ -1399,8 +2000,41 @@
                 // Calculate total route distance
                 const totalDistance = orderedStores.reduce((sum, store) => sum + (store.routeDistance || 0), 0);
 
+                // Mark stores as loaded
+                orderedStores.forEach(store => {
+                    const storeKey = createStoreKey(store);
+                    loadedStoreKeys.add(storeKey);
+                });
+                
+                // Store all stores data for expanded view route calculation
+                if (!window.allStoresData) {
+                    window.allStoresData = [];
+                }
+                orderedStores.forEach(store => {
+                    const existing = window.allStoresData.find(s => 
+                        Math.abs(s.latitude - store.latitude) < 0.0001 && 
+                        Math.abs(s.longitude - store.longitude) < 0.0001
+                    );
+                    if (!existing) {
+                        window.allStoresData.push(store);
+                    }
+                });
+
                 // Add store markers with numbers
-                orderedStores.forEach((store) => {
+                // In expanded mode, use expanded route order; otherwise use normal order
+                const storesToDisplay = isMapExpanded && window.expandedOrderedStores ? 
+                    window.expandedOrderedStores : orderedStores;
+                
+                storesToDisplay.forEach((store) => {
+                    // Check if marker already exists (for expanded mode)
+                    const existingMarker = storeMarkers.find(m => {
+                        const pos = m.getLatLng();
+                        return Math.abs(pos.lat - store.latitude) < 0.0001 && 
+                               Math.abs(pos.lng - store.longitude) < 0.0001;
+                    });
+                    
+                    if (existingMarker) return;
+
                     const mapsQueryParts = [
                         store.name || '',
                         store.address || '',
@@ -1428,30 +2062,65 @@
                 });
 
                 // Draw route line
-                const routeCoordinates = [[lat, lng], ...orderedStores.map(s => [s.latitude, s.longitude])];
-                if (window.routeLine) {
-                    map.removeLayer(window.routeLine);
+                if (isMapExpanded) {
+                    // In expanded mode, route starts from nearest store (not user location)
+                    const expandedOrderedStores = solveTSP(lat, lng, stores, true);
+                    const routeCoordinates = expandedOrderedStores.map(s => [s.latitude, s.longitude]);
+                    if (window.routeLine) {
+                        map.removeLayer(window.routeLine);
+                    }
+                    window.routeLine = L.polyline(routeCoordinates, {
+                        color: '#007bff',
+                        weight: 3,
+                        opacity: 0.7,
+                        dashArray: '10, 10'
+                    }).addTo(map);
+                    window.expandedOrderedStores = expandedOrderedStores;
+                } else {
+                    // Normal mode: route starts from user location
+                    const routeCoordinates = [[lat, lng], ...orderedStores.map(s => [s.latitude, s.longitude])];
+                    if (window.routeLine) {
+                        map.removeLayer(window.routeLine);
+                    }
+                    window.routeLine = L.polyline(routeCoordinates, {
+                        color: '#007bff',
+                        weight: 3,
+                        opacity: 0.7,
+                        dashArray: '10, 10'
+                    }).addTo(map);
                 }
-                window.routeLine = L.polyline(routeCoordinates, {
-                    color: '#007bff',
-                    weight: 3,
-                    opacity: 0.7,
-                    dashArray: '10, 10'
-                }).addTo(map);
 
-                // Fit map to show all markers
-                const group = new L.featureGroup([userMarker, ...storeMarkers]);
-                map.fitBounds(group.getBounds().pad(0.1));
+                // Fit map to show all markers (only if not in expanded mode)
+                if (!isMapExpanded) {
+                    const group = new L.featureGroup([userMarker, ...storeMarkers]);
+                    map.fitBounds(group.getBounds().pad(0.1));
+                }
                 
                 // Store total route distance for display
                 window.totalRouteDistance = totalDistance;
+                
+                // Show expand button
+                const expandBtn = document.getElementById('expandMapBtn');
+                if (expandBtn) {
+                    expandBtn.style.display = 'flex';
+                }
             } else {
-                map.setView([lat, lng], 13);
+                if (!isMapExpanded) {
+                    map.setView([lat, lng], 13);
+                }
+                // Hide expand button if no stores
+                const expandBtn = document.getElementById('expandMapBtn');
+                if (expandBtn) {
+                    expandBtn.style.display = 'none';
+                }
             }
         }
 
         // Digital signature verification on page load
         window.addEventListener('load', async () => {
+            // Initialize map controls
+            initMapControls();
+            
             const publicKey = localStorage.getItem('publicKey');
             const statusElement = document.getElementById('status');
             statusElement.textContent = 'Verifying your digital signature...';
