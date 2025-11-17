@@ -459,6 +459,31 @@
             .location-two-column {
                 grid-template-columns: 1fr;
             }
+            /* Optimize filter dropdowns for mobile */
+            .filter-dropdowns-container {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 1rem !important;
+            }
+            .form-group select {
+                font-size: 1rem !important;
+                padding: 0.875rem !important;
+                min-height: 44px !important; /* iOS recommended tap target size */
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+                background-repeat: no-repeat;
+                background-position: right 0.75rem center;
+                background-size: 1.2em;
+                padding-right: 2.5rem !important;
+                border: 1px solid #ddd !important;
+                border-radius: 4px !important;
+            }
+            .form-group label {
+                font-size: 0.95rem !important;
+                margin-bottom: 0.5rem !important;
+            }
             .store-card {
                 padding: 0.8rem;
             }
@@ -660,6 +685,17 @@
             .expanded-map-header select {
                 width: 100%;
                 margin-bottom: 0.5rem;
+                min-height: 44px !important; /* iOS recommended tap target size */
+                padding: 0.875rem !important;
+                font-size: 1rem !important;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+                background-repeat: no-repeat;
+                background-position: right 0.75rem center;
+                background-size: 1.2em;
+                padding-right: 2.5rem !important;
             }
             .expanded-map-header .close-btn {
                 width: 100%;
@@ -870,7 +906,7 @@
             </div>
             <!-- Status Filter - Primary control, most important -->
             <div class="form-group" style="margin-bottom: 1.5rem;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="filter-dropdowns-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                     <div>
                         <label for="statusFilter" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Filter by Status:</label>
                         <select id="statusFilter" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
