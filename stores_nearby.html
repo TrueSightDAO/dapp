@@ -613,6 +613,9 @@
             display: none;
             align-items: center;
             gap: 1rem;
+            min-height: 50px;
+            max-height: 80vh;
+            overflow-y: auto;
         }
         .expanded-map-header.show {
             display: flex;
@@ -643,9 +646,53 @@
         .expanded-map-header .close-btn:hover {
             background: #c82333;
         }
+        .expanded-map-header .toggle-panel-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .expanded-map-header .toggle-panel-btn:hover {
+            background: #5a6268;
+        }
+        .expanded-map-header.collapsed {
+            max-height: 50px;
+            padding: 0;
+            overflow: hidden;
+        }
+        .expanded-map-header.collapsed .toggle-panel-btn {
+            margin: 0;
+            border-radius: 0;
+            width: 100%;
+            height: 50px;
+            border-radius: 4px 4px 0 0;
+        }
+        .expanded-map-header.collapsed > *:not(.toggle-panel-btn) {
+            opacity: 0;
+            pointer-events: none;
+            max-height: 0;
+            overflow: hidden;
+        }
+        .expanded-map-header {
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+        .expanded-map-header > *:not(.toggle-panel-btn) {
+            transition: opacity 0.2s ease, max-height 0.3s ease;
+        }
         #map.expanded {
             bottom: 0;
             padding-bottom: 80px; /* Space for bottom header */
+            transition: padding-bottom 0.3s ease;
+        }
+        #map.expanded.panel-hidden {
+            padding-bottom: 50px; /* Space for collapsed toggle button only */
         }
         #map.expanded .map-controls {
             top: 10px;
@@ -681,6 +728,17 @@
             #map.expanded {
                 bottom: 0;
                 padding-bottom: 180px; /* More space for mobile header with two filters */
+            }
+            #map.expanded.panel-hidden {
+                padding-bottom: 50px; /* Space for collapsed toggle button only on mobile */
+            }
+            .expanded-map-header.collapsed {
+                max-height: 50px;
+                padding: 0;
+            }
+            .expanded-map-header.collapsed .toggle-panel-btn {
+                width: 100%;
+                height: 50px;
             }
             .expanded-map-header .expanded-multi-select-container {
                 max-height: 120px !important;
@@ -1039,6 +1097,9 @@
             
             <!-- Expanded Map Header -->
             <div class="expanded-map-header" id="expandedMapHeader">
+                <button id="togglePanelBtn" class="toggle-panel-btn" title="Toggle panel visibility">
+                    <span id="togglePanelIcon">▼</span>
+                </button>
                 <div style="flex: 1;">
                     <h3>Map View - Explore Stores</h3>
                     <div id="expandedMapLocationCount" style="font-size: 0.875rem; color: #6c757d; margin-top: 0.25rem;">
@@ -2063,11 +2124,42 @@
             document.body.style.overflow = '';
         }
 
+        // Toggle expanded map panel visibility
+        function toggleExpandedMapPanel() {
+            const header = document.getElementById('expandedMapHeader');
+            const mapEl = document.getElementById('map');
+            const toggleIcon = document.getElementById('togglePanelIcon');
+            
+            if (!header || !mapEl) return;
+            
+            const isCollapsed = header.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // Show panel
+                header.classList.remove('collapsed');
+                mapEl.classList.remove('panel-hidden');
+                toggleIcon.textContent = '▼';
+            } else {
+                // Hide panel
+                header.classList.add('collapsed');
+                mapEl.classList.add('panel-hidden');
+                toggleIcon.textContent = '▲';
+            }
+            
+            // Invalidate map size to trigger resize
+            setTimeout(() => {
+                if (map) {
+                    map.invalidateSize();
+                }
+            }, 100);
+        }
+        
         // Initialize map controls
         function initMapControls() {
             const expandBtn = document.getElementById('expandMapBtn');
             const collapseBtn = document.getElementById('collapseMapBtn');
             const closeBtn = document.getElementById('closeExpandedMapBtn');
+            const togglePanelBtn = document.getElementById('togglePanelBtn');
             if (expandBtn) {
                 expandBtn.addEventListener('click', expandMap);
                 // Show expand button when map has content
@@ -2083,6 +2175,9 @@
             if (closeBtn) {
                 closeBtn.addEventListener('click', collapseMap);
             }
+            if (togglePanelBtn) {
+                togglePanelBtn.addEventListener('click', toggleExpandedMapPanel);
+            }
             
             // Add event listeners for expanded view checkboxes
             // Note: These are added dynamically when checkboxes are created, so we'll add them in a way that works
@@ -2096,6 +2191,9 @@
                     newCheckbox.addEventListener('change', function() {
                         // Sync to normal view
                         syncCheckboxes('.expanded-status-filter-checkbox', '.status-filter-checkbox');
+                        
+                        // Save filter states
+                        saveFilterStates();
                         
                         // Update counts
                         updateFilterCounts();
@@ -2123,6 +2221,9 @@
                     newCheckbox.addEventListener('change', function() {
                         // Sync to normal view
                         syncCheckboxes('.expanded-shop-type-filter-checkbox', '.shop-type-filter-checkbox');
+                        
+                        // Save filter states
+                        saveFilterStates();
                         
                         // Update counts
                         updateFilterCounts();
@@ -2860,6 +2961,9 @@
                     syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
                 }
                 
+                // Save filter states
+                saveFilterStates();
+                
                 // Update counts and summaries
                 updateFilterCounts();
                 
@@ -2887,6 +2991,9 @@
                     syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
                 }
                 
+                // Save filter states
+                saveFilterStates();
+                
                 // Update counts and summaries
                 updateFilterCounts();
                 
@@ -2901,33 +3008,91 @@
         document.getElementById('selectAllStatuses')?.addEventListener('click', function() {
             document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
             document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.dispatchEvent(new Event('change')));
+            saveFilterStates();
             updateFilterCounts();
         });
         
         document.getElementById('clearAllStatuses')?.addEventListener('click', function() {
             document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = false);
             document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.dispatchEvent(new Event('change')));
+            saveFilterStates();
             updateFilterCounts();
         });
         
         document.getElementById('selectAllShopTypes')?.addEventListener('click', function() {
             document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
             document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.dispatchEvent(new Event('change')));
+            saveFilterStates();
             updateFilterCounts();
         });
         
         document.getElementById('clearAllShopTypes')?.addEventListener('click', function() {
             document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = false);
             document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.dispatchEvent(new Event('change')));
+            saveFilterStates();
             updateFilterCounts();
         });
         
+        // Save filter states to localStorage
+        function saveFilterStates() {
+            try {
+                const statusFilters = getSelectedStatusFilters();
+                const shopTypeFilters = getSelectedShopTypeFilters();
+                
+                localStorage.setItem('storeFilters_status', JSON.stringify(statusFilters));
+                localStorage.setItem('storeFilters_shopType', JSON.stringify(shopTypeFilters));
+            } catch (e) {
+                console.warn('Failed to save filter states:', e);
+            }
+        }
+        
+        // Load filter states from localStorage
+        function loadFilterStates() {
+            try {
+                const savedStatus = localStorage.getItem('storeFilters_status');
+                const savedShopType = localStorage.getItem('storeFilters_shopType');
+                
+                // If we have saved states, restore them; otherwise, select all by default
+                if (savedStatus) {
+                    const statusFilters = JSON.parse(savedStatus);
+                    document.querySelectorAll('.status-filter-checkbox').forEach(cb => {
+                        cb.checked = statusFilters.includes(cb.value);
+                    });
+                    document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => {
+                        cb.checked = statusFilters.includes(cb.value);
+                    });
+                } else {
+                    // Default: select all
+                    document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
+                    document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => cb.checked = true);
+                }
+                
+                if (savedShopType) {
+                    const shopTypeFilters = JSON.parse(savedShopType);
+                    document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => {
+                        cb.checked = shopTypeFilters.includes(cb.value);
+                    });
+                    document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => {
+                        cb.checked = shopTypeFilters.includes(cb.value);
+                    });
+                } else {
+                    // Default: select all
+                    document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                    document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                }
+            } catch (e) {
+                console.warn('Failed to load filter states:', e);
+                // Fallback: select all
+                document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
+                document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => cb.checked = true);
+                document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+            }
+        }
+        
         // Initialize filter counts on page load
-        // Select all checkboxes by default (shows all stores)
-        document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
-        document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
-        document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => cb.checked = true);
-        document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+        // Load saved filter states or select all by default
+        loadFilterStates();
         updateFilterCounts();
 
         // Note: Status description is initialized when storesContent is shown (after signature verification)
