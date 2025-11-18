@@ -682,20 +682,13 @@
                 bottom: 0;
                 padding-bottom: 180px; /* More space for mobile header with two filters */
             }
-            .expanded-map-header select {
-                width: 100%;
-                margin-bottom: 0.5rem;
-                min-height: 44px !important; /* iOS recommended tap target size */
-                padding: 0.875rem !important;
-                font-size: 1rem !important;
-                -webkit-appearance: none;
-                -moz-appearance: none;
-                appearance: none;
-                background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-                background-repeat: no-repeat;
-                background-position: right 0.75rem center;
-                background-size: 1.2em;
-                padding-right: 2.5rem !important;
+            .expanded-map-header .expanded-multi-select-container {
+                max-height: 120px !important;
+                font-size: 0.8rem !important;
+            }
+            .expanded-map-header label {
+                padding: 0.375rem !important;
+                font-size: 0.8rem !important;
             }
             .expanded-map-header .close-btn {
                 width: 100%;
@@ -881,6 +874,7 @@
                                     <option value="Contacted">Contacted</option>
                                     <option value="Partnered">Partnered</option>
                                     <option value="Rejected">Rejected</option>
+                                    <option value="On Hold">On Hold</option>
                                 </select>
                             </div>
 
@@ -908,38 +902,110 @@
             <div class="form-group" style="margin-bottom: 1.5rem;">
                 <div class="filter-dropdowns-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                     <div>
-                        <label for="statusFilter" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Filter by Status:</label>
-                        <select id="statusFilter" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
-                            <option value="Contacted">Contacted</option>
-                            <option value="Manager Follow-up">Manager Follow-up</option>
-                            <option value="Followed Up">Followed Up</option>
-                            <option value="Research">Research</option>
-                            <option value="Shortlisted">Shortlisted</option>
-                            <option value="Partnered">Partnered</option>
-                            <option value="Rejected">Rejected</option>
-                            <option value="Not Appropriate">Not Appropriate</option>
-                            <option value="">All Statuses</option>
-                        </select>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <label style="font-weight: 600; margin: 0;">Filter by Status:</label>
+                            <span id="statusFilterCount" style="font-size: 0.875rem; color: #007bff; font-weight: 600; background: #e7f3ff; padding: 0.25rem 0.5rem; border-radius: 12px; min-width: 2rem; text-align: center;">0 selected</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <button type="button" id="selectAllStatuses" style="flex: 1; padding: 0.5rem; font-size: 0.875rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: background 0.2s;">Select All</button>
+                            <button type="button" id="clearAllStatuses" style="flex: 1; padding: 0.5rem; font-size: 0.875rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: background 0.2s;">Clear All</button>
+                        </div>
+                        <div class="multi-select-container" style="border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem; background: white; max-height: 200px; overflow-y: auto; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Contacted" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Contacted</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Manager Follow-up" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Manager Follow-up</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Followed Up" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Followed Up</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Research" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Research</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Shortlisted" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Shortlisted</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Partnered" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Partnered</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Rejected" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Rejected</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Not Appropriate" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Not Appropriate</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="On Hold" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">On Hold</span>
+                            </label>
+                        </div>
+                        <div id="statusFilterSummary" style="margin-top: 0.5rem; font-size: 0.875rem; color: #6c757d; min-height: 1.25rem; font-style: italic;"></div>
                     </div>
                     <div>
-                        <label for="shopTypeFilter" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Filter by Shop Type:</label>
-                        <select id="shopTypeFilter" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
-                            <option value="">All Shop Types</option>
-                            <option value="Metaphysical/Spiritual">Metaphysical / Spiritual</option>
-                            <option value="Wellness Center">Wellness Center</option>
-                            <option value="Health Food Store">Health Food Store</option>
-                            <option value="Conscious Cafe">Conscious Cafe</option>
-                            <option value="Boutique Chocolate">Boutique Chocolate</option>
-                            <option value="Antique Store">Antique Store</option>
-                            <option value="Gift Shop">Gift Shop</option>
-                            <option value="Candy Store">Candy Store</option>
-                            <option value="Yoga Studio">Yoga Studio</option>
-                            <option value="Other">Other</option>
-                        </select>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <label style="font-weight: 600; margin: 0;">Filter by Shop Type:</label>
+                            <span id="shopTypeFilterCount" style="font-size: 0.875rem; color: #28a745; font-weight: 600; background: #d4edda; padding: 0.25rem 0.5rem; border-radius: 12px; min-width: 2rem; text-align: center;">0 selected</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <button type="button" id="selectAllShopTypes" style="flex: 1; padding: 0.5rem; font-size: 0.875rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: background 0.2s;">Select All</button>
+                            <button type="button" id="clearAllShopTypes" style="flex: 1; padding: 0.5rem; font-size: 0.875rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: background 0.2s;">Clear All</button>
+                        </div>
+                        <div class="multi-select-container" style="border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem; background: white; max-height: 200px; overflow-y: auto; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Metaphysical/Spiritual" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Metaphysical / Spiritual</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Wellness Center" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Wellness Center</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Health Food Store" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Health Food Store</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Conscious Cafe" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Conscious Cafe</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Boutique Chocolate" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Boutique Chocolate</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Antique Store" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Antique Store</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Gift Shop" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Gift Shop</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Candy Store" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Candy Store</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Yoga Studio" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Yoga Studio</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Other" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Other</span>
+                            </label>
+                        </div>
+                        <div id="shopTypeFilterSummary" style="margin-top: 0.5rem; font-size: 0.875rem; color: #6c757d; min-height: 1.25rem; font-style: italic;"></div>
                     </div>
                 </div>
                 <div id="statusDescription" style="margin-top: 0.5rem; padding: 0.75rem; background-color: #f8f9fa; border-left: 3px solid #007bff; border-radius: 4px; font-size: 0.9rem; color: #495057; line-height: 1.5;">
-                    <strong>📋 Status:</strong> <span id="statusDescriptionText">Select a status to see its meaning</span>
+                    <strong>📋 Status:</strong> <span id="statusDescriptionText">Select status(es) to see their meaning</span>
                 </div>
             </div>
 
@@ -973,28 +1039,100 @@
             
             <!-- Expanded Map Header -->
             <div class="expanded-map-header" id="expandedMapHeader">
-                <h3>Map View - Explore Stores</h3>
-                <select id="expandedStatusFilter" style="min-width: 150px;">
-                    <option value="">All Statuses</option>
-                    <option value="Contacted">Contacted</option>
-                    <option value="Manager Follow-up">Manager Follow-up</option>
-                    <option value="Followed Up">Followed Up</option>
-                    <option value="Shortlisted">Shortlisted</option>
-                    <option value="Research">Research</option>
-                </select>
-                <select id="expandedShopTypeFilter" style="min-width: 150px;">
-                    <option value="">All Shop Types</option>
-                    <option value="Metaphysical/Spiritual">Metaphysical / Spiritual</option>
-                    <option value="Wellness Center">Wellness Center</option>
-                    <option value="Health Food Store">Health Food Store</option>
-                    <option value="Conscious Cafe">Conscious Cafe</option>
-                    <option value="Boutique Chocolate">Boutique Chocolate</option>
-                    <option value="Antique Store">Antique Store</option>
-                    <option value="Gift Shop">Gift Shop</option>
-                    <option value="Candy Store">Candy Store</option>
-                    <option value="Yoga Studio">Yoga Studio</option>
-                    <option value="Other">Other</option>
-                </select>
+                <div style="flex: 1;">
+                    <h3>Map View - Explore Stores</h3>
+                    <div id="expandedMapLocationCount" style="font-size: 0.875rem; color: #6c757d; margin-top: 0.25rem;">
+                        <span id="expandedMapLocationCountText">0 locations loaded</span>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.9rem;">Status (multiple):</label>
+                        <div class="expanded-multi-select-container" style="border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem; background: white; max-height: 150px; overflow-y: auto; font-size: 0.875rem;">
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Contacted" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Contacted</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Manager Follow-up" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Manager Follow-up</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Followed Up" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Followed Up</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Shortlisted" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Shortlisted</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Research" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Research</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Partnered" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Partnered</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Rejected" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Rejected</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Not Appropriate" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Not Appropriate</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="On Hold" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>On Hold</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.9rem;">Shop Type (multiple):</label>
+                        <div class="expanded-multi-select-container" style="border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem; background: white; max-height: 150px; overflow-y: auto; font-size: 0.875rem;">
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Metaphysical/Spiritual" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Metaphysical / Spiritual</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Wellness Center" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Wellness Center</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Health Food Store" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Health Food Store</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Conscious Cafe" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Conscious Cafe</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Boutique Chocolate" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Boutique Chocolate</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Antique Store" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Antique Store</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Gift Shop" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Gift Shop</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Candy Store" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Candy Store</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Yoga Studio" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Yoga Studio</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Other" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Other</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
                 <button class="close-btn" id="closeExpandedMapBtn">Close Map</button>
             </div>
             
@@ -1121,11 +1259,13 @@
                 const latParam = params.get('lat');
                 const lngParam = params.get('lng');
                 if (statusParam) {
-                    const statusFilterEl = document.getElementById('statusFilter');
-                    if (statusFilterEl) {
-                        statusFilterEl.value = statusParam;
-                        updateStatusDescription(statusParam);
+                    // Set checkbox for the status from URL parameter
+                    const checkbox = document.querySelector(`.status-filter-checkbox[value="${statusParam}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        checkbox.dispatchEvent(new Event('change'));
                     }
+                        updateStatusDescription(statusParam);
                 }
                 if (latParam && lngParam) {
                     const parsedLat = parseFloat(latParam);
@@ -1542,61 +1682,184 @@
             if (!map || !isMapExpanded || isMapLoading) return;
             
             const bounds = map.getBounds();
-            const statusFilter = document.getElementById('expandedStatusFilter')?.value || 
-                                 document.getElementById('statusFilter')?.value || '';
-            const shopTypeFilter = document.getElementById('expandedShopTypeFilter')?.value || 
-                                   document.getElementById('shopTypeFilter')?.value || '';
+            // Get selected values from checkboxes
+            const statusFilters = getSelectedExpandedStatusFilters();
+            const shopTypeFilters = getSelectedExpandedShopTypeFilters();
             
             // Check if we need to load more stores
             const center = bounds.getCenter();
             const ne = bounds.getNorthEast();
             const sw = bounds.getSouthWest();
             
+            // Remove markers that are outside the current bounds
+            const neLat = ne.lat;
+            const neLng = ne.lng;
+            const swLat = sw.lat;
+            const swLng = sw.lng;
+            
+            // Helper function to check if a point is within bounds
+            // Note: This uses the bounds from when the function was called
+            // For filtering stores, we recalculate bounds inside the filter to ensure accuracy
+            const isWithinBounds = (lat, lng) => {
+                // Handle longitude wrapping (crossing the 180/-180 meridian)
+                if (neLng < swLng) {
+                    return lat >= swLat && lat <= neLat && (lng >= swLng || lng <= neLng);
+                } else {
+                    return lat >= swLat && lat <= neLat && lng >= swLng && lng <= neLng;
+                }
+            };
+            
+            // Remove markers outside current bounds
+            const markersToRemove = [];
+            storeMarkers.forEach((marker, index) => {
+                const pos = marker.getLatLng();
+                if (!isWithinBounds(pos.lat, pos.lng)) {
+                    markersToRemove.push(index);
+                    map.removeLayer(marker);
+                    // Find and remove from allStoresData and loadedStoreKeys
+                    if (window.allStoresData) {
+                        const storeIndex = window.allStoresData.findIndex(s => 
+                            Math.abs(s.latitude - pos.lat) < 0.0001 && 
+                            Math.abs(s.longitude - pos.lng) < 0.0001
+                        );
+                        if (storeIndex >= 0) {
+                            const store = window.allStoresData[storeIndex];
+                            // Remove from loadedStoreKeys before removing from allStoresData
+                            const storeKey = createStoreKey(store);
+                            loadedStoreKeys.delete(storeKey);
+                            // Remove from allStoresData
+                            window.allStoresData.splice(storeIndex, 1);
+                        }
+                    }
+                }
+            });
+            
+            // Remove markers from array (in reverse order to maintain indices)
+            markersToRemove.reverse().forEach(index => {
+                storeMarkers.splice(index, 1);
+            });
+            
+            // Update location count after removing markers
+            if (isMapExpanded) {
+                updateExpandedMapLocationCount();
+            }
+            
             // Show loading indicator
             showMapLoading(true);
             isMapLoading = true;
             
             try {
+                // Validate bounds before sending
+                if (isNaN(neLat) || isNaN(neLng) || isNaN(swLat) || isNaN(swLng)) {
+                    console.error('Invalid bounds:', { neLat, neLng, swLat, swLng });
+                    showMapLoading(false);
+                    isMapLoading = false;
+                    return;
+                }
+                
                 // Build query with bounds
                 const params = new URLSearchParams({
                     lat: center.lat.toString(),
                     lng: center.lng.toString(),
-                    limit: '100', // Load more in expanded view
-                    ne_lat: ne.lat.toString(),
-                    ne_lng: ne.lng.toString(),
-                    sw_lat: sw.lat.toString(),
-                    sw_lng: sw.lng.toString()
+                    limit: '200', // Load more in expanded view
+                    ne_lat: neLat.toString(),
+                    ne_lng: neLng.toString(),
+                    sw_lat: swLat.toString(),
+                    sw_lng: swLng.toString()
                 });
                 
-                if (statusFilter) {
-                    params.append('status', statusFilter);
+                // Include status filters as array (multiple values)
+                if (statusFilters.length > 0) {
+                    statusFilters.forEach(status => {
+                        params.append('status', status);
+                    });
+                } else {
+                    // If no status selected, send empty to show all
+                    params.append('status', '');
                 }
                 
-                if (shopTypeFilter) {
-                    params.append('shop_type', shopTypeFilter);
+                // Include shop type filters as array (multiple values)
+                if (shopTypeFilters.length > 0) {
+                    shopTypeFilters.forEach(shopType => {
+                        params.append('shop_type', shopType);
+                    });
+                } else {
+                    // If no shop type selected, send empty to show all
+                    params.append('shop_type', '');
                 }
                 
                 const response = await fetch(`${API_URL}?${params.toString()}`);
                 const data = await response.json();
                 
+                console.log('loadStoresForBounds response:', {
+                    success: data.success,
+                    storeCount: data.stores ? data.stores.length : 0,
+                    bounds: { neLat, neLng, swLat, swLng }
+                });
+                
                 if (data.success && data.stores) {
                     // Filter out already loaded stores and add new ones
+                    // Also double-check bounds on frontend to ensure we only show stores in viewport
                     const newStores = data.stores.filter(store => {
                         const storeKey = createStoreKey(store);
                         if (loadedStoreKeys.has(storeKey)) {
+                            return false;
+                        }
+                        // Double-check if store is actually within current map bounds
+                        const storeLat = parseFloat(store.latitude);
+                        const storeLng = parseFloat(store.longitude);
+                        if (isNaN(storeLat) || isNaN(storeLng)) {
+                            console.log('Skipping store with invalid coordinates:', store.name);
+                            return false;
+                        }
+                        // Get current bounds again (they might have changed)
+                        const currentBounds = map.getBounds();
+                        const currentNe = currentBounds.getNorthEast();
+                        const currentSw = currentBounds.getSouthWest();
+                        const currentNeLat = currentNe.lat;
+                        const currentNeLng = currentNe.lng;
+                        const currentSwLat = currentSw.lat;
+                        const currentSwLng = currentSw.lng;
+                        
+                        // Check if within current bounds
+                        let withinBounds;
+                        if (currentNeLng < currentSwLng) {
+                            // Handle longitude wrapping
+                            withinBounds = storeLat >= currentSwLat && storeLat <= currentNeLat && 
+                                         (storeLng >= currentSwLng || storeLng <= currentNeLng);
+                        } else {
+                            withinBounds = storeLat >= currentSwLat && storeLat <= currentNeLat && 
+                                         storeLng >= currentSwLng && storeLng <= currentNeLng;
+                        }
+                        
+                        if (!withinBounds) {
+                            console.log('Filtering out store outside bounds:', store.name, storeLat, storeLng);
                             return false;
                         }
                         loadedStoreKeys.add(storeKey);
                         return true;
                     });
                     
+                    console.log('Filtered new stores:', newStores.length, 'out of', data.stores.length);
+                    
                     if (newStores.length > 0) {
                         // Add new markers to map
                         addStoresToMap(newStores);
-                        
-                        // Update route with all visible stores
-                        updateExpandedMapRoute();
+                    } else if (data.stores && data.stores.length > 0) {
+                        // If we got stores from backend but they were all filtered out, log why
+                        console.warn('All stores from backend were filtered out. This might indicate a bounds mismatch.');
                     }
+                    
+                    // Update location count
+                    updateExpandedMapLocationCount();
+                    
+                    // Update route with all visible stores
+                    updateExpandedMapRoute();
+                } else {
+                    // No stores returned from backend
+                    console.log('No stores returned from backend. Response:', data);
+                    // Update location count even if no new stores
+                    updateExpandedMapLocationCount();
                 }
             } catch (error) {
                 console.error('Error loading stores for bounds:', error);
@@ -1632,6 +1895,10 @@
                 );
                 if (!existing) {
                     window.allStoresData.push(store);
+                    // Update location count when stores are added
+                    if (isMapExpanded) {
+                        updateExpandedMapLocationCount();
+                    }
                 }
                 
                 const mapsQueryParts = [
@@ -1653,7 +1920,8 @@
                     <strong>${escapeHtml(store.name)}</strong><br>
                     ${escapeHtml(store.address || '')}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}<br>
                     <strong>Distance:</strong> ${store.distance ? store.distance.toFixed(1) : 'N/A'} miles<br>
-                    <a href="${mapsUrl}" target="_blank" style="color: #007bff;">View on Google Maps</a>
+                    <a href="${mapsUrl}" target="_blank" style="color: #007bff; text-decoration: none; margin-right: 0.5rem;">📍 View on Google Maps</a>
+                    ${store.instagram ? `<a href="${escapeHtml(store.instagram)}" target="_blank" style="color: #E4405F; text-decoration: none;">📷 View Instagram</a>` : ''}
                 `);
 
                 storeMarkers.push(marker);
@@ -1679,9 +1947,6 @@
             const collapseBtn = document.getElementById('collapseMapBtn');
             const header = document.getElementById('expandedMapHeader');
             const overlay = document.getElementById('expandedMapOverlay');
-            const expandedStatusFilter = document.getElementById('expandedStatusFilter');
-            const statusFilter = document.getElementById('statusFilter');
-            
             if (!mapEl || !map) return;
             
             // Save current bounds for restoration
@@ -1694,17 +1959,9 @@
             if (header) header.classList.add('show');
             if (overlay) overlay.classList.add('show');
             
-            // Sync status filter
-            if (expandedStatusFilter && statusFilter) {
-                expandedStatusFilter.value = statusFilter.value;
-            }
-            
-            // Sync shop type filter
-            const expandedShopTypeFilter = document.getElementById('expandedShopTypeFilter');
-            const shopTypeFilter = document.getElementById('shopTypeFilter');
-            if (expandedShopTypeFilter && shopTypeFilter) {
-                expandedShopTypeFilter.value = shopTypeFilter.value;
-            }
+            // Sync checkbox states from normal view to expanded view
+            syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
+            syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
             
             isMapExpanded = true;
             loadedStoreKeys.clear();
@@ -1717,6 +1974,8 @@
             // Invalidate map size and trigger resize
             setTimeout(() => {
                 map.invalidateSize();
+                // Update location count immediately
+                updateExpandedMapLocationCount();
                 // Load stores for current view
                 loadStoresForBounds();
                 // Update route if we already have stores
@@ -1748,6 +2007,39 @@
             
             isMapExpanded = false;
             
+            // If we have stores from expanded view, display them in the list
+            if (window.allStoresData && window.allStoresData.length > 0 && currentLat && currentLng) {
+                // Calculate distances from user location for all stores
+                const storesWithDistances = window.allStoresData.map(store => {
+                    const distance = calculateDistance(
+                        currentLat, 
+                        currentLng, 
+                        parseFloat(store.latitude), 
+                        parseFloat(store.longitude)
+                    );
+                    return {
+                        ...store,
+                        distance: distance
+                    };
+                });
+                
+                // Solve TSP to get optimal route (starting from user location, not nearest store)
+                const orderedStores = solveTSP(currentLat, currentLng, storesWithDistances, false);
+                
+                // Store ordered stores globally
+                window.orderedStoresData = orderedStores;
+                
+                // Calculate total route distance
+                const totalDistance = orderedStores.reduce((sum, store) => sum + (store.routeDistance || 0), 0);
+                window.totalRouteDistance = totalDistance;
+                
+                // Display stores in the list
+                displayStores(orderedStores, '');
+                
+                // Update map to show route with user location
+                updateMap(currentLat, currentLng, orderedStores);
+            }
+            
             // Restore map size
             setTimeout(() => {
                 map.invalidateSize();
@@ -1776,9 +2068,6 @@
             const expandBtn = document.getElementById('expandMapBtn');
             const collapseBtn = document.getElementById('collapseMapBtn');
             const closeBtn = document.getElementById('closeExpandedMapBtn');
-            const expandedStatusFilter = document.getElementById('expandedStatusFilter');
-            const statusFilter = document.getElementById('statusFilter');
-            
             if (expandBtn) {
                 expandBtn.addEventListener('click', expandMap);
                 // Show expand button when map has content
@@ -1795,62 +2084,72 @@
                 closeBtn.addEventListener('click', collapseMap);
             }
             
-            // Sync status filter changes
-            if (expandedStatusFilter) {
-                expandedStatusFilter.addEventListener('change', function() {
-                    // Sync to main filter
-                    if (statusFilter) {
-                        statusFilter.value = this.value;
-                    }
+            // Add event listeners for expanded view checkboxes
+            // Note: These are added dynamically when checkboxes are created, so we'll add them in a way that works
+            // We'll use event delegation or add listeners after DOM is ready
+            setTimeout(() => {
+                document.querySelectorAll('.expanded-status-filter-checkbox').forEach(checkbox => {
+                    // Remove any existing listeners by cloning
+                    const newCheckbox = checkbox.cloneNode(true);
+                    checkbox.parentNode.replaceChild(newCheckbox, checkbox);
                     
-                    // Clear loaded stores and reload
-                    loadedStoreKeys.clear();
-                    window.allStoresData = [];
-                    // Clear existing markers except user marker
-                    storeMarkers.forEach(marker => map.removeLayer(marker));
-                    storeMarkers = [];
-                    // Clear route line
-                    if (window.routeLine) {
-                        map.removeLayer(window.routeLine);
-                        window.routeLine = null;
-                    }
-                    
-                    // Reload stores for current bounds
-                    loadStoresForBounds();
+                    newCheckbox.addEventListener('change', function() {
+                        // Sync to normal view
+                        syncCheckboxes('.expanded-status-filter-checkbox', '.status-filter-checkbox');
+                        
+                        // Update counts
+                        updateFilterCounts();
+                        
+                        // Clear loaded stores and reload
+                        loadedStoreKeys.clear();
+                        window.allStoresData = [];
+                        storeMarkers.forEach(marker => map.removeLayer(marker));
+                        storeMarkers = [];
+                        if (window.routeLine) {
+                            map.removeLayer(window.routeLine);
+                            window.routeLine = null;
+                        }
+                        
+                        // Reload stores for current bounds
+                        loadStoresForBounds();
+                    });
                 });
-            }
-            
-            // Sync shop type filter changes in expanded view
-            const expandedShopTypeFilter = document.getElementById('expandedShopTypeFilter');
-            const shopTypeFilter = document.getElementById('shopTypeFilter');
-            
-            if (expandedShopTypeFilter) {
-                expandedShopTypeFilter.addEventListener('change', function() {
-                    // Sync to main filter
-                    if (shopTypeFilter) {
-                        shopTypeFilter.value = this.value;
-                    }
+                
+                document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(checkbox => {
+                    // Remove any existing listeners by cloning
+                    const newCheckbox = checkbox.cloneNode(true);
+                    checkbox.parentNode.replaceChild(newCheckbox, checkbox);
                     
-                    // Clear loaded stores and reload
-                    loadedStoreKeys.clear();
-                    window.allStoresData = [];
-                    // Clear existing markers except user marker
-                    storeMarkers.forEach(marker => map.removeLayer(marker));
-                    storeMarkers = [];
-                    // Clear route line
-                    if (window.routeLine) {
-                        map.removeLayer(window.routeLine);
-                        window.routeLine = null;
-                    }
-                    
-                    // Reload stores for current bounds
-                    loadStoresForBounds();
+                    newCheckbox.addEventListener('change', function() {
+                        // Sync to normal view
+                        syncCheckboxes('.expanded-shop-type-filter-checkbox', '.shop-type-filter-checkbox');
+                        
+                        // Update counts
+                        updateFilterCounts();
+                        
+                        // Clear loaded stores and reload
+                        loadedStoreKeys.clear();
+                        window.allStoresData = [];
+                        storeMarkers.forEach(marker => map.removeLayer(marker));
+                        storeMarkers = [];
+                        if (window.routeLine) {
+                            map.removeLayer(window.routeLine);
+                            window.routeLine = null;
+                        }
+                        
+                        // Reload stores for current bounds
+                        loadStoresForBounds();
+                    });
                 });
-            }
-            
-            // Sync shop type filter when expanding map
-            if (expandedShopTypeFilter && shopTypeFilter) {
-                // This will be called in expandMap function
+            }, 100);
+        }
+
+        // Update location count in expanded map header
+        function updateExpandedMapLocationCount() {
+            const countEl = document.getElementById('expandedMapLocationCountText');
+            if (countEl && window.allStoresData) {
+                const count = window.allStoresData.length;
+                countEl.textContent = `${count} location${count !== 1 ? 's' : ''} loaded`;
             }
         }
 
@@ -1891,7 +2190,7 @@
                 distance: calculateDistance(startLat, startLng, store.latitude, store.longitude)
             }));
             startDistances.sort((a, b) => a.distance - b.distance);
-            
+
             // If starting from nearest store, use that store as the first point
             const firstStoreIndex = startFromNearestStore ? startDistances[0].index : null;
 
@@ -1909,8 +2208,8 @@
             } else {
                 // Start from user location (original behavior)
                 route = [startDistances[0].index];
-                for (let i = 1; i < n; i++) {
-                    unvisited.add(startDistances[i].index);
+            for (let i = 1; i < n; i++) {
+                unvisited.add(startDistances[i].index);
                 }
             }
 
@@ -2080,12 +2379,12 @@
 
             // Only clear markers if not in expanded mode (to preserve lazy-loaded stores)
             if (!isMapExpanded) {
-                // Clear existing markers
-                if (userMarker) {
-                    map.removeLayer(userMarker);
-                }
-                storeMarkers.forEach(marker => map.removeLayer(marker));
-                storeMarkers = [];
+            // Clear existing markers
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+            storeMarkers.forEach(marker => map.removeLayer(marker));
+            storeMarkers = [];
                 loadedStoreKeys.clear();
             } else {
                 // In expanded mode, only clear user marker if needed
@@ -2172,7 +2471,8 @@
                         ${escapeHtml(store.address || '')}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}<br>
                         <strong>Distance from previous:</strong> ${store.routeDistance ? store.routeDistance.toFixed(1) : store.distance} miles<br>             
                         <strong>Distance from you:</strong> ${store.distance} miles<br>                                                                         
-                        <a href="${mapsUrl}" target="_blank" style="color: #007bff;">View on Google Maps</a>                                                     
+                        <a href="${mapsUrl}" target="_blank" style="color: #007bff; text-decoration: none; margin-right: 0.5rem;">📍 View on Google Maps</a>
+                        ${store.instagram ? `<a href="${escapeHtml(store.instagram)}" target="_blank" style="color: #E4405F; text-decoration: none;">📷 View Instagram</a>` : ''}
                     `);
 
                     storeMarkers.push(marker);
@@ -2195,22 +2495,22 @@
                     window.expandedOrderedStores = expandedOrderedStores;
                 } else {
                     // Normal mode: route starts from user location
-                    const routeCoordinates = [[lat, lng], ...orderedStores.map(s => [s.latitude, s.longitude])];
-                    if (window.routeLine) {
-                        map.removeLayer(window.routeLine);
-                    }
-                    window.routeLine = L.polyline(routeCoordinates, {
-                        color: '#007bff',
-                        weight: 3,
-                        opacity: 0.7,
-                        dashArray: '10, 10'
-                    }).addTo(map);
+                const routeCoordinates = [[lat, lng], ...orderedStores.map(s => [s.latitude, s.longitude])];
+                if (window.routeLine) {
+                    map.removeLayer(window.routeLine);
+                }
+                window.routeLine = L.polyline(routeCoordinates, {
+                    color: '#007bff',
+                    weight: 3,
+                    opacity: 0.7,
+                    dashArray: '10, 10'
+                }).addTo(map);
                 }
 
                 // Fit map to show all markers (only if not in expanded mode)
                 if (!isMapExpanded) {
-                    const group = new L.featureGroup([userMarker, ...storeMarkers]);
-                    map.fitBounds(group.getBounds().pad(0.1));
+                const group = new L.featureGroup([userMarker, ...storeMarkers]);
+                map.fitBounds(group.getBounds().pad(0.1));
                 }
                 
                 // Store total route distance for display
@@ -2223,7 +2523,7 @@
                 }
             } else {
                 if (!isMapExpanded) {
-                    map.setView([lat, lng], 13);
+                map.setView([lat, lng], 13);
                 }
                 // Hide expand button if no stores
                 const expandBtn = document.getElementById('expandMapBtn');
@@ -2248,9 +2548,14 @@
                 statusElement.className = 'error fade-in';
                 showStoresContent();
                 initMap();
-                const statusFilter = document.getElementById('statusFilter');
-                if (statusFilter) {
-                    updateStatusDescription(statusFilter.value || '');
+                // Update status description based on selected checkboxes
+                const selected = getSelectedStatusFilters();
+                if (selected.length === 1) {
+                    updateStatusDescription(selected[0]);
+                } else if (selected.length > 1) {
+                    updateStatusDescription('Multiple');
+                } else {
+                    updateStatusDescription('');
                 }
                 setInteractionMode('view-only');
                 startInitialLocationFlow(true);
@@ -2279,9 +2584,14 @@
                         statusElement.className = 'error fade-in';
                         showStoresContent();
                         initMap();
-                        const statusFilter = document.getElementById('statusFilter');
-                        if (statusFilter) {
-                            updateStatusDescription(statusFilter.value || '');
+                        // Update status description based on selected checkboxes
+                        const selected = getSelectedStatusFilters();
+                        if (selected.length === 1) {
+                            updateStatusDescription(selected[0]);
+                        } else if (selected.length > 1) {
+                            updateStatusDescription('Multiple');
+                        } else {
+                            updateStatusDescription('');
                         }
                         setInteractionMode('view-only');
                         startInitialLocationFlow(true);
@@ -2315,9 +2625,14 @@
                 initMap();
                 
                 // Initialize status description
-                const statusFilter = document.getElementById('statusFilter');
-                if (statusFilter) {
-                    updateStatusDescription(statusFilter.value || '');
+                // Update status description based on selected checkboxes
+                const selected = getSelectedStatusFilters();
+                if (selected.length === 1) {
+                    updateStatusDescription(selected[0]);
+                } else if (selected.length > 1) {
+                    updateStatusDescription('Multiple');
+                } else {
+                    updateStatusDescription('');
                 }
                 
                 // Now proceed with location detection and auto-search
@@ -2332,9 +2647,14 @@
                     // Still allow access
                     showStoresContent();                                                                                                                       
                     initMap();
-                    const statusFilter = document.getElementById('statusFilter');
-                    if (statusFilter) {
-                        updateStatusDescription(statusFilter.value || '');
+                    // Update status description based on selected checkboxes
+                    const selected = getSelectedStatusFilters();
+                    if (selected.length === 1) {
+                        updateStatusDescription(selected[0]);
+                    } else if (selected.length > 1) {
+                        updateStatusDescription('Multiple');
+                    } else {
+                        updateStatusDescription('');
                     }
                     startInitialLocationFlow(true);
                     setInteractionMode('view-only');
@@ -2349,9 +2669,14 @@
                     // Still allow access for other errors
                     showStoresContent();                                                                                                                       
                     initMap();
-                    const statusFilter = document.getElementById('statusFilter');
-                    if (statusFilter) {
-                        updateStatusDescription(statusFilter.value || '');
+                    // Update status description based on selected checkboxes
+                    const selected = getSelectedStatusFilters();
+                    if (selected.length === 1) {
+                        updateStatusDescription(selected[0]);
+                    } else if (selected.length > 1) {
+                        updateStatusDescription('Multiple');
+                    } else {
+                        updateStatusDescription('');
                     }
                     startInitialLocationFlow(true);
                     setInteractionMode('view-only');
@@ -2383,8 +2708,19 @@
                 statusMessage.innerHTML = '<div class="loading"><div class="spinner"></div>Getting your location...</div>';
             }
             
+            // Set a timeout to prevent hanging
+            const timeoutId = setTimeout(() => {
+                if (locationStatusEl) {
+                    locationStatusEl.innerHTML = `<span style="color: #dc3545;">❌ Location request timed out. Please try again or use "Use Current Location" button.</span>`;
+                }
+                if (statusMessage) {
+                    statusMessage.innerHTML = `<div class="error">Location request timed out. Please try again or use "Use Current Location" button.</div>`;
+                }
+            }, 15000); // 15 second timeout
+            
             navigator.geolocation.getCurrentPosition(
                 function(position) {
+                    clearTimeout(timeoutId);
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     currentLocationLabel = 'Your Location (Start)';
@@ -2409,13 +2745,28 @@
                     }
                 },
                 function(error) {
-                    const errorMsg = error.message || 'Unknown error';
+                    clearTimeout(timeoutId);
+                    let errorMsg = 'Unknown error';
+                    if (error.code === 1) {
+                        errorMsg = 'Permission denied. Please allow location access and try again.';
+                    } else if (error.code === 2) {
+                        errorMsg = 'Location unavailable. Please check your device settings.';
+                    } else if (error.code === 3) {
+                        errorMsg = 'Location request timed out. Please try again.';
+                    } else {
+                        errorMsg = error.message || 'Unable to get location';
+                    }
                     if (locationStatusEl) {
                         locationStatusEl.innerHTML = `<span style="color: #dc3545;">❌ Error: ${errorMsg}</span>`;
                     }
                     if (statusMessage) {
                         statusMessage.innerHTML = `<div class="error">Error getting location: ${errorMsg}</div>`;
                     }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000, // 15 second timeout
+                    maximumAge: 0 // Don't use cached location
                 }
             );
         }
@@ -2428,23 +2779,156 @@
         });
 
         // Auto-update when status filter changes
-        document.getElementById('statusFilter').addEventListener('change', function() {
-            const selectedStatus = this.value;
-            updateStatusDescription(selectedStatus);
+        // Function to update filter count badges and summaries
+        function updateFilterCounts() {
+            const statusSelected = getSelectedStatusFilters();
+            const shopTypeSelected = getSelectedShopTypeFilters();
+            
+            const statusCountEl = document.getElementById('statusFilterCount');
+            const shopTypeCountEl = document.getElementById('shopTypeFilterCount');
+            const statusSummaryEl = document.getElementById('statusFilterSummary');
+            const shopTypeSummaryEl = document.getElementById('shopTypeFilterSummary');
+            
+            if (statusCountEl) {
+                const count = statusSelected.length;
+                const total = document.querySelectorAll('.status-filter-checkbox').length;
+                if (count === 0) {
+                    statusCountEl.textContent = 'All';
+                    statusCountEl.style.background = '#d4edda';
+                    statusCountEl.style.color = '#28a745';
+                } else if (count === total) {
+                    statusCountEl.textContent = 'All';
+                    statusCountEl.style.background = '#d4edda';
+                    statusCountEl.style.color = '#28a745';
+                } else {
+                    statusCountEl.textContent = `${count} of ${total}`;
+                    statusCountEl.style.background = '#e7f3ff';
+                    statusCountEl.style.color = '#007bff';
+                }
+            }
+            
+            if (shopTypeCountEl) {
+                const count = shopTypeSelected.length;
+                const total = document.querySelectorAll('.shop-type-filter-checkbox').length;
+                if (count === 0) {
+                    shopTypeCountEl.textContent = 'All';
+                    shopTypeCountEl.style.background = '#d4edda';
+                    shopTypeCountEl.style.color = '#28a745';
+                } else if (count === total) {
+                    shopTypeCountEl.textContent = 'All';
+                    shopTypeCountEl.style.background = '#d4edda';
+                    shopTypeCountEl.style.color = '#28a745';
+                } else {
+                    shopTypeCountEl.textContent = `${count} of ${total}`;
+                    shopTypeCountEl.style.background = '#d4edda';
+                    shopTypeCountEl.style.color = '#28a745';
+                }
+            }
+            
+            if (statusSummaryEl) {
+                if (statusSelected.length === 0) {
+                    statusSummaryEl.textContent = '✓ Showing all statuses (no filter applied)';
+                    statusSummaryEl.style.color = '#28a745';
+                } else if (statusSelected.length === 1) {
+                    statusSummaryEl.textContent = `Filtering by: ${statusSelected[0]}`;
+                    statusSummaryEl.style.color = '#6c757d';
+                } else {
+                    statusSummaryEl.textContent = `Filtering by: ${statusSelected.join(', ')}`;
+                    statusSummaryEl.style.color = '#6c757d';
+                }
+            }
+            
+            if (shopTypeSummaryEl) {
+                if (shopTypeSelected.length === 0) {
+                    shopTypeSummaryEl.textContent = '✓ Showing all shop types (no filter applied)';
+                    shopTypeSummaryEl.style.color = '#28a745';
+                } else if (shopTypeSelected.length === 1) {
+                    shopTypeSummaryEl.textContent = `Filtering by: ${shopTypeSelected[0]}`;
+                    shopTypeSummaryEl.style.color = '#6c757d';
+                } else {
+                    shopTypeSummaryEl.textContent = `Filtering by: ${shopTypeSelected.join(', ')}`;
+                    shopTypeSummaryEl.style.color = '#6c757d';
+                }
+            }
+        }
+        
+        // Add event listeners for normal view checkboxes
+        document.querySelectorAll('.status-filter-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Sync to expanded view if map is expanded
+                if (isMapExpanded) {
+                    syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
+                }
+                
+                // Update counts and summaries
+                updateFilterCounts();
+                
+                // Update status description (show first selected or "Multiple")
+                const selected = getSelectedStatusFilters();
+                if (selected.length === 1) {
+                    updateStatusDescription(selected[0]);
+                } else if (selected.length > 1) {
+                    updateStatusDescription('Multiple');
+                } else {
+                    updateStatusDescription('');
+                }
             
             // Only auto-search if we have valid coordinates
             if (currentLat && currentLng) {
                 searchStores();
             }
+            });
         });
         
-        // Auto-update when shop type filter changes
-        document.getElementById('shopTypeFilter').addEventListener('change', function() {
-            // Only auto-search if we have valid coordinates
-            if (currentLat && currentLng) {
-                searchStores();
-            }
+        document.querySelectorAll('.shop-type-filter-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Sync to expanded view if map is expanded
+                if (isMapExpanded) {
+                    syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
+                }
+                
+                // Update counts and summaries
+                updateFilterCounts();
+                
+                // Only auto-search if we have valid coordinates
+                if (currentLat && currentLng) {
+                    searchStores();
+                }
+            });
         });
+        
+        // Select All / Clear All buttons
+        document.getElementById('selectAllStatuses')?.addEventListener('click', function() {
+            document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
+            document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.dispatchEvent(new Event('change')));
+            updateFilterCounts();
+        });
+        
+        document.getElementById('clearAllStatuses')?.addEventListener('click', function() {
+            document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.dispatchEvent(new Event('change')));
+            updateFilterCounts();
+        });
+        
+        document.getElementById('selectAllShopTypes')?.addEventListener('click', function() {
+            document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+            document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.dispatchEvent(new Event('change')));
+            updateFilterCounts();
+        });
+        
+        document.getElementById('clearAllShopTypes')?.addEventListener('click', function() {
+            document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.dispatchEvent(new Event('change')));
+            updateFilterCounts();
+        });
+        
+        // Initialize filter counts on page load
+        // Select all checkboxes by default (shows all stores)
+        document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
+        document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+        document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => cb.checked = true);
+        document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+        updateFilterCounts();
 
         // Note: Status description is initialized when storesContent is shown (after signature verification)
 
@@ -2454,11 +2938,44 @@
             searchStores();
         });
 
+        // Helper functions to get selected values from checkboxes
+        function getSelectedStatusFilters() {
+            const checkboxes = document.querySelectorAll('.status-filter-checkbox:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        
+        function getSelectedShopTypeFilters() {
+            const checkboxes = document.querySelectorAll('.shop-type-filter-checkbox:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        
+        function getSelectedExpandedStatusFilters() {
+            const checkboxes = document.querySelectorAll('.expanded-status-filter-checkbox:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        
+        function getSelectedExpandedShopTypeFilters() {
+            const checkboxes = document.querySelectorAll('.expanded-shop-type-filter-checkbox:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        
+        // Sync checkbox states between normal and expanded views
+        function syncCheckboxes(sourceClass, targetClass) {
+            const sourceCheckboxes = document.querySelectorAll(sourceClass);
+            const targetCheckboxes = document.querySelectorAll(targetClass);
+            sourceCheckboxes.forEach((source, index) => {
+                if (targetCheckboxes[index]) {
+                    targetCheckboxes[index].checked = source.checked;
+                }
+            });
+        }
+
         function searchStores() {
             const lat = currentLat;
             const lng = currentLng;
-            const statusFilter = document.getElementById('statusFilter').value;
-            const shopTypeFilter = document.getElementById('shopTypeFilter').value;
+            // Get selected values from checkboxes (use expanded if in expanded view, otherwise normal)
+            const statusFilters = isMapExpanded ? getSelectedExpandedStatusFilters() : getSelectedStatusFilters();
+            const shopTypeFilters = isMapExpanded ? getSelectedExpandedShopTypeFilters() : getSelectedShopTypeFilters();
 
             if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
                 const statusMessage = document.getElementById('statusMessage');
@@ -2480,12 +2997,24 @@
                 limit: resultLimit
             });
             
-            // Always include status parameter (empty string means "all statuses")
-            params.append('status', statusFilter || '');
+            // Include status filters as array (multiple values)
+            if (statusFilters.length > 0) {
+                statusFilters.forEach(status => {
+                    params.append('status', status);
+                });
+            } else {
+                // If no status selected, send empty to show all
+                params.append('status', '');
+            }
             
-            // Include shop type filter if selected
-            if (shopTypeFilter) {
-                params.append('shop_type', shopTypeFilter);
+            // Include shop type filters as array (multiple values)
+            if (shopTypeFilters.length > 0) {
+                shopTypeFilters.forEach(shopType => {
+                    params.append('shop_type', shopType);
+                });
+            } else {
+                // If no shop type selected, send empty to show all
+                params.append('shop_type', '');
             }
 
             // Fetch stores
@@ -2499,10 +3028,9 @@
                         updateMap(lat, lng, data.stores);
                         
                         // Display stores (using the TSP-ordered stores from updateMap)
-                        displayStores(data.stores, statusFilter);
-                        
-                        const statusText = statusFilter && statusFilter !== '' ? ` (Status: ${statusFilter})` : ' (All Statuses)';
-                        const shopTypeText = shopTypeFilter && shopTypeFilter !== '' ? ` (Shop Type: ${shopTypeFilter})` : '';
+                        const statusText = statusFilters.length > 0 ? ` (Status: ${statusFilters.join(', ')})` : ' (All Statuses)';
+                        displayStores(data.stores, statusFilters.length > 0 ? statusFilters.join(', ') : '');
+                        const shopTypeText = shopTypeFilters.length > 0 ? ` (Shop Type: ${shopTypeFilters.join(', ')})` : '';
                         const routeInfo = window.totalRouteDistance ? ` • Route: ${window.totalRouteDistance.toFixed(1)} miles` : '';
                         statusMessage.innerHTML = 
                             `<div class="status">Found ${data.count} store${data.count !== 1 ? 's' : ''} nearby${statusText}${shopTypeText}${routeInfo}</div>`;
@@ -3297,7 +3825,16 @@
             if (statusEl) {
                 statusEl.innerHTML = '<span style="color: #007bff;">Detecting location...</span>';
             }
+            
+            // Set a timeout to prevent hanging
+            const timeoutId = setTimeout(() => {
+                if (statusEl) {
+                    statusEl.innerHTML = `<span style="color: #dc3545;">Location request timed out. Please try again.</span>`;
+                }
+            }, 15000); // 15 second timeout
+            
             navigator.geolocation.getCurrentPosition(async (position) => {
+                clearTimeout(timeoutId);
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
                 const latInput = document.getElementById('newStoreLat');
@@ -3310,12 +3847,24 @@
                 }
                 await populateNewStoreAddressFromCoords(lat, lng);
             }, (error) => {
+                clearTimeout(timeoutId);
+                let errorMsg = 'Unable to access location';
+                if (error.code === 1) {
+                    errorMsg = 'Permission denied. Please allow location access.';
+                } else if (error.code === 2) {
+                    errorMsg = 'Location unavailable. Please check your device settings.';
+                } else if (error.code === 3) {
+                    errorMsg = 'Location request timed out. Please try again.';
+                } else {
+                    errorMsg = error.message || 'Unable to access location';
+                }
                 if (statusEl) {
-                    statusEl.innerHTML = `<span style="color: #dc3545;">${error.message || 'Unable to access location'}</span>`;
+                    statusEl.innerHTML = `<span style="color: #dc3545;">${errorMsg}</span>`;
                 }
             }, {
                 enableHighAccuracy: true,
-                timeout: 10000
+                timeout: 15000, // 15 second timeout
+                maximumAge: 0 // Don't use cached location
             });
         }
 
@@ -3432,17 +3981,17 @@
                 }
             } else {
                 // No address, try city and state
-                if (cityInput && cityInput.value.trim()) {
-                    parts.push(cityInput.value.trim());
-                }
-                if (stateSelect && stateSelect.value.trim()) {
-                    parts.push(stateSelect.value.trim());
-                }
+            if (cityInput && cityInput.value.trim()) {
+                parts.push(cityInput.value.trim());
+            }
+            if (stateSelect && stateSelect.value.trim()) {
+                parts.push(stateSelect.value.trim());
+            }
             }
             
             // Only add USA if we have at least one component
             if (parts.length > 0) {
-                parts.push('USA');
+            parts.push('USA');
             }
 
             const query = parts.filter(Boolean).join(', ');
@@ -3825,6 +4374,7 @@
                             <option value="Partnered" ${store.status === 'Partnered' ? 'selected' : ''}>Partnered</option>
                             <option value="Rejected" ${store.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
                             <option value="Not Appropriate" ${store.status === 'Not Appropriate' ? 'selected' : ''}>Not Appropriate</option>
+                            <option value="On Hold" ${store.status === 'On Hold' ? 'selected' : ''}>On Hold</option>
                         </select>
                         <label for="shopTypeUpdate-${index}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Shop Type:</label>
                         <select id="shopTypeUpdate-${index}" 
