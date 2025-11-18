@@ -1702,6 +1702,13 @@
             if (contentEl) {
                 contentEl.style.display = 'block';
                 initializeNewStoreForm();
+                
+                // After content is shown and map might be initialized, restore map state from URL
+                if (mapInitialized) {
+                    setTimeout(() => {
+                        restoreStateFromURL();
+                    }, 200);
+                }
             }
         }
 
@@ -1711,6 +1718,8 @@
         let boundsChangeTimeout = null;
         let loadedStoreKeys = new Set();
         let isMapLoading = false;
+        let isRestoringFromURL = false; // Flag to prevent race conditions during URL state restoration
+        let mapInitialized = false; // Flag to track if map is ready
 
         // Initialize map
         function initMap() {
@@ -1724,17 +1733,29 @@
                 // Add bounds change listener for lazy loading
                 map.on('moveend', handleMapBoundsChange);
                 map.on('zoomend', handleMapBoundsChange);
+                
+                // Mark map as initialized
+                mapInitialized = true;
+                
+                // If we're restoring from URL and map wasn't ready, try again
+                if (isRestoringFromURL) {
+                    setTimeout(() => {
+                        restoreStateFromURL();
+                    }, 100);
+                }
             }
         }
 
         // Handle map bounds change for lazy loading
         function handleMapBoundsChange() {
-            if (!isMapExpanded || isMapLoading) return;
+            if (!isMapExpanded || isMapLoading || isRestoringFromURL) return;
             
             // Debounce bounds changes
             clearTimeout(boundsChangeTimeout);
             boundsChangeTimeout = setTimeout(() => {
                 loadStoresForBounds();
+                // Update URL with new bounds (debounced to avoid too many updates)
+                updateURLState(true); // Use replaceState to avoid cluttering history
             }, 500); // Wait 500ms after user stops moving
         }
 
@@ -2002,13 +2023,29 @@
         }
 
         // Expand map to full screen
-        function expandMap() {
+        function expandMap(skipURLUpdate = false) {
             const mapEl = document.getElementById('map');
             const expandBtn = document.getElementById('expandMapBtn');
             const collapseBtn = document.getElementById('collapseMapBtn');
             const header = document.getElementById('expandedMapHeader');
             const overlay = document.getElementById('expandedMapOverlay');
-            if (!mapEl || !map) return;
+            
+            // Prevent race conditions: don't expand if already expanding/expanded
+            // Allow expansion during restoration if skipURLUpdate is true (called from restoreStateFromURL)
+            // For normal user interaction, only check if map exists (mapInitialized check is too strict)
+            if (!mapEl || !map || isMapExpanded) {
+                return;
+            }
+            
+            // Additional check: if restoring from URL, only allow if skipURLUpdate is true
+            if (isRestoringFromURL && !skipURLUpdate) {
+                return;
+            }
+            
+            // Ensure map is initialized (but don't block if it's not - it will be initialized)
+            if (!mapInitialized) {
+                initMap();
+            }
             
             // Save current bounds for restoration
             mapExpandedBounds = map.getBounds();
@@ -2043,6 +2080,10 @@
                 if (storeMarkers.length > 0) {
                     updateExpandedMapRoute();
                 }
+                // Update URL with expanded state and bounds (unless called from URL load)
+                if (!skipURLUpdate) {
+                    updateURLState(true);
+                }
             }, 100);
             
             // Prevent body scroll
@@ -2057,7 +2098,9 @@
             const header = document.getElementById('expandedMapHeader');
             const overlay = document.getElementById('expandedMapOverlay');
             
-            if (!mapEl || !map) return;
+            // Prevent race conditions: don't collapse if not expanded
+            // Allow collapse even during restoration (user might want to cancel)
+            if (!mapEl || !map || !isMapExpanded) return;
             
             // Update UI
             mapEl.classList.remove('expanded');
@@ -2122,6 +2165,9 @@
             
             // Restore body scroll
             document.body.style.overflow = '';
+            
+            // Update URL (remove bounds when collapsed)
+            updateURLState(true);
         }
 
         // Toggle expanded map panel visibility
@@ -2152,6 +2198,9 @@
                     map.invalidateSize();
                 }
             }, 100);
+            
+            // Update URL state to save panel collapsed state
+            updateURLState(true);
         }
         
         // Initialize map controls
@@ -2623,8 +2672,9 @@
                     expandBtn.style.display = 'flex';
                 }
             } else {
-                if (!isMapExpanded) {
-                map.setView([lat, lng], 13);
+                // Don't change map view if we're restoring from URL with bounds
+                if (!isMapExpanded && !isRestoringFromURL) {
+                    map.setView([lat, lng], 13);
                 }
                 // Hide expand button if no stores
                 const expandBtn = document.getElementById('expandMapBtn');
@@ -2649,6 +2699,10 @@
                 statusElement.className = 'error fade-in';
                 showStoresContent();
                 initMap();
+                
+                // Load state from URL first (filters, location, map state)
+                loadStateFromURL();
+                
                 // Update status description based on selected checkboxes
                 const selected = getSelectedStatusFilters();
                 if (selected.length === 1) {
@@ -2659,7 +2713,34 @@
                     updateStatusDescription('');
                 }
                 setInteractionMode('view-only');
-                startInitialLocationFlow(true);
+                
+                // Restore map state from URL if available, otherwise start location flow
+                setTimeout(() => {
+                    if (mapInitialized) {
+                        restoreStateFromURL();
+                        // If no URL state was restored, start location flow
+                        const params = new URLSearchParams(window.location.search);
+                        const hasURLState = params.get('lat') && params.get('lng');
+                        if (!hasURLState) {
+                            startInitialLocationFlow(true);
+                        }
+                    } else {
+                        // Wait for map to initialize, then restore or start location flow
+                        const checkMap = setInterval(() => {
+                            if (mapInitialized) {
+                                clearInterval(checkMap);
+                                restoreStateFromURL();
+                                const params = new URLSearchParams(window.location.search);
+                                const hasURLState = params.get('lat') && params.get('lng');
+                                if (!hasURLState) {
+                                    startInitialLocationFlow(true);
+                                }
+                            }
+                        }, 100);
+                        // Timeout after 2 seconds
+                        setTimeout(() => clearInterval(checkMap), 2000);
+                    }
+                }, 100);
                 return;
             }
 
@@ -2685,6 +2766,10 @@
                         statusElement.className = 'error fade-in';
                         showStoresContent();
                         initMap();
+                        
+                        // Load state from URL first (filters, location, map state)
+                        loadStateFromURL();
+                        
                         // Update status description based on selected checkboxes
                         const selected = getSelectedStatusFilters();
                         if (selected.length === 1) {
@@ -2695,7 +2780,31 @@
                             updateStatusDescription('');
                         }
                         setInteractionMode('view-only');
-                        startInitialLocationFlow(true);
+                        
+                        // Restore map state from URL if available, otherwise start location flow
+                        setTimeout(() => {
+                            if (mapInitialized) {
+                                restoreStateFromURL();
+                                const params = new URLSearchParams(window.location.search);
+                                const hasURLState = params.get('lat') && params.get('lng');
+                                if (!hasURLState) {
+                                    startInitialLocationFlow(true);
+                                }
+                            } else {
+                                const checkMap = setInterval(() => {
+                                    if (mapInitialized) {
+                                        clearInterval(checkMap);
+                                        restoreStateFromURL();
+                                        const params = new URLSearchParams(window.location.search);
+                                        const hasURLState = params.get('lat') && params.get('lng');
+                                        if (!hasURLState) {
+                                            startInitialLocationFlow(true);
+                                        }
+                                    }
+                                }, 100);
+                                setTimeout(() => clearInterval(checkMap), 2000);
+                            }
+                        }, 100);
                         return;
                     } else {
                         statusElement.textContent = 'Error: ' + data.error;
@@ -2703,8 +2812,36 @@
                         // Still allow access if verification fails with other errors
                         showStoresContent();                                                                                                                   
                         initMap();
-                        startInitialLocationFlow(true);
+                        
+                        // Load state from URL first (filters, location, map state)
+                        loadStateFromURL();
+                        
                         setInteractionMode('view-only');
+                        
+                        // Restore map state from URL if available, otherwise start location flow
+                        setTimeout(() => {
+                            if (mapInitialized) {
+                                restoreStateFromURL();
+                                const params = new URLSearchParams(window.location.search);
+                                const hasURLState = params.get('lat') && params.get('lng');
+                                if (!hasURLState) {
+                                    startInitialLocationFlow(true);
+                                }
+                            } else {
+                                const checkMap = setInterval(() => {
+                                    if (mapInitialized) {
+                                        clearInterval(checkMap);
+                                        restoreStateFromURL();
+                                        const params = new URLSearchParams(window.location.search);
+                                        const hasURLState = params.get('lat') && params.get('lng');
+                                        if (!hasURLState) {
+                                            startInitialLocationFlow(true);
+                                        }
+                                    }
+                                }, 100);
+                                setTimeout(() => clearInterval(checkMap), 2000);
+                            }
+                        }, 100);
                         return;
                     }
                 }
@@ -2748,6 +2885,10 @@
                     // Still allow access
                     showStoresContent();                                                                                                                       
                     initMap();
+                    
+                    // Load state from URL first (filters, location, map state)
+                    loadStateFromURL();
+                    
                     // Update status description based on selected checkboxes
                     const selected = getSelectedStatusFilters();
                     if (selected.length === 1) {
@@ -2757,8 +2898,32 @@
                     } else {
                         updateStatusDescription('');
                     }
-                    startInitialLocationFlow(true);
                     setInteractionMode('view-only');
+                    
+                    // Restore map state from URL if available, otherwise start location flow
+                    setTimeout(() => {
+                        if (mapInitialized) {
+                            restoreStateFromURL();
+                            const params = new URLSearchParams(window.location.search);
+                            const hasURLState = params.get('lat') && params.get('lng');
+                            if (!hasURLState) {
+                                startInitialLocationFlow(true);
+                            }
+                        } else {
+                            const checkMap = setInterval(() => {
+                                if (mapInitialized) {
+                                    clearInterval(checkMap);
+                                    restoreStateFromURL();
+                                    const params = new URLSearchParams(window.location.search);
+                                    const hasURLState = params.get('lat') && params.get('lng');
+                                    if (!hasURLState) {
+                                        startInitialLocationFlow(true);
+                                    }
+                                }
+                            }, 100);
+                            setTimeout(() => clearInterval(checkMap), 2000);
+                        }
+                    }, 100);
                     
                     // Hide warning after 5 seconds
                     setTimeout(() => {
@@ -2770,6 +2935,10 @@
                     // Still allow access for other errors
                     showStoresContent();                                                                                                                       
                     initMap();
+                    
+                    // Load state from URL first (filters, location, map state)
+                    loadStateFromURL();
+                    
                     // Update status description based on selected checkboxes
                     const selected = getSelectedStatusFilters();
                     if (selected.length === 1) {
@@ -2779,8 +2948,32 @@
                     } else {
                         updateStatusDescription('');
                     }
-                    startInitialLocationFlow(true);
                     setInteractionMode('view-only');
+                    
+                    // Restore map state from URL if available, otherwise start location flow
+                    setTimeout(() => {
+                        if (mapInitialized) {
+                            restoreStateFromURL();
+                            const params = new URLSearchParams(window.location.search);
+                            const hasURLState = params.get('lat') && params.get('lng');
+                            if (!hasURLState) {
+                                startInitialLocationFlow(true);
+                            }
+                        } else {
+                            const checkMap = setInterval(() => {
+                                if (mapInitialized) {
+                                    clearInterval(checkMap);
+                                    restoreStateFromURL();
+                                    const params = new URLSearchParams(window.location.search);
+                                    const hasURLState = params.get('lat') && params.get('lng');
+                                    if (!hasURLState) {
+                                        startInitialLocationFlow(true);
+                                    }
+                                }
+                            }, 100);
+                            setTimeout(() => clearInterval(checkMap), 2000);
+                        }
+                    }, 100);
                 }
             }
         });
@@ -2835,6 +3028,9 @@
                     
                     // Update map with user location
                     updateMap(lat, lng, []);
+                    
+                    // Update URL with new location
+                    updateURLState(true);
                     
                     if (autoSearch) {
                         // Automatically search after getting location
@@ -3033,7 +3229,189 @@
             updateFilterCounts();
         });
         
-        // Save filter states to localStorage
+        // Update URL with current filter and location state
+        function updateURLState(replaceState = false) {
+            try {
+                const params = new URLSearchParams();
+                
+                // Add location - use map center if expanded, otherwise use currentLat/currentLng
+                if (isMapExpanded && map) {
+                    // When map is expanded, use the map center for lat/lng in URL
+                    const center = map.getCenter();
+                    if (center) {
+                        params.set('lat', center.lat.toString());
+                        params.set('lng', center.lng.toString());
+                    }
+                } else if (currentLat && currentLng) {
+                    // When not expanded, use the original user location
+                    params.set('lat', currentLat.toString());
+                    params.set('lng', currentLng.toString());
+                }
+                
+                // Add status filters
+                const statusFilters = getSelectedStatusFilters();
+                if (statusFilters.length > 0) {
+                    statusFilters.forEach(status => {
+                        params.append('status', status);
+                    });
+                }
+                
+                // Add shop type filters
+                const shopTypeFilters = getSelectedShopTypeFilters();
+                if (shopTypeFilters.length > 0) {
+                    shopTypeFilters.forEach(shopType => {
+                        params.append('shop_type', shopType);
+                    });
+                }
+                
+                // Add map expanded state
+                if (isMapExpanded) {
+                    params.set('map_expanded', 'true');
+                    
+                    // Add map bounds if in expanded view
+                    if (map) {
+                        const bounds = map.getBounds();
+                        const ne = bounds.getNorthEast();
+                        const sw = bounds.getSouthWest();
+                        params.set('ne_lat', ne.lat.toString());
+                        params.set('ne_lng', ne.lng.toString());
+                        params.set('sw_lat', sw.lat.toString());
+                        params.set('sw_lng', sw.lng.toString());
+                    }
+                    
+                    // Add panel collapsed state
+                    const header = document.getElementById('expandedMapHeader');
+                    if (header && header.classList.contains('collapsed')) {
+                        params.set('panel_collapsed', 'true');
+                    } else {
+                        params.delete('panel_collapsed');
+                    }
+                } else {
+                    // Remove expanded state from URL if not expanded
+                    params.delete('map_expanded');
+                    params.delete('ne_lat');
+                    params.delete('ne_lng');
+                    params.delete('sw_lat');
+                    params.delete('sw_lng');
+                    params.delete('panel_collapsed');
+                }
+                
+                // Update URL without page reload
+                const newURL = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+                if (replaceState) {
+                    window.history.replaceState({}, '', newURL);
+                } else {
+                    window.history.pushState({}, '', newURL);
+                }
+            } catch (e) {
+                console.warn('Failed to update URL state:', e);
+            }
+        }
+        
+        // Load filter and location state from URL
+        function loadStateFromURL() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                let hasURLParams = false;
+                
+                // Load location
+                const urlLat = params.get('lat');
+                const urlLng = params.get('lng');
+                if (urlLat && urlLng) {
+                    const lat = parseFloat(urlLat);
+                    const lng = parseFloat(urlLng);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        currentLat = lat;
+                        currentLng = lng;
+                        currentLocationLabel = 'Your Location (Start)';
+                        hasURLParams = true;
+                        
+                        // Update map if initialized (but don't change view if restoring from URL with bounds)
+                        if (map) {
+                            // Only update map view if not restoring from URL with bounds
+                            // The restoreStateFromURL function will handle setting the bounds
+                            const params = new URLSearchParams(window.location.search);
+                            const urlMapExpanded = params.get('map_expanded');
+                            const hasBounds = params.get('ne_lat') && params.get('ne_lng') && params.get('sw_lat') && params.get('sw_lng');
+                            
+                            if (urlMapExpanded === 'true' && hasBounds) {
+                                // Don't update map view here - let restoreStateFromURL handle it
+                                // Just update the currentLat/currentLng values
+                                currentLat = lat;
+                                currentLng = lng;
+                            } else {
+                                updateMap(lat, lng, []);
+                            }
+                        }
+                    }
+                }
+                
+                // Load status filters - wait for checkboxes to exist
+                const statusCheckboxes = document.querySelectorAll('.status-filter-checkbox');
+                if (statusCheckboxes.length > 0) {
+                    const urlStatusFilters = params.getAll('status');
+                    if (urlStatusFilters.length > 0) {
+                        hasURLParams = true;
+                        // Set checkboxes based on URL params
+                        statusCheckboxes.forEach(cb => {
+                            cb.checked = urlStatusFilters.includes(cb.value);
+                        });
+                        document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => {
+                            cb.checked = urlStatusFilters.includes(cb.value);
+                        });
+                    } else {
+                        // Default: select all only if no URL params at all
+                        if (!hasURLParams) {
+                            statusCheckboxes.forEach(cb => cb.checked = true);
+                            document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => cb.checked = true);
+                        }
+                    }
+                }
+                
+                // Load shop type filters - wait for checkboxes to exist
+                const shopTypeCheckboxes = document.querySelectorAll('.shop-type-filter-checkbox');
+                if (shopTypeCheckboxes.length > 0) {
+                    const urlShopTypeFilters = params.getAll('shop_type');
+                    if (urlShopTypeFilters.length > 0) {
+                        hasURLParams = true;
+                        shopTypeCheckboxes.forEach(cb => {
+                            cb.checked = urlShopTypeFilters.includes(cb.value);
+                        });
+                        document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => {
+                            cb.checked = urlShopTypeFilters.includes(cb.value);
+                        });
+                    } else {
+                        // Default: select all only if no URL params at all
+                        if (!hasURLParams) {
+                            shopTypeCheckboxes.forEach(cb => cb.checked = true);
+                            document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                        }
+                    }
+                }
+                
+                // If we loaded location from URL, trigger search if filters are present
+                if (hasURLParams && currentLat && currentLng) {
+                    const urlStatusFilters = params.getAll('status');
+                    const urlShopTypeFilters = params.getAll('shop_type');
+                    // Auto-search if we have location and at least one filter, or if explicitly requested
+                    if (urlStatusFilters.length > 0 || urlShopTypeFilters.length > 0) {
+                        // Delay search to ensure filters are applied
+                        setTimeout(() => {
+                            if (currentLat && currentLng) {
+                                searchStores();
+                            }
+                        }, 300);
+                    }
+                }
+                
+                return hasURLParams;
+            } catch (e) {
+                console.warn('Failed to load state from URL:', e);
+                return false;
+            }
+        }
+        
+        // Save filter states to localStorage (as backup)
         function saveFilterStates() {
             try {
                 const statusFilters = getSelectedStatusFilters();
@@ -3041,59 +3419,281 @@
                 
                 localStorage.setItem('storeFilters_status', JSON.stringify(statusFilters));
                 localStorage.setItem('storeFilters_shopType', JSON.stringify(shopTypeFilters));
+                
+                // Also update URL
+                updateURLState(true); // Use replaceState to avoid cluttering history
             } catch (e) {
                 console.warn('Failed to save filter states:', e);
             }
         }
         
-        // Load filter states from localStorage
-        function loadFilterStates() {
-            try {
-                const savedStatus = localStorage.getItem('storeFilters_status');
-                const savedShopType = localStorage.getItem('storeFilters_shopType');
-                
-                // If we have saved states, restore them; otherwise, select all by default
-                if (savedStatus) {
-                    const statusFilters = JSON.parse(savedStatus);
-                    document.querySelectorAll('.status-filter-checkbox').forEach(cb => {
-                        cb.checked = statusFilters.includes(cb.value);
-                    });
-                    document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => {
-                        cb.checked = statusFilters.includes(cb.value);
-                    });
-                } else {
-                    // Default: select all
-                    document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
-                    document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => cb.checked = true);
+        // Restore map expanded state from URL (called after map is initialized)
+        function restoreStateFromURL() {
+            // Don't restore if already expanded or if restoration is in progress
+            if (isMapExpanded || isRestoringFromURL) return;
+            
+            // Ensure map exists and is initialized
+            if (!map) {
+                // Try to initialize map if it doesn't exist
+                initMap();
+                // If still no map, wait a bit and try again
+                if (!map) {
+                    setTimeout(() => restoreStateFromURL(), 200);
+                    return;
                 }
+            }
+            
+            // If map isn't initialized yet, wait
+            if (!mapInitialized) {
+                setTimeout(() => restoreStateFromURL(), 100);
+                return;
+            }
+            
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const urlMapExpanded = params.get('map_expanded');
                 
-                if (savedShopType) {
-                    const shopTypeFilters = JSON.parse(savedShopType);
-                    document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => {
-                        cb.checked = shopTypeFilters.includes(cb.value);
-                    });
-                    document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => {
-                        cb.checked = shopTypeFilters.includes(cb.value);
-                    });
-                } else {
-                    // Default: select all
-                    document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
-                    document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                if (urlMapExpanded === 'true' && currentLat && currentLng) {
+                    isRestoringFromURL = true;
+                    
+                    // Expand map without URL update (to avoid circular updates)
+                    // skipURLUpdate=true allows expandMap to proceed even when isRestoringFromURL is true
+                    expandMap(true);
+                    
+                    // If bounds are in URL, restore them after a delay to ensure map is ready
+                    setTimeout(() => {
+                        if (!map || !isMapExpanded) {
+                            isRestoringFromURL = false;
+                            return;
+                        }
+                        
+                        const urlNeLat = params.get('ne_lat');
+                        const urlNeLng = params.get('ne_lng');
+                        const urlSwLat = params.get('sw_lat');
+                        const urlSwLng = params.get('sw_lng');
+                        
+                        if (urlNeLat && urlNeLng && urlSwLat && urlSwLng) {
+                            const neLat = parseFloat(urlNeLat);
+                            const neLng = parseFloat(urlNeLng);
+                            const swLat = parseFloat(urlSwLat);
+                            const swLng = parseFloat(urlSwLng);
+                            
+                            if (!isNaN(neLat) && !isNaN(neLng) && !isNaN(swLat) && !isNaN(swLng)) {
+                                // Create bounds and set map view
+                                const ne = L.latLng(neLat, neLng);
+                                const sw = L.latLng(swLat, swLng);
+                                const bounds = L.latLngBounds(sw, ne);
+                                
+                                // Wait for map to be fully resized before setting bounds
+                                map.invalidateSize();
+                                
+                                setTimeout(() => {
+                                    if (map && isMapExpanded) {
+                                        // Temporarily remove moveend and zoomend listeners to prevent bounds changes during restoration
+                                        map.off('moveend', handleMapBoundsChange);
+                                        map.off('zoomend', handleMapBoundsChange);
+                                        
+                                        // Set bounds strictly - use fitBounds with padding 0 to match exact bounds
+                                        map.fitBounds(bounds, { padding: [0, 0] });
+                                        
+                                        // Load stores for the restored bounds after map settles
+                                        setTimeout(() => {
+                                            if (map && isMapExpanded) {
+                                                // Load stores without triggering URL updates
+                                                loadStoresForBounds();
+                                                
+                                                // Re-enable moveend and zoomend listeners after restoration is complete
+                                                setTimeout(() => {
+                                                    if (map && isMapExpanded) {
+                                                        map.on('moveend', handleMapBoundsChange);
+                                                        map.on('zoomend', handleMapBoundsChange);
+                                                        
+                                                        // Restore panel collapsed state
+                                                        const urlPanelCollapsed = params.get('panel_collapsed');
+                                                        if (urlPanelCollapsed === 'true') {
+                                                            const header = document.getElementById('expandedMapHeader');
+                                                            const mapEl = document.getElementById('map');
+                                                            const toggleIcon = document.getElementById('togglePanelIcon');
+                                                            if (header && mapEl) {
+                                                                header.classList.add('collapsed');
+                                                                mapEl.classList.add('panel-hidden');
+                                                                if (toggleIcon) {
+                                                                    toggleIcon.textContent = '▲';
+                                                                }
+                                                                // Invalidate map size after collapsing panel
+                                                                setTimeout(() => {
+                                                                    if (map) {
+                                                                        map.invalidateSize();
+                                                                    }
+                                                                }, 100);
+                                                            }
+                                                        }
+                                                        
+                                                        isRestoringFromURL = false;
+                                                    }
+                                                }, 300);
+                                            } else {
+                                                isRestoringFromURL = false;
+                                            }
+                                        }, 500);
+                                    } else {
+                                        isRestoringFromURL = false;
+                                    }
+                                }, 200);
+                            } else {
+                                // No bounds in URL, but still restore panel state if present
+                                setTimeout(() => {
+                                    if (map && isMapExpanded) {
+                                        const urlPanelCollapsed = params.get('panel_collapsed');
+                                        if (urlPanelCollapsed === 'true') {
+                                            const header = document.getElementById('expandedMapHeader');
+                                            const mapEl = document.getElementById('map');
+                                            const toggleIcon = document.getElementById('togglePanelIcon');
+                                            if (header && mapEl) {
+                                                header.classList.add('collapsed');
+                                                mapEl.classList.add('panel-hidden');
+                                                if (toggleIcon) {
+                                                    toggleIcon.textContent = '▲';
+                                                }
+                                                setTimeout(() => {
+                                                    if (map) {
+                                                        map.invalidateSize();
+                                                    }
+                                                }, 100);
+                                            }
+                                        }
+                                    }
+                                    isRestoringFromURL = false;
+                                }, 200);
+                            }
+                        } else {
+                            // No bounds in URL, but still restore panel state if present
+                            setTimeout(() => {
+                                if (map && isMapExpanded) {
+                                    const urlPanelCollapsed = params.get('panel_collapsed');
+                                    if (urlPanelCollapsed === 'true') {
+                                        const header = document.getElementById('expandedMapHeader');
+                                        const mapEl = document.getElementById('map');
+                                        const toggleIcon = document.getElementById('togglePanelIcon');
+                                        if (header && mapEl) {
+                                            header.classList.add('collapsed');
+                                            mapEl.classList.add('panel-hidden');
+                                            if (toggleIcon) {
+                                                toggleIcon.textContent = '▲';
+                                            }
+                                            setTimeout(() => {
+                                                if (map) {
+                                                    map.invalidateSize();
+                                                }
+                                            }, 100);
+                                        }
+                                    }
+                                }
+                                isRestoringFromURL = false;
+                            }, 200);
+                        }
+                    }, 400);
                 }
             } catch (e) {
-                console.warn('Failed to load filter states:', e);
-                // Fallback: select all
-                document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
-                document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
-                document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => cb.checked = true);
-                document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                console.warn('Failed to restore map state from URL:', e);
+                isRestoringFromURL = false;
             }
         }
         
+        // Load filter states (from URL first, then localStorage as fallback)
+        function loadFilterStates() {
+            // Try loading from URL first
+            const loadedFromURL = loadStateFromURL();
+            
+            // If URL didn't have state, try localStorage
+            if (!loadedFromURL) {
+                try {
+                    const savedStatus = localStorage.getItem('storeFilters_status');
+                    const savedShopType = localStorage.getItem('storeFilters_shopType');
+                    
+                    // If we have saved states, restore them; otherwise, select all by default
+                    if (savedStatus) {
+                        const statusFilters = JSON.parse(savedStatus);
+                        document.querySelectorAll('.status-filter-checkbox').forEach(cb => {
+                            cb.checked = statusFilters.includes(cb.value);
+                        });
+                        document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => {
+                            cb.checked = statusFilters.includes(cb.value);
+                        });
+                    } else {
+                        // Default: select all
+                        document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
+                        document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => cb.checked = true);
+                    }
+                    
+                    if (savedShopType) {
+                        const shopTypeFilters = JSON.parse(savedShopType);
+                        document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => {
+                            cb.checked = shopTypeFilters.includes(cb.value);
+                        });
+                        document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => {
+                            cb.checked = shopTypeFilters.includes(cb.value);
+                        });
+                    } else {
+                        // Default: select all
+                        document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                        document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                    }
+                } catch (e) {
+                    console.warn('Failed to load filter states:', e);
+                    // Fallback: select all
+                    document.querySelectorAll('.status-filter-checkbox').forEach(cb => cb.checked = true);
+                    document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                    document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => cb.checked = true);
+                    document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
+                }
+            }
+        }
+        
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', function(event) {
+            // Prevent race conditions by checking if restoration is in progress
+            if (isRestoringFromURL) return;
+            
+            // Reload state from URL when user navigates back/forward
+            loadStateFromURL();
+            updateFilterCounts();
+            
+            // Restore map state if needed
+            if (mapInitialized) {
+                restoreStateFromURL();
+            }
+            
+            // If location was in URL, trigger search if we have coordinates
+            if (currentLat && currentLng) {
+                const params = new URLSearchParams(window.location.search);
+                // Only auto-search if filters changed, not just location
+                if (params.getAll('status').length > 0 || params.getAll('shop_type').length > 0) {
+                    // Delay search to avoid race conditions
+                    setTimeout(() => {
+                        if (!isRestoringFromURL) {
+                            searchStores();
+                        }
+                    }, 300);
+                }
+            }
+        });
+        
         // Initialize filter counts on page load
         // Load saved filter states or select all by default
-        loadFilterStates();
-        updateFilterCounts();
+        // Use DOMContentLoaded or delay to ensure checkboxes exist
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                loadFilterStates();
+                updateFilterCounts();
+            });
+        } else {
+            // DOM already loaded, but wait a bit for dynamic content
+            setTimeout(() => {
+                loadFilterStates();
+                updateFilterCounts();
+            }, 100);
+        }
 
         // Note: Status description is initialized when storesContent is shown (after signature verification)
 
