@@ -2390,19 +2390,25 @@
                 unvisited.delete(nearest);
             }
 
-            // 2-opt improvement
+            // 2-opt improvement for path (not cycle - no return to origin)
             let improved = true;
             while (improved) {
                 improved = false;
-                for (let i = 0; i < route.length - 2; i++) {
+                for (let i = 0; i < route.length - 1; i++) {
                     for (let j = i + 2; j < route.length; j++) {
-                        const distBefore = distances[route[i]][route[i + 1]] + 
-                                          distances[route[j]][route[(j + 1) % route.length]];
-                        const distAfter = distances[route[i]][route[j]] + 
-                                         distances[route[i + 1]][route[(j + 1) % route.length]];
+                        // For path TSP, we don't connect back to start
+                        // Calculate distance before and after swap
+                        let distBefore = distances[route[i]][route[i + 1]];
+                        let distAfter = distances[route[i]][route[j]];
+                        
+                        // Add the edge after j if it exists
+                        if (j < route.length - 1) {
+                            distBefore += distances[route[j]][route[j + 1]];
+                            distAfter += distances[route[i + 1]][route[j + 1]];
+                        }
                         
                         if (distAfter < distBefore) {
-                            // Reverse segment
+                            // Reverse segment between i+1 and j
                             const segment = route.slice(i + 1, j + 1).reverse();
                             route.splice(i + 1, j - i, ...segment);
                             improved = true;
