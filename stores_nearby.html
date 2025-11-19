@@ -914,6 +914,7 @@
                                     <option value="Metaphysical/Spiritual">Metaphysical / Spiritual</option>
                                     <option value="Wellness Center">Wellness Center</option>
                                     <option value="Health Food Store">Health Food Store</option>
+                                    <option value="Natural Goods">Natural Goods</option>
                                     <option value="Conscious Cafe">Conscious Cafe</option>
                                     <option value="Boutique Chocolate">Boutique Chocolate</option>
                                     <option value="Antique Store">Antique Store</option>
@@ -1029,6 +1030,10 @@
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="shop-type-filter-checkbox" value="Health Food Store" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
                                 <span style="flex: 1;">Health Food Store</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="shop-type-filter-checkbox" value="Natural Goods" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
+                                <span style="flex: 1;">Natural Goods</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="shop-type-filter-checkbox" value="Conscious Cafe" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #28a745;">
@@ -1162,6 +1167,10 @@
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Health Food Store" style="margin-right: 0.5rem; cursor: pointer;">
                                 <span>Health Food Store</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Natural Goods" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Natural Goods</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-shop-type-filter-checkbox" value="Conscious Cafe" style="margin-right: 0.5rem; cursor: pointer;">
@@ -5151,6 +5160,7 @@
                             <option value="Metaphysical/Spiritual" ${store.shop_type === 'Metaphysical/Spiritual' ? 'selected' : ''}>Metaphysical / Spiritual</option>
                             <option value="Wellness Center" ${store.shop_type === 'Wellness Center' ? 'selected' : ''}>Wellness Center</option>
                             <option value="Health Food Store" ${store.shop_type === 'Health Food Store' ? 'selected' : ''}>Health Food Store</option>
+                            <option value="Natural Goods" ${store.shop_type === 'Natural Goods' ? 'selected' : ''}>Natural Goods</option>
                             <option value="Conscious Cafe" ${store.shop_type === 'Conscious Cafe' ? 'selected' : ''}>Conscious Cafe</option>
                             <option value="Boutique Chocolate" ${store.shop_type === 'Boutique Chocolate' ? 'selected' : ''}>Boutique Chocolate</option>
                             <option value="Antique Store" ${store.shop_type === 'Antique Store' ? 'selected' : ''}>Antique Store</option>
