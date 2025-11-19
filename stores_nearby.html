@@ -2668,8 +2668,14 @@
 
                 // Fit map to show all markers (only if not in expanded mode)
                 if (!isMapExpanded) {
-                const group = new L.featureGroup([userMarker, ...storeMarkers]);
-                map.fitBounds(group.getBounds().pad(0.1));
+                    // Ensure map is properly sized before fitting bounds
+                    map.invalidateSize();
+                    setTimeout(() => {
+                        if (map && userMarker && storeMarkers.length > 0) {
+                            const group = new L.featureGroup([userMarker, ...storeMarkers]);
+                            map.fitBounds(group.getBounds().pad(0.1));
+                        }
+                    }, 100);
                 }
                 
                 // Store total route distance for display
@@ -4974,8 +4980,20 @@
                     document.getElementById('newStoreLng').value = '';
                     updateNewStoreCoordinatesUI();
                     setNewStoreCardExpanded(false);
+                    
+                    // Invalidate map size after form collapse to ensure proper rendering
+                    setTimeout(() => {
+                        if (map) {
+                            map.invalidateSize();
+                        }
+                    }, 300);
+                    
                     if (currentLat !== null && currentLng !== null) {
                         setTimeout(() => {
+                            // Invalidate map size again before searching to ensure proper bounds calculation
+                            if (map) {
+                                map.invalidateSize();
+                            }
                             searchStores();
                         }, 1000);
                     }
