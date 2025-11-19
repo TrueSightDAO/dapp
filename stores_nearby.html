@@ -1852,7 +1852,7 @@
                 const params = new URLSearchParams({
                     lat: center.lat.toString(),
                     lng: center.lng.toString(),
-                    limit: '200', // Load more in expanded view
+                    limit: '200', // Maximum limit when bounds are provided (backend max: 200 with bounds)
                     ne_lat: neLat.toString(),
                     ne_lng: neLng.toString(),
                     sw_lat: swLat.toString(),
@@ -2042,18 +2042,39 @@
             // Prevent race conditions: don't expand if already expanding/expanded
             // Allow expansion during restoration if skipURLUpdate is true (called from restoreStateFromURL)
             // For normal user interaction, only check if map exists (mapInitialized check is too strict)
-            if (!mapEl || !map || isMapExpanded) {
+            if (!mapEl) {
+                console.warn('expandMap: map element not found');
+                return;
+            }
+            
+            if (!map) {
+                console.warn('expandMap: map object not found');
+                return;
+            }
+            
+            if (isMapExpanded) {
+                // Already expanded, nothing to do
                 return;
             }
             
             // Additional check: if restoring from URL, only allow if skipURLUpdate is true
             if (isRestoringFromURL && !skipURLUpdate) {
+                console.warn('expandMap: restoration in progress, skipping');
                 return;
             }
             
             // Ensure map is initialized (but don't block if it's not - it will be initialized)
             if (!mapInitialized) {
                 initMap();
+                // Wait a bit for map to be fully initialized
+                if (!mapInitialized) {
+                    setTimeout(() => {
+                        if (map && !isMapExpanded) {
+                            expandMap(skipURLUpdate);
+                        }
+                    }, 200);
+                    return;
+                }
             }
             
             // Save current bounds for restoration
@@ -2083,8 +2104,12 @@
                 map.invalidateSize();
                 // Update location count immediately
                 updateExpandedMapLocationCount();
-                // Load stores for current view
-                loadStoresForBounds();
+                // Load stores for current view (but skip if restoring from URL - bounds will be set later)
+                if (!skipURLUpdate) {
+                    // Only load stores if not restoring from URL
+                    // When restoring, loadStoresForBounds will be called after bounds are set
+                    loadStoresForBounds();
+                }
                 // Update route if we already have stores
                 if (storeMarkers.length > 0) {
                     updateExpandedMapRoute();
@@ -2390,19 +2415,25 @@
                 unvisited.delete(nearest);
             }
 
-            // 2-opt improvement
+            // 2-opt improvement for path (not cycle - no return to origin)
             let improved = true;
             while (improved) {
                 improved = false;
-                for (let i = 0; i < route.length - 2; i++) {
+                for (let i = 0; i < route.length - 1; i++) {
                     for (let j = i + 2; j < route.length; j++) {
-                        const distBefore = distances[route[i]][route[i + 1]] + 
-                                          distances[route[j]][route[(j + 1) % route.length]];
-                        const distAfter = distances[route[i]][route[j]] + 
-                                         distances[route[i + 1]][route[(j + 1) % route.length]];
+                        // For path TSP, we don't connect back to start
+                        // Calculate distance before and after swap
+                        let distBefore = distances[route[i]][route[i + 1]];
+                        let distAfter = distances[route[i]][route[j]];
+                        
+                        // Add the edge after j if it exists
+                        if (j < route.length - 1) {
+                            distBefore += distances[route[j]][route[j + 1]];
+                            distAfter += distances[route[i + 1]][route[j + 1]];
+                        }
                         
                         if (distAfter < distBefore) {
-                            // Reverse segment
+                            // Reverse segment between i+1 and j
                             const segment = route.slice(i + 1, j + 1).reverse();
                             route.splice(i + 1, j - i, ...segment);
                             improved = true;
@@ -3249,16 +3280,9 @@
             try {
                 const params = new URLSearchParams();
                 
-                // Add location - use map center if expanded, otherwise use currentLat/currentLng
-                if (isMapExpanded && map) {
-                    // When map is expanded, use the map center for lat/lng in URL
-                    const center = map.getCenter();
-                    if (center) {
-                        params.set('lat', center.lat.toString());
-                        params.set('lng', center.lng.toString());
-                    }
-                } else if (currentLat && currentLng) {
-                    // When not expanded, use the original user location
+                // Add location - always use the original point of origin (currentLat/currentLng)
+                // Never use map center, as that would overwrite the original location
+                if (currentLat && currentLng) {
                     params.set('lat', currentLat.toString());
                     params.set('lng', currentLng.toString());
                 }
@@ -3405,11 +3429,14 @@
                 }
                 
                 // If we loaded location from URL, trigger search if filters are present
+                // But skip if map is expanded - loadStoresForBounds will handle it with higher limit
                 if (hasURLParams && currentLat && currentLng) {
+                    const urlMapExpanded = params.get('map_expanded');
                     const urlStatusFilters = params.getAll('status');
                     const urlShopTypeFilters = params.getAll('shop_type');
-                    // Auto-search if we have location and at least one filter, or if explicitly requested
-                    if (urlStatusFilters.length > 0 || urlShopTypeFilters.length > 0) {
+                    // Auto-search if we have location and at least one filter, but only if map is NOT expanded
+                    // If map is expanded, loadStoresForBounds will be called during restoration with limit 200
+                    if ((urlStatusFilters.length > 0 || urlShopTypeFilters.length > 0) && urlMapExpanded !== 'true') {
                         // Delay search to ensure filters are applied
                         setTimeout(() => {
                             if (currentLat && currentLng) {
@@ -3468,12 +3495,65 @@
                 const params = new URLSearchParams(window.location.search);
                 const urlMapExpanded = params.get('map_expanded');
                 
+                // Get lat/lng from URL if not already set
+                if (!currentLat || !currentLng) {
+                    const urlLat = params.get('lat');
+                    const urlLng = params.get('lng');
+                    if (urlLat && urlLng) {
+                        const lat = parseFloat(urlLat);
+                        const lng = parseFloat(urlLng);
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            currentLat = lat;
+                            currentLng = lng;
+                            currentLocationLabel = 'Your Location (Start)';
+                        }
+                    }
+                }
+                
                 if (urlMapExpanded === 'true' && currentLat && currentLng) {
+                    // Ensure map element exists before expanding
+                    const mapEl = document.getElementById('map');
+                    if (!mapEl) {
+                        // Wait for DOM to be ready
+                        setTimeout(() => restoreStateFromURL(), 100);
+                        return;
+                    }
+                    
+                    // Ensure map is fully initialized before expanding
+                    if (!map || !mapInitialized) {
+                        // Wait a bit more for map to be ready
+                        setTimeout(() => restoreStateFromURL(), 200);
+                        return;
+                    }
+                    
+                    // All checks passed, set flag and expand
                     isRestoringFromURL = true;
                     
                     // Expand map without URL update (to avoid circular updates)
                     // skipURLUpdate=true allows expandMap to proceed even when isRestoringFromURL is true
                     expandMap(true);
+                    
+                    // Verify expansion succeeded, retry if needed with longer delay
+                    setTimeout(() => {
+                        if (!isMapExpanded && map && mapEl) {
+                            // Expansion might have failed, reset flag and try again
+                            console.log('Retrying map expansion - first attempt failed');
+                            const wasRestoring = isRestoringFromURL;
+                            isRestoringFromURL = false; // Temporarily reset to allow retry
+                            expandMap(true);
+                            isRestoringFromURL = wasRestoring; // Restore flag
+                            
+                            // If still not expanded after retry, try one more time with even longer delay
+                            setTimeout(() => {
+                                if (!isMapExpanded && map && mapEl) {
+                                    console.log('Second retry for map expansion...');
+                                    isRestoringFromURL = false;
+                                    expandMap(true);
+                                    isRestoringFromURL = true;
+                                }
+                            }, 500);
+                        }
+                    }, 300);
                     
                     // If bounds are in URL, restore them after a delay to ensure map is ready
                     setTimeout(() => {
@@ -3511,54 +3591,125 @@
                                         // Set bounds strictly - use fitBounds with padding 0 to match exact bounds
                                         map.fitBounds(bounds, { padding: [0, 0] });
                                         
-                                        // Load stores for the restored bounds after map settles
-                                        setTimeout(() => {
+                                        // Invalidate map size to ensure bounds are properly calculated
+                                        map.invalidateSize();
+                                        
+                                        // Wait for map moveend event to ensure bounds are fully applied
+                                        const onBoundsSet = () => {
                                             if (map && isMapExpanded) {
+                                                // Remove this one-time listener
+                                                map.off('moveend', onBoundsSet);
+                                                
+                                                // Ensure checkboxes are synced before loading stores
+                                                syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
+                                                syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
+                                                
                                                 // Load stores without triggering URL updates
                                                 loadStoresForBounds();
+                                            }
+                                        };
+                                        
+                                        // Listen for moveend to know when bounds are set
+                                        map.once('moveend', onBoundsSet);
+                                        
+                                        // Fallback timeout in case moveend doesn't fire
+                                        setTimeout(() => {
+                                            if (map && isMapExpanded) {
+                                                map.off('moveend', onBoundsSet);
+                                                // Ensure checkboxes are synced before loading stores
+                                                syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
+                                                syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
+                                                loadStoresForBounds();
+                                            }
+                                        }, 1000);
+                                        
+                                        // Re-enable moveend and zoomend listeners after stores are loaded
+                                        setTimeout(() => {
+                                            if (map && isMapExpanded) {
+                                                map.on('moveend', handleMapBoundsChange);
+                                                map.on('zoomend', handleMapBoundsChange);
                                                 
-                                                // Re-enable moveend and zoomend listeners after restoration is complete
-                                                setTimeout(() => {
-                                                    if (map && isMapExpanded) {
-                                                        map.on('moveend', handleMapBoundsChange);
-                                                        map.on('zoomend', handleMapBoundsChange);
-                                                        
-                                                        // Restore panel collapsed state
-                                                        const urlPanelCollapsed = params.get('panel_collapsed');
-                                                        if (urlPanelCollapsed === 'true') {
-                                                            const header = document.getElementById('expandedMapHeader');
-                                                            const mapEl = document.getElementById('map');
-                                                            const toggleIcon = document.getElementById('togglePanelIcon');
-                                                            if (header && mapEl) {
-                                                                header.classList.add('collapsed');
-                                                                mapEl.classList.add('panel-hidden');
-                                                                if (toggleIcon) {
-                                                                    toggleIcon.textContent = '▲';
-                                                                }
-                                                                // Invalidate map size after collapsing panel
-                                                                setTimeout(() => {
-                                                                    if (map) {
-                                                                        map.invalidateSize();
-                                                                    }
-                                                                }, 100);
-                                                            }
-                                                        }
-                                                        
-                                                        isRestoringFromURL = false;
+                                                // Ensure user marker is placed at original point of origin (after everything is loaded)
+                                                if (currentLat && currentLng) {
+                                                    // Remove existing user marker if any
+                                                    if (userMarker) {
+                                                        map.removeLayer(userMarker);
                                                     }
-                                                }, 300);
-                                            } else {
+                                                    // Place user marker at original lat/lng from URL
+                                                    userMarker = L.marker([currentLat, currentLng], {
+                                                        icon: L.icon({
+                                                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                                                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                                                            iconSize: [25, 41],
+                                                            iconAnchor: [12, 41],
+                                                            popupAnchor: [1, -34],
+                                                            shadowSize: [41, 41]
+                                                        })
+                                                    }).addTo(map)
+                                                    .bindPopup(`<strong>${currentLocationLabel}</strong><br>` + currentLat.toFixed(6) + ', ' + currentLng.toFixed(6));
+                                                }
+                                                
+                                                // Restore panel collapsed state
+                                                const urlPanelCollapsed = params.get('panel_collapsed');
+                                                if (urlPanelCollapsed === 'true') {
+                                                    const header = document.getElementById('expandedMapHeader');
+                                                    const mapEl = document.getElementById('map');
+                                                    const toggleIcon = document.getElementById('togglePanelIcon');
+                                                    if (header && mapEl) {
+                                                        header.classList.add('collapsed');
+                                                        mapEl.classList.add('panel-hidden');
+                                                        if (toggleIcon) {
+                                                            toggleIcon.textContent = '▲';
+                                                        }
+                                                        // Invalidate map size after collapsing panel
+                                                        setTimeout(() => {
+                                                            if (map) {
+                                                                map.invalidateSize();
+                                                            }
+                                                        }, 100);
+                                                    }
+                                                }
+                                                
                                                 isRestoringFromURL = false;
                                             }
-                                        }, 500);
+                                        }, 1500);
                                     } else {
                                         isRestoringFromURL = false;
                                     }
                                 }, 200);
                             } else {
-                                // No bounds in URL, but still restore panel state if present
+                                // No bounds in URL, but still restore panel state and user marker if present
                                 setTimeout(() => {
                                     if (map && isMapExpanded) {
+                                        // Ensure user marker is placed at original point of origin
+                                        if (currentLat && currentLng) {
+                                            if (userMarker) {
+                                                map.removeLayer(userMarker);
+                                            }
+                                            userMarker = L.marker([currentLat, currentLng], {
+                                                icon: L.icon({
+                                                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                                                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                                                    iconSize: [25, 41],
+                                                    iconAnchor: [12, 41],
+                                                    popupAnchor: [1, -34],
+                                                    shadowSize: [41, 41]
+                                                })
+                                            }).addTo(map)
+                                            .bindPopup(`<strong>${currentLocationLabel}</strong><br>` + currentLat.toFixed(6) + ', ' + currentLng.toFixed(6));
+                                        }
+                                        
+                                        // Ensure checkboxes are synced and load stores for current bounds
+                                        syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
+                                        syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
+                                        
+                                        // Load stores for current map bounds
+                                        setTimeout(() => {
+                                            if (map && isMapExpanded) {
+                                                loadStoresForBounds();
+                                            }
+                                        }, 200);
+                                        
                                         const urlPanelCollapsed = params.get('panel_collapsed');
                                         if (urlPanelCollapsed === 'true') {
                                             const header = document.getElementById('expandedMapHeader');
@@ -3582,9 +3733,38 @@
                                 }, 200);
                             }
                         } else {
-                            // No bounds in URL, but still restore panel state if present
+                            // No bounds in URL, but still restore panel state and user marker if present
                             setTimeout(() => {
                                 if (map && isMapExpanded) {
+                                    // Ensure user marker is placed at original point of origin
+                                    if (currentLat && currentLng) {
+                                        if (userMarker) {
+                                            map.removeLayer(userMarker);
+                                        }
+                                        userMarker = L.marker([currentLat, currentLng], {
+                                            icon: L.icon({
+                                                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                                                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                                                iconSize: [25, 41],
+                                                iconAnchor: [12, 41],
+                                                popupAnchor: [1, -34],
+                                                shadowSize: [41, 41]
+                                            })
+                                        }).addTo(map)
+                                        .bindPopup(`<strong>${currentLocationLabel}</strong><br>` + currentLat.toFixed(6) + ', ' + currentLng.toFixed(6));
+                                    }
+                                    
+                                    // Ensure checkboxes are synced and load stores for current bounds
+                                    syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
+                                    syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
+                                    
+                                    // Load stores for current map bounds
+                                    setTimeout(() => {
+                                        if (map && isMapExpanded) {
+                                            loadStoresForBounds();
+                                        }
+                                    }, 200);
+                                    
                                     const urlPanelCollapsed = params.get('panel_collapsed');
                                     if (urlPanelCollapsed === 'true') {
                                         const header = document.getElementById('expandedMapHeader');
@@ -3608,6 +3788,22 @@
                             }, 200);
                         }
                     }, 400);
+                } else if (currentLat && currentLng && map) {
+                    // Map is not expanded but we have lat/lng from URL - ensure user marker is placed at original point of origin
+                    if (userMarker) {
+                        map.removeLayer(userMarker);
+                    }
+                    userMarker = L.marker([currentLat, currentLng], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    }).addTo(map)
+                    .bindPopup(`<strong>${currentLocationLabel}</strong><br>` + currentLat.toFixed(6) + ', ' + currentLng.toFixed(6));
                 }
             } catch (e) {
                 console.warn('Failed to restore map state from URL:', e);
