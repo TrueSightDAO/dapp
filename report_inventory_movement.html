@@ -98,6 +98,15 @@
         }
         .loading {
             color: #6c757d;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .loading-items {
+            animation: pulse 1.5s ease-in-out infinite;
+            color: #666;
+            font-style: italic;
             font-style: italic;
             animation: pulse 2s infinite ease-in-out;
         }
@@ -118,11 +127,20 @@
             margin-left: auto;
             margin-right: auto;
         }
+        video.scanning {
+            border-color: #28a745;
+            box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
+        }
         .form-row {
             display: flex;
             flex-direction: column;
             margin-bottom: 1rem;
             width: 100%;
+        }
+        #qr-section[style*="display: none"],
+        #qr-upload-section[style*="display: none"],
+        #qr-list-section[style*="display: none"] {
+            display: none !important;
         }
         label {
             margin-bottom: 0.5rem;
@@ -260,20 +278,47 @@
             <div class="form-row">
                 <label for="inputMethod">Input Method:</label>
                 <select id="inputMethod">
-                    <option value="upload" selected>Upload File or Image</option>                
+                    <option value="qr_code" selected>QR Code (Upload/Camera/Select)</option>
+                    <option value="upload">Upload File or Image</option>                
                     <option value="camera">Use Camera</option>
                 </select>
+            </div>
+            <div class="form-row" id="qr-section">
+                <label for="qrInputMethod">QR Code Input:</label>
+                <select id="qrInputMethod">
+                    <option value="upload">Upload Image</option>                    
+                    <option value="camera">Use Camera</option>
+                    <option value="list" selected>Select from List</option>
+                </select>
+            </div>
+            <div class="form-row" id="qr-upload-section" style="display: none;">
+                <label for="qrImageInput">Upload QR Code Image:</label>
+                <input type="file" id="qrImageInput" accept="image/*">
+            </div>
+            <div class="form-row" id="qr-list-section">
+                <label for="qrSelectCombobox">Select QR Code:</label>
+                <div style="position: relative;">
+                    <div id="qrSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="qrSelectDisplay" style="color: #999;">Select a QR code...</span>
+                        <span style="color: #666;">▼</span>
+                    </div>
+                    <div id="qrDropdownContainer" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px;">
+                        <input type="text" id="qrSearchInput" placeholder="Type to search QR codes..." autocomplete="off" style="width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box; border: none; border-bottom: 1px solid #eee; outline: none;">
+                        <div id="qrAutocompleteList" style="max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
             </div>
             <div class="form-row" id="upload-section" style="display: none;">
                 <label>Upload File or Image:</label>
                 <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
             </div>
-            <div id="video-holder">
+            <div id="qr-param-display" style="margin: 1rem 0; font-size: 1rem; font-weight: bold; text-align: center; display: none;"></div>
+            <div id="video-holder" style="display: none;">
                 <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
             </div>
             <canvas id="canvas" style="display: none;"></canvas>
             <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
-            <div class="info-box">
+            <div class="info-box" id="file-info-box" style="display: none;">
                 <div class="info">Original File Name:</div>
                 <div class="info-location" id="originalFileName">No file selected</div>
                 <div class="info">Inventory Report File Name:</div>
@@ -284,23 +329,49 @@
                 <div class="info-location" id="location">Waiting for geolocation...</div>
             </div>
             <div class="form-row">
-                <label for="managerSelect">Warehouse Manager:</label>
-                <select id="managerSelect">
-                    <option value="">Loading managers...</option>
-                </select>
+                <label for="managerSelectCombobox">Warehouse Manager:</label>
+                <div style="position: relative;">
+                    <div id="managerSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="managerSelectDisplay" style="color: #999;">Loading managers...</span>
+                        <span style="color: #666;">▼</span>
+                    </div>
+                    <div id="managerDropdownContainer" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px;">
+                        <input type="text" id="managerSearchInput" placeholder="Type to search managers..." autocomplete="off" style="width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box; border: none; border-bottom: 1px solid #eee; outline: none;">
+                        <div id="managerAutocompleteList" style="max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
             </div>
             <div class="form-row">
-                <label for="itemSelect">Inventory Item:</label>
-                <select id="itemSelect" disabled>
-                    <option value="">Select a manager first</option>
-                </select>
+                <label for="itemSelectCombobox">Inventory Item:</label>
+                <div style="position: relative;">
+                    <div id="itemSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="itemSelectDisplay" style="color: #999;">Select a manager first</span>
+                        <span style="color: #666;">▼</span>
+                    </div>
+                    <div id="itemDropdownContainer" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px;">
+                        <input type="text" id="itemSearchInput" placeholder="Type to search inventory items..." autocomplete="off" style="width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box; border: none; border-bottom: 1px solid #eee; outline: none;">
+                        <div id="itemAutocompleteList" style="max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
                 <div id="availableQuantity"></div>
             </div>
             <div class="form-row">
-                <label for="recipientSelect">Recipient:</label>
-                <select id="recipientSelect">
-                    <option value="">Loading recipients...</option>
-                </select>
+                <label for="recipientSelectCombobox">Recipient:</label>
+                <div style="position: relative;">
+                    <div id="recipientSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="recipientSelectDisplay" style="color: #999;">Loading recipients...</span>
+                        <span style="color: #666;">▼</span>
+                    </div>
+                    <div id="recipientDropdownContainer" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px;">
+                        <input type="text" id="recipientSearchInput" placeholder="Type to search recipients..." autocomplete="off" style="width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box; border: none; border-bottom: 1px solid #eee; outline: none;">
+                        <div id="recipientAutocompleteList" style="max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <label for="newRecipientInput" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Or enter a new recipient name:</label>
+                <input type="text" id="newRecipientInput" placeholder="Type new recipient name here..." style="display: none;">
+                <div id="recipientInputInfo" style="font-size: 0.85rem; color: #666; margin-top: 0.3rem; display: none;">
+                    New recipients will be automatically added to the Contributors list.
+                </div>
             </div>
             <div class="form-row">
                 <label for="quantityInput">Quantity to Move:</label>
@@ -310,9 +381,12 @@
             <div id="reportOutput" aria-live="polite"></div>
         </div>
     </div>
-
+    <!-- Include jsQR library via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script>
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const QR_CODE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec?list=true';
+        const QR_CODE_LOOKUP_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec';
         const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
         // Register Service Worker for offline support
         if ('serviceWorker' in navigator) {
@@ -322,13 +396,15 @@
         }
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas ? canvas.getContext('2d') : null;
         const inputMethod = document.getElementById('inputMethod');
         const uploadSection = document.getElementById('upload-section');
         const videoHolder = document.getElementById('video-holder');
         const uploadedFilePreview = document.getElementById('uploaded-file-preview');
         let assets = [];
         let allCurrencies = [];
+        let currentManagerKey = null; // Track currently selected manager key
+        let itemsList = []; // List of inventory items for combobox
         let currentStream = null;
         let uploadedFile = null;
         let latitude = null;
@@ -336,6 +412,11 @@
         let contributorName = '';
         let isPostSubmission = false;
         let cachedInventoryFileName = null;  // Store the inventory filename to ensure consistency
+        let qrCodes = [];
+        let filteredQrCodes = [];
+        let qrCodeDetailsMap = {}; // Map of QR code -> {currency, ledger_shortcut, manager_name}
+        let lastQrParam = null;
+        let scanning = false;
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -379,7 +460,8 @@
         }
 
         function triggerFileSelect() {
-            const inputMethod = document.getElementById('inputMethod').value;
+            const inputMethodEl = document.getElementById('inputMethod');
+            const inputMethod = inputMethodEl ? inputMethodEl.value : '';
             if (inputMethod !== 'upload') return;
 
             const input = document.createElement('input');
@@ -409,6 +491,13 @@
                                  file.type.split('/')[1];
             const fileName = file.name || `pasted_file_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}.${fileExtension}`;
             updateFileInfo(fileName);
+            
+            // Show file info box only in upload mode (not QR code upload)
+            const inputMethodEl = document.getElementById('inputMethod');
+            const inputMethodVal = inputMethodEl ? inputMethodEl.value : '';
+            if (inputMethodVal === 'upload') {
+                document.getElementById('file-info-box').style.display = 'block';
+            }
 
             if (file.type.startsWith('image/')) {
                 const reader = new FileReader();
@@ -432,7 +521,8 @@
         }
 
         function handlePaste(event) {
-            const inputMethod = document.getElementById('inputMethod').value;
+            const inputMethodEl = document.getElementById('inputMethod');
+            const inputMethod = inputMethodEl ? inputMethodEl.value : '';
             if (inputMethod !== 'upload') return;
 
             const items = (event.clipboardData || event.originalEvent.clipboardData).items;
@@ -495,6 +585,11 @@
                     canvas.height = video.videoHeight;
                     video.play();
                     drawFrame();
+                    // Enable scan button if it exists
+                    const scanButton = document.getElementById('scan-qr-button');
+                    if (scanButton) {
+                        scanButton.disabled = false;
+                    }
                 };
             } catch (err) {
                 console.error('Error accessing camera:', err);
@@ -512,59 +607,889 @@
         }
 
         function drawFrame() {
+            if (!ctx || !canvas || !video) return;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             requestAnimationFrame(drawFrame);
         }
 
-        function toggleInputMethod() {
-            const method = inputMethod.value;
-            const pasteArea = document.getElementById('paste-area');
+        async function loadQrCodes() {
+            try {
+                // Load QR codes with full details (currency, ledger, manager)
+                const res = await fetch(QR_CODE_ENDPOINT.replace('?list=true', '?list_with_members=true'));
+                const data = await res.json();
+                if (data.status === 'error') {
+                    throw new Error(data.message);
+                }
+                
+                // Build QR codes list and details map
+                qrCodes = [];
+                qrCodeDetailsMap = {};
+                
+                if (data.items && Array.isArray(data.items)) {
+                    data.items.forEach(item => {
+                        const qrCode = item.qr_code;
+                        qrCodes.push({ key: qrCode, name: qrCode });
+                        qrCodeDetailsMap[qrCode] = {
+                            currency: item.currency || '',
+                            ledger_shortcut: item.ledger_shortcut || '',
+                            manager_name: item.contributor_name || ''
+                        };
+                    });
+                }
+                
+                filteredQrCodes = [...qrCodes];
+                // Autocomplete will update when user types, no need to show dropdown initially
+            } catch (err) {
+                console.error('Error loading QR codes:', err);
+                document.getElementById('reportOutput').textContent = 'Failed to load QR codes. Please try again later.';
+                document.getElementById('reportOutput').className = 'error';
+            }
+        }
+
+        function updateQrCodeAutocomplete() {
+            const qrSearchInput = document.getElementById('qrSearchInput');
+            const autocompleteList = document.getElementById('qrAutocompleteList');
+            const filterText = qrSearchInput.value.toLowerCase();
             
-            if (method === 'camera') {
-                uploadSection.style.display = 'none';
-                videoHolder.style.display = 'block';
+            // Filter QR codes based on search text
+            filteredQrCodes = qrCodes.filter(qr => qr.name.toLowerCase().includes(filterText));
+            
+            // Clear previous list
+            autocompleteList.innerHTML = '';
+            
+            // Show all QR codes if no filter, otherwise show filtered results
+            const qrCodesToShow = filterText ? filteredQrCodes : qrCodes;
+            
+            if (qrCodesToShow.length > 0) {
+                // Create list items for each QR code
+                qrCodesToShow.forEach(qr => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                    item.textContent = qr.name;
+                    item.addEventListener('mouseenter', () => {
+                        item.style.backgroundColor = '#f0f0f0';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', () => {
+                        selectQRCode(qr.key, qr.name);
+                    });
+                    autocompleteList.appendChild(item);
+                });
+            } else {
+                // No matches found
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = 'No matching QR codes found';
+                autocompleteList.appendChild(noResults);
+            }
+        }
+        
+        function selectQRCode(qrKey, qrName) {
+            lastQrParam = qrKey;
+            const qrSelectDisplay = document.getElementById('qrSelectDisplay');
+            const qrDropdownContainer = document.getElementById('qrDropdownContainer');
+            const qrSearchInput = document.getElementById('qrSearchInput');
+            
+            // Update display
+            qrSelectDisplay.textContent = qrName;
+            qrSelectDisplay.style.color = '#333';
+            
+            // Close dropdown
+            qrDropdownContainer.style.display = 'none';
+            qrSearchInput.value = '';
+            
+            // Show QR code in param display
+            const qrParamDisplay = document.getElementById('qr-param-display');
+            qrParamDisplay.textContent = `QR Code: ${lastQrParam}`;
+            qrParamDisplay.style.display = 'block';
+            
+            // Immediately populate fields from stored QR code details
+            populateFieldsFromQRCode(lastQrParam);
+            updateReportButtonState();
+        }
+        
+        function clearQRCodeSelection() {
+            lastQrParam = null;
+            const qrSelectDisplay = document.getElementById('qrSelectDisplay');
+            qrSelectDisplay.textContent = 'Select a QR code...';
+            qrSelectDisplay.style.color = '#999';
+            
+            const qrParamDisplay = document.getElementById('qr-param-display');
+            qrParamDisplay.textContent = '';
+            qrParamDisplay.style.display = 'none';
+            
+            clearQRCodeFields();
+            updateReportButtonState();
+        }
+
+        function populateFieldsFromQRCode(qrCode) {
+            const details = qrCodeDetailsMap[qrCode];
+            if (!details) {
+                console.warn('QR code details not found for:', qrCode);
+                return;
+            }
+
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+            const qtyInput = document.getElementById('quantityInput');
+            const availableQuantity = document.getElementById('availableQuantity');
+            
+            // Auto-populate inventory item immediately from stored details
+            if (details.currency) {
+                const currencyToMatch = details.currency.trim();
+                const ledgerPrefix = details.ledger_shortcut ? `[${details.ledger_shortcut}] ` : '';
+                
+                // Try to find and select the matching currency
+                const tryMatch = () => {
+                    let found = false;
+                    let matchingItem = null;
+                    
+                    // Search in itemsList
+                    if (itemsList && itemsList.length > 0) {
+                        matchingItem = itemsList.find(item => {
+                            const itemValue = item.value ? item.value.trim() : '';
+                            const itemName = item.name ? item.name.trim() : '';
+                            return itemValue.toLowerCase() === currencyToMatch.toLowerCase() ||
+                                itemName.toLowerCase() === currencyToMatch.toLowerCase() ||
+                                itemValue.toLowerCase() === `${ledgerPrefix}${currencyToMatch}`.toLowerCase() ||
+                                itemName.toLowerCase() === `${ledgerPrefix}${currencyToMatch}`.toLowerCase() ||
+                                itemName.toLowerCase().includes(currencyToMatch.toLowerCase()) ||
+                                itemValue.toLowerCase().includes(currencyToMatch.toLowerCase());
+                        });
+                    }
+                    
+                    if (matchingItem) {
+                        selectItem(matchingItem.value, matchingItem.name, matchingItem);
+                        found = true;
+                        console.log('Matched QR code currency:', currencyToMatch, 'to item:', matchingItem.name);
+                    } else if (currencyToMatch) {
+                        // If not found, add it to itemsList and select it
+                        const newItem = {
+                            value: currencyToMatch,
+                            name: currencyToMatch,
+                            category: 'QR Code Item'
+                        };
+                        itemsList.push(newItem);
+                        selectItem(newItem.value, newItem.name, newItem);
+                        found = true;
+                        console.log('QR code currency not found in list, added:', currencyToMatch);
+                    }
+                    
+                    // Lock the inventory item field - user cannot change it when QR code is selected
+                    if (found && itemSelectCombobox) {
+                        itemSelectCombobox.style.pointerEvents = 'none';
+                        console.log('QR code inventory item locked:', currencyToMatch);
+                    }
+                };
+                
+                // If itemsList is not populated yet, wait a bit and try again
+                if (!itemsList || itemsList.length === 0) {
+                    // Items not ready, wait and retry
+                    setTimeout(() => {
+                        tryMatch();
+                    }, 200);
+                } else {
+                    // Items are ready, try matching immediately
+                    tryMatch();
+                }
+            }
+            
+            // Set quantity to 1 and lock it - QR code represents exactly 1 unit
+            if (qtyInput) {
+                qtyInput.value = '1';
+                qtyInput.disabled = true;
+                if (availableQuantity) {
+                    availableQuantity.textContent = 'Quantity: 1 (locked - QR code represents 1 unit)';
+                }
+            }
+            
+            // Auto-select manager if available
+            if (details.manager_name) {
+                const managerSelectDisplay = document.getElementById('managerSelectDisplay');
+                // Find matching manager in the list
+                const matchingManager = managersList.find(m => m.name === details.manager_name);
+                if (matchingManager && managerSelectDisplay) {
+                    managerSelectDisplay.textContent = matchingManager.name;
+                    managerSelectDisplay.style.color = '#333';
+                    // Don't trigger onManagerChange to avoid resetting item select
+                    // The manager is already selected visually, and we'll use it when submitting
+                }
+            }
+        }
+        
+        function clearQRCodeFields() {
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+            const qtyInput = document.getElementById('quantityInput');
+            const availableQuantity = document.getElementById('availableQuantity');
+            
+            // Re-enable fields when QR code is cleared
+            if (itemSelectCombobox) {
+                itemSelectCombobox.style.pointerEvents = 'auto';
+            }
+            if (itemSelectDisplay) {
+                itemSelectDisplay.textContent = 'Select an item';
+                itemSelectDisplay.style.color = '#999';
+            }
+            if (qtyInput) {
+                qtyInput.disabled = false;
+                qtyInput.value = '';
+            }
+            if (availableQuantity) {
+                availableQuantity.textContent = '';
+            }
+        }
+
+        function processQRCodeFromData(qrData) {
+            try {
+                const urlObj = new URL(qrData);
+                if (urlObj.searchParams.has('qr_code')) {
+                    lastQrParam = urlObj.searchParams.get('qr_code');
+                    const qrParamDisplay = document.getElementById('qr-param-display');
+                    qrParamDisplay.textContent = `QR Code: ${lastQrParam}`;
+                    qrParamDisplay.style.display = 'block';
+                    
+                    // Immediately populate fields from stored QR code details (no API call)
+                    populateFieldsFromQRCode(lastQrParam);
+                    
+                    updateReportButtonState();
+                    return true;
+                } else {
+                    document.getElementById('qr-param-display').textContent = 'No valid QR code data found';
+                    document.getElementById('qr-param-display').style.display = 'block';
+                    clearQRCodeFields();
+                    return false;
+                }
+            } catch (e) {
+                console.error('Error parsing QR code:', e);
+                document.getElementById('qr-param-display').textContent = 'Invalid QR code format';
+                document.getElementById('qr-param-display').style.display = 'block';
+                clearQRCodeFields();
+                return false;
+            }
+        }
+
+        function populateItemSelectFromAllCurrencies() {
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+            
+            // If allCurrencies is not loaded yet, load it first
+            if (allCurrencies.length === 0) {
+                loadAllCurrencies().then(() => {
+                    populateItemSelectFromAllCurrencies();
+                });
+                return;
+            }
+            
+            // Build itemsList for combobox
+            itemsList = [];
+            
+            // Group currencies by product name
+            const currencyMap = {};
+            allCurrencies.forEach(c => {
+                const key = c.product_name;
+                if (!currencyMap[key]) {
+                    currencyMap[key] = {
+                        product_name: c.product_name,
+                        ledgers: [],
+                        totalQuantity: 0
+                    };
+                }
+                currencyMap[key].ledgers.push(c);
+                if (c.ledger_quantities && typeof c.ledger_quantities === 'object') {
+                    // ledger_quantities is an object with ledger names as keys
+                    Object.values(c.ledger_quantities).forEach(qty => {
+                        currencyMap[key].totalQuantity += parseFloat(qty) || 0;
+                    });
+                }
+            });
+            
+            // Add items for each currency
+            Object.values(currencyMap).forEach(currency => {
+                itemsList.push({
+                    value: currency.product_name,
+                    name: currency.product_name,
+                    category: 'All currencies',
+                    quantity: currency.totalQuantity,
+                    ledgerName: ''
+                });
+            });
+            
+            // Enable combobox
+            if (itemSelectCombobox) {
+                itemSelectCombobox.style.pointerEvents = 'auto';
+            }
+            if (itemSelectDisplay) {
+                const inputMethodEl = document.getElementById('inputMethod');
+                const inputMethodVal = inputMethodEl ? inputMethodEl.value : '';
+                const defaultMessage = inputMethodVal === 'qr_code' 
+                    ? 'Select an item (or QR code will auto-populate)' 
+                    : 'Select an item';
+                itemSelectDisplay.textContent = defaultMessage;
+                itemSelectDisplay.style.color = '#999';
+            }
+            
+            // Update autocomplete list
+            updateItemAutocomplete();
+        }
+
+        function scanQRCode() {
+            if (!scanning || !ctx || !canvas || !video) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'attemptBoth'
+            });
+
+            if (code) {
+                console.log('QR Code detected:', code.data);
+                scanning = false;
+                if (video) {
+                    video.classList.remove('scanning');
+                }
+                const scanButton = document.getElementById('scan-qr-button');
+                if (scanButton) {
+                    scanButton.value = 'Scan Another QR Code';
+                    scanButton.disabled = false;
+                }
+                processQRCodeFromData(code.data);
+            } else {
+                requestAnimationFrame(scanQRCode);
+            }
+        }
+
+        function processUploadedQRImage(file) {
+            if (!canvas || !ctx) {
+                console.error('Canvas or context not available');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    const maxDimension = 1024;
+                    if (width > maxDimension || height > maxDimension) {
+                        const ratio = Math.min(maxDimension / width, maxDimension / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'attemptBoth'
+                    });
+
+                    if (code) {
+                        console.log('QR Code detected in uploaded image:', code.data);
+                        processQRCodeFromData(code.data);
+                    } else {
+                        document.getElementById('qr-param-display').textContent = 'No QR code found in the image';
+                        document.getElementById('qr-param-display').style.display = 'block';
+                    }
+                };
+                img.onerror = () => {
+                    document.getElementById('qr-param-display').textContent = 'Unable to load image';
+                    document.getElementById('qr-param-display').style.display = 'block';
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = () => {
+                document.getElementById('qr-param-display').textContent = 'Error reading file';
+                document.getElementById('qr-param-display').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function toggleInputMethod() {
+            const inputMethodEl = document.getElementById('inputMethod');
+            const method = inputMethodEl ? inputMethodEl.value : '';
+            const pasteArea = document.getElementById('paste-area');
+            const qrSection = document.getElementById('qr-section');
+            const qrUploadSection = document.getElementById('qr-upload-section');
+            const qrListSection = document.getElementById('qr-list-section');
+            const qrParamDisplay = document.getElementById('qr-param-display');
+            const qrInputMethod = document.getElementById('qrInputMethod');
+            const fileInfoBox = document.getElementById('file-info-box');
+            const scanButton = document.getElementById('scan-qr-button');
+            
+            if (method === 'qr_code') {
+                // Show QR code input options
+                if (qrSection) qrSection.style.display = 'block';
+                if (uploadSection) uploadSection.style.display = 'none';
+                if (uploadedFilePreview) {
                 uploadedFilePreview.style.display = 'none';
-                uploadedFile = null;
                 uploadedFilePreview.src = '';
-                document.getElementById('reportOutput').textContent = '';
+                }
+                if (fileInfoBox) fileInfoBox.style.display = 'none';
+                uploadedFile = null;
                 updateFileInfo('');
+                if (pasteArea) {
                 pasteArea.removeEventListener('paste', handlePaste);
                 pasteArea.removeEventListener('click', triggerFileSelect);
+                }
+                stopCamera();
+                
+                const itemSelect = document.getElementById('itemSelect');
+                const qtyInput = document.getElementById('quantityInput');
+                
+                // If QR code is already selected, populate and lock the inventory item field
+                if (lastQrParam) {
+                    // Always repopulate with all currencies when switching to QR code mode
+                    // This ensures we have the full list, not just manager assets
+                    const populateAndMatch = () => {
+                        populateItemSelectFromAllCurrencies();
+                        // Wait for DOM to update, then populate fields from QR code
+                        setTimeout(() => {
+                            populateFieldsFromQRCode(lastQrParam);
+                            updateReportButtonState();
+                        }, 150);
+                    };
+                    
+                    // Load all currencies if needed (for matching)
+                    if (allCurrencies.length === 0) {
+                        loadAllCurrencies().then(() => {
+                            populateAndMatch();
+                        });
+                    } else {
+                        // Currencies already loaded, populate immediately
+                        populateAndMatch();
+                    }
+                } else {
+                    // No QR code selected - clear item select and ensure nothing is selected
+                    const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+                    const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+                    if (itemSelectDisplay) {
+                        itemSelectDisplay.textContent = 'Select an item';
+                        itemSelectDisplay.style.color = '#999';
+                    }
+                    if (itemSelectCombobox) {
+                        itemSelectCombobox.style.pointerEvents = 'auto';
+                    }
+                    if (qtyInput) {
+                        qtyInput.value = '';
+                        // In QR code mode, quantity should be disabled until a QR code is selected
+                        // But if no QR code is selected, we can enable it for manual entry
+                        // However, it should remain disabled until an item is selected
+                        qtyInput.disabled = true;
+                    }
+                    // Load all currencies for future QR code selection
+                    if (allCurrencies.length === 0) {
+                        loadAllCurrencies().then(() => {
+                            populateItemSelectFromAllCurrencies();
+                        });
+                    } else {
+                        populateItemSelectFromAllCurrencies();
+                    }
+                }
+                
+                // Handle QR input sub-method
+                const qrMethod = qrInputMethod ? qrInputMethod.value : '';
+                if (qrMethod === 'camera') {
+                    qrUploadSection.style.display = 'none';
+                    qrListSection.style.display = 'none';
+                    videoHolder.style.display = 'block';
+                    if (scanButton) scanButton.style.display = 'block';
                 startCamera();
+                } else if (qrMethod === 'list') {
+                    stopCamera();
+                    if (qrUploadSection) qrUploadSection.style.display = 'none';
+                    if (videoHolder) videoHolder.style.display = 'none';
+                    if (scanButton) scanButton.style.display = 'none';
+                    if (qrListSection) qrListSection.style.display = 'block';
             } else {
                 stopCamera();
-                videoHolder.style.display = 'none';
-                uploadSection.style.display = 'block';
+                    if (videoHolder) videoHolder.style.display = 'none';
+                    if (scanButton) scanButton.style.display = 'none';
+                    if (qrListSection) qrListSection.style.display = 'none';
+                    if (qrUploadSection) qrUploadSection.style.display = 'block';
+                }
+                toggleQRInputMethod();
+                updateReportButtonState();
+            } else if (method === 'camera') {
+                // Hide all QR code related sections
+                if (qrSection) qrSection.style.display = 'none';
+                if (qrUploadSection) qrUploadSection.style.display = 'none';
+                if (qrListSection) qrListSection.style.display = 'none';
+                if (qrParamDisplay) qrParamDisplay.style.display = 'none';
+                if (uploadSection) uploadSection.style.display = 'none';
+                if (fileInfoBox) fileInfoBox.style.display = 'none';
+                if (videoHolder) videoHolder.style.display = 'block';
+                if (uploadedFilePreview) {
                 uploadedFilePreview.style.display = 'none';
+                    uploadedFilePreview.src = '';
+                }
                 uploadedFile = null;
-                uploadedFilePreview.src = '';
-                document.getElementById('reportOutput').textContent = '';
+                const reportOutput = document.getElementById('reportOutput');
+                if (reportOutput) reportOutput.textContent = '';
                 updateFileInfo('');
+                if (pasteArea) {
+                    pasteArea.removeEventListener('paste', handlePaste);
+                    pasteArea.removeEventListener('click', triggerFileSelect);
+                }
+                stopCamera();
+                startCamera();
+                
+                // Clear QR code fields and re-enable item/quantity fields for manual selection
+                lastQrParam = null;
+                clearQRCodeFields();
+                
+                // Ensure quantity is enabled when not in QR code mode
+                // (it will be disabled/enabled based on item selection in onItemChange())
+                const qtyInput = document.getElementById('quantityInput');
+                if (qtyInput) {
+                    // Quantity will be enabled/disabled based on item selection
+                    // But we ensure it's not locked due to QR code mode
+                    qtyInput.disabled = false;
+                }
+                
+                // If manager is already selected, load assets if needed and populate items
+                const managerSelectDisplay = document.getElementById('managerSelectDisplay');
+                const hasManagerSelected = managerSelectDisplay && 
+                    managerSelectDisplay.textContent !== 'Select a manager' && 
+                    managerSelectDisplay.textContent !== 'Loading managers...' &&
+                    managerSelectDisplay.style.color !== 'rgb(153, 153, 153)';
+                
+                const itemSelect = document.getElementById('itemSelect');
+                
+                if (hasManagerSelected) {
+                    // Manager is selected - get manager key and load assets if not cached
+                    const managerName = managerSelectDisplay.textContent;
+                    const matchingManager = managersList.find(m => m.name === managerName);
+                    
+                    if (matchingManager) {
+                        const managerKey = matchingManager.key;
+                        currentManagerKey = managerKey;
+                        
+                        if (assets.length > 0 && currentManagerKey === managerKey) {
+                            // Assets are cached for this manager - populate immediately!
+                            populateItemSelectFromManagerAssets();
+                        } else {
+                            // Assets not cached yet or for different manager - load them now
+                            // Show loading state first
+                            if (itemSelect) {
+                                showItemSelectLoading();
+                            }
+                            
+                            // Use onManagerChange which will load assets and populate the item select
+                            (async () => {
+                                try {
+                                    await onManagerChange(managerKey);
+                                    // onManagerChange already calls populateItemSelectFromManagerAssets()
+                                } catch (err) {
+                                    console.error('Error loading manager assets:', err);
+                                    clearItemSelectLoading();
+                                    const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+                                    const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+                                    if (itemSelectDisplay) {
+                                        itemSelectDisplay.textContent = 'Error loading items. Please try again.';
+                                        itemSelectDisplay.style.color = '#dc3545';
+                                    }
+                                    if (itemSelectCombobox) {
+                                        itemSelectCombobox.style.pointerEvents = 'none';
+                                    }
+                                }
+                            })();
+                        }
+                    } else {
+                        // Manager name found but not in list - reset
+                        const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+                        const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+                        if (itemSelectDisplay) {
+                            itemSelectDisplay.textContent = 'Select a manager first';
+                            itemSelectDisplay.style.color = '#999';
+                        }
+                        if (itemSelectCombobox) {
+                            itemSelectCombobox.style.pointerEvents = 'none';
+                        }
+                    }
+                } else {
+                    // No manager selected
+                    if (itemSelect) {
+                        itemSelect.innerHTML = '<option value="">Select a manager first</option>';
+                        itemSelect.disabled = true; // Will be enabled when manager is selected
+                    }
+                }
+                if (qtyInput) {
+                    qtyInput.disabled = true; // Will be enabled when item is selected
+                    qtyInput.value = '';
+                }
+            } else {
+                // Upload File or Image mode
+                // Hide all QR code related sections
+                if (qrSection) qrSection.style.display = 'none';
+                if (qrUploadSection) qrUploadSection.style.display = 'none';
+                if (qrListSection) qrListSection.style.display = 'none';
+                if (qrParamDisplay) qrParamDisplay.style.display = 'none';
+                stopCamera();
+                if (videoHolder) videoHolder.style.display = 'none';
+                if (scanButton) scanButton.style.display = 'none';
+                if (uploadSection) uploadSection.style.display = 'block';
+                if (uploadedFilePreview) {
+                    uploadedFilePreview.style.display = 'none';
+                uploadedFilePreview.src = '';
+                }
+                uploadedFile = null;
+                if (fileInfoBox) fileInfoBox.style.display = 'block';
+                const reportOutput = document.getElementById('reportOutput');
+                if (reportOutput) reportOutput.textContent = '';
+                updateFileInfo('');
+                if (pasteArea) {
                 pasteArea.addEventListener('paste', handlePaste);
                 pasteArea.addEventListener('click', triggerFileSelect);
+                }
+                
+                // Clear QR code fields and re-enable item/quantity fields for manual selection
+                lastQrParam = null;
+                clearQRCodeFields();
+                
+                // Ensure quantity is enabled when not in QR code mode
+                // (it will be disabled/enabled based on item selection in onItemChange())
+                const qtyInput = document.getElementById('quantityInput');
+                if (qtyInput) {
+                    // Quantity will be enabled/disabled based on item selection
+                    // But we ensure it's not locked due to QR code mode
+                    qtyInput.disabled = false;
+                }
+                
+                // If manager is already selected, load assets if needed and populate items
+                const managerSelectDisplay = document.getElementById('managerSelectDisplay');
+                const hasManagerSelected = managerSelectDisplay && 
+                    managerSelectDisplay.textContent !== 'Select a manager' && 
+                    managerSelectDisplay.textContent !== 'Loading managers...' &&
+                    managerSelectDisplay.style.color !== 'rgb(153, 153, 153)';
+                
+                const itemSelect = document.getElementById('itemSelect');
+                
+                if (hasManagerSelected) {
+                    // Manager is selected - get manager key and load assets if not cached
+                    const managerName = managerSelectDisplay.textContent;
+                    const matchingManager = managersList.find(m => m.name === managerName);
+                    
+                    if (matchingManager) {
+                        const managerKey = matchingManager.key;
+                        currentManagerKey = managerKey;
+                        
+                        if (assets.length > 0 && currentManagerKey === managerKey) {
+                            // Assets are cached for this manager - populate immediately!
+                            populateItemSelectFromManagerAssets();
+                        } else {
+                            // Assets not cached yet or for different manager - load them now
+                            // Show loading state first
+                            if (itemSelect) {
+                                showItemSelectLoading();
+                            }
+                            
+                            // Use onManagerChange which will load assets and populate the item select
+                            (async () => {
+                                try {
+                                    await onManagerChange(managerKey);
+                                    // onManagerChange already calls populateItemSelectFromManagerAssets()
+                                } catch (err) {
+                                    console.error('Error loading manager assets:', err);
+                                    clearItemSelectLoading();
+                                    const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+                                    const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+                                    if (itemSelectDisplay) {
+                                        itemSelectDisplay.textContent = 'Error loading items. Please try again.';
+                                        itemSelectDisplay.style.color = '#dc3545';
+                                    }
+                                    if (itemSelectCombobox) {
+                                        itemSelectCombobox.style.pointerEvents = 'none';
+                                    }
+                                }
+                            })();
+                        }
+                    } else {
+                        // Manager name found but not in list - reset
+                        const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+                        const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+                        if (itemSelectDisplay) {
+                            itemSelectDisplay.textContent = 'Select a manager first';
+                            itemSelectDisplay.style.color = '#999';
+                        }
+                        if (itemSelectCombobox) {
+                            itemSelectCombobox.style.pointerEvents = 'none';
+                        }
+                    }
+                } else {
+                    // No manager selected
+                    if (itemSelect) {
+                        itemSelect.innerHTML = '<option value="">Select a manager first</option>';
+                        itemSelect.disabled = true; // Will be enabled when manager is selected
+                    }
+                }
+                if (qtyInput) {
+                    qtyInput.disabled = true; // Will be enabled when item is selected
+                    qtyInput.value = '';
+                }
+            }
+            updateReportButtonState();
+        }
+
+        function toggleQRInputMethod() {
+            const qrInputMethodEl = document.getElementById('qrInputMethod');
+            const qrMethod = qrInputMethodEl ? qrInputMethodEl.value : '';
+            const qrUploadSection = document.getElementById('qr-upload-section');
+            const qrListSection = document.getElementById('qr-list-section');
+            const videoHolder = document.getElementById('video-holder');
+            const scanButton = document.getElementById('scan-qr-button');
+            const fileInfoBox = document.getElementById('file-info-box');
+            
+            lastQrParam = null;
+            document.getElementById('qr-param-display').textContent = '';
+            document.getElementById('qr-param-display').style.display = 'none';
+            fileInfoBox.style.display = 'none';
+            
+            if (qrMethod === 'camera') {
+                if (qrUploadSection) qrUploadSection.style.display = 'none';
+                if (qrListSection) qrListSection.style.display = 'none';
+                if (videoHolder) videoHolder.style.display = 'block';
+                if (scanButton) scanButton.style.display = 'block';
+                startCamera();
+            } else if (qrMethod === 'list') {
+                stopCamera();
+                if (qrUploadSection) qrUploadSection.style.display = 'none';
+                if (videoHolder) videoHolder.style.display = 'none';
+                if (scanButton) scanButton.style.display = 'none';
+                if (qrListSection) qrListSection.style.display = 'block';
+            } else {
+                // Upload Image mode
+                stopCamera();
+                if (videoHolder) videoHolder.style.display = 'none';
+                if (scanButton) scanButton.style.display = 'none';
+                if (qrListSection) qrListSection.style.display = 'none';
+                if (qrUploadSection) qrUploadSection.style.display = 'block';
             }
             updateReportButtonState();
         }
 
         function resetForm() {
             const inputMethodEl = document.getElementById('inputMethod');
-            inputMethodEl.value = 'upload';
-            toggleInputMethod();
+            if (inputMethodEl) {
+                inputMethodEl.value = 'qr_code';
+                toggleInputMethod();
+            }
             updateFileInfo('');
-            const managerSel = document.getElementById('managerSelect');
-            managerSel.selectedIndex = 0;
-            const itemSel = document.getElementById('itemSelect');
-            itemSel.innerHTML = '<option value="">Select a manager first</option>';
-            itemSel.disabled = true;
-            const recSel = document.getElementById('recipientSelect');
-            recSel.selectedIndex = 0;
-            const qtyInputEl = document.getElementById('quantityInput');
-            qtyInputEl.value = '';
-            qtyInputEl.disabled = true;
-            document.getElementById('availableQuantity').textContent = '';
+            lastQrParam = null;
+            
+            // Reset QR code display
+            const qrParamDisplay = document.getElementById('qr-param-display');
+            if (qrParamDisplay) {
+                qrParamDisplay.textContent = '';
+                qrParamDisplay.style.display = 'none';
+            }
+            const qrSearchInput = document.getElementById('qrSearchInput');
+            if (qrSearchInput) {
+                qrSearchInput.value = '';
+            }
+            filteredQrCodes = [...qrCodes];
+            const qrDropdownContainer = document.getElementById('qrDropdownContainer');
+            if (qrDropdownContainer) {
+                qrDropdownContainer.style.display = 'none';
+            }
+            clearQRCodeSelection();
+            
+            // Reset file upload
+            const fileInfoBox = document.getElementById('file-info-box');
+            if (fileInfoBox) {
+                fileInfoBox.style.display = 'none';
+            }
+            const uploadedFilePreview = document.getElementById('uploaded-file-preview');
+            if (uploadedFilePreview) {
+                uploadedFilePreview.style.display = 'none';
+                uploadedFilePreview.src = '';
+            }
+            uploadedFile = null;
+            
+            // Reset manager combobox
+            const managerSelectDisplay = document.getElementById('managerSelectDisplay');
+            if (managerSelectDisplay) {
+                managerSelectDisplay.textContent = 'Select a manager';
+                managerSelectDisplay.style.color = '#999';
+            }
+            const managerDropdownContainer = document.getElementById('managerDropdownContainer');
+            if (managerDropdownContainer) {
+                managerDropdownContainer.style.display = 'none';
+            }
+            const managerSearchInput = document.getElementById('managerSearchInput');
+            if (managerSearchInput) {
+                managerSearchInput.value = '';
+            }
+            currentManagerKey = null;
+            assets = [];
+            
+            // Reset item combobox
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+            if (itemSelectDisplay) {
+                itemSelectDisplay.textContent = 'Select a manager first';
+                itemSelectDisplay.style.color = '#999';
+            }
+            if (itemSelectCombobox) {
+                itemSelectCombobox.style.pointerEvents = 'none';
+            }
+            itemsList = [];
+            const itemDropdownContainer = document.getElementById('itemDropdownContainer');
+            if (itemDropdownContainer) {
+                itemDropdownContainer.style.display = 'none';
+            }
+            const itemSearchInput = document.getElementById('itemSearchInput');
+            if (itemSearchInput) {
+                itemSearchInput.value = '';
+            }
+            
+            // Reset quantity
+            const qtyInput = document.getElementById('quantityInput');
+            if (qtyInput) {
+                qtyInput.value = '';
+                qtyInput.disabled = true;
+            }
+            const availableQuantity = document.getElementById('availableQuantity');
+            if (availableQuantity) {
+                availableQuantity.textContent = '';
+            }
+            
+            // Reset recipient combobox
+            const recipientSelectDisplay = document.getElementById('recipientSelectDisplay');
+            if (recipientSelectDisplay) {
+                recipientSelectDisplay.textContent = 'Select a recipient';
+                recipientSelectDisplay.style.color = '#999';
+            }
+            const recipientDropdownContainer = document.getElementById('recipientDropdownContainer');
+            if (recipientDropdownContainer) {
+                recipientDropdownContainer.style.display = 'none';
+            }
+            const recipientSearchInput = document.getElementById('recipientSearchInput');
+            if (recipientSearchInput) {
+                recipientSearchInput.value = '';
+            }
+            const newRecipientInput = document.getElementById('newRecipientInput');
+            if (newRecipientInput) {
+                newRecipientInput.value = '';
+                newRecipientInput.style.display = 'none';
+            }
+            const recipientInputInfo = document.getElementById('recipientInputInfo');
+            if (recipientInputInfo) {
+                recipientInputInfo.style.display = 'none';
+            }
+            
+            // Clear QR code fields (re-enables quantity and item select)
+            clearQRCodeFields();
+            
+            // Clear output
             const outputEl = document.getElementById('reportOutput');
-            outputEl.textContent = '';
-            outputEl.className = '';
+            if (outputEl) {
+                outputEl.textContent = '';
+                outputEl.className = '';
+            }
+            
             updateReportButtonState();
         }
 
@@ -575,44 +1500,266 @@
         }
 
 
+        let managersList = [];
+
         async function loadManagers() {
             try {
                 const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?list=true');
                 const managers = await res.json();
-                const sel = document.getElementById('managerSelect');
-                sel.innerHTML = '<option value="">Select a manager</option>';
                 // Sort managers alphabetically by name
-                const sortedManagers = managers.sort((a, b) => a.name.localeCompare(b.name));
-                sortedManagers.forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m.key;
-                    opt.textContent = m.name;
-                    sel.appendChild(opt);
-                });
+                managersList = managers.sort((a, b) => a.name.localeCompare(b.name));
+                
+                const display = document.getElementById('managerSelectDisplay');
+                if (display) {
+                    display.textContent = 'Select a manager';
+                    display.style.color = '#999';
+                }
             } catch (err) {
                 console.error('Error loading managers:', err);
                 document.getElementById('reportOutput').textContent = 'Failed to load managers: ' + err.message;
                 document.getElementById('reportOutput').className = 'error';
             }
         }
+        
+        function updateManagerAutocomplete() {
+            const managerSearchInput = document.getElementById('managerSearchInput');
+            const autocompleteList = document.getElementById('managerAutocompleteList');
+            
+            if (!managerSearchInput || !autocompleteList) {
+                console.error('Manager autocomplete elements not found');
+                return;
+            }
+            
+            const filterText = managerSearchInput.value ? managerSearchInput.value.toLowerCase() : '';
+            
+            // Ensure managersList is initialized
+            if (!managersList || managersList.length === 0) {
+                autocompleteList.innerHTML = '<div style="padding: 8px 12px; color: #999; font-style: italic;">Loading managers...</div>';
+                return;
+            }
+            
+            // Filter managers based on search text
+            const filteredManagers = managersList && managersList.length > 0
+                ? managersList.filter(m => m.name && m.name.toLowerCase().includes(filterText))
+                : [];
+            
+            // Clear previous list
+            autocompleteList.innerHTML = '';
+            
+            // Show all managers if no filter, otherwise show filtered results
+            const managersToShow = filterText ? filteredManagers : managersList;
+            
+            if (managersToShow.length > 0) {
+                managersToShow.forEach(m => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                    item.textContent = m.name;
+                    item.addEventListener('mouseenter', () => {
+                        item.style.backgroundColor = '#f0f0f0';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', () => {
+                        selectManager(m.key, m.name);
+                    });
+                    autocompleteList.appendChild(item);
+                });
+            } else {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = 'No matching managers found';
+                autocompleteList.appendChild(noResults);
+            }
+        }
+        
+        function selectManager(managerKey, managerName) {
+            const managerSelectDisplay = document.getElementById('managerSelectDisplay');
+            const managerDropdownContainer = document.getElementById('managerDropdownContainer');
+            const managerSearchInput = document.getElementById('managerSearchInput');
+            
+            // Update display
+            if (managerSelectDisplay) {
+                managerSelectDisplay.textContent = managerName;
+                managerSelectDisplay.style.color = '#333';
+            }
+            
+            // Close dropdown
+            if (managerDropdownContainer) {
+                managerDropdownContainer.style.display = 'none';
+            }
+            if (managerSearchInput) {
+                managerSearchInput.value = '';
+            }
+            
+            // Store manager key for caching
+            currentManagerKey = managerKey;
+            
+            // Trigger manager change (but preserve item select if QR code is selected)
+            const itemSelect = document.getElementById('itemSelect');
+            const previousItemValue = itemSelect ? itemSelect.value : null;
+            onManagerChange(managerKey);
+            
+            // If QR code is selected, restore the item select value
+            const inputMethodEl = document.getElementById('inputMethod');
+            const inputMethodVal = inputMethodEl ? inputMethodEl.value : '';
+            if (inputMethodVal === 'qr_code' && lastQrParam && previousItemValue) {
+                // Wait a bit for onManagerChange to finish, then restore
+                setTimeout(() => {
+                    if (itemSelect && itemSelect.value !== previousItemValue) {
+                        itemSelect.value = previousItemValue;
+                        itemSelect.dispatchEvent(new Event('change'));
+                    }
+                }, 100);
+            }
+        }
+
+        let recipientsList = [];
 
         async function loadRecipients() {
             try {
                 const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?recipients=true');
                 const recs = await res.json();
-                const sel = document.getElementById('recipientSelect');
-                sel.innerHTML = '<option value="">Select a recipient</option>';
-                recs.forEach(r => {
-                    const opt = document.createElement('option');
-                    opt.value = r.key;
-                    opt.textContent = r.name;
-                    sel.appendChild(opt);
-                });
+                recipientsList = recs;
+                
+                const display = document.getElementById('recipientSelectDisplay');
+                if (display) {
+                    display.textContent = 'Select a recipient';
+                    display.style.color = '#999';
+                }
             } catch (err) {
                 console.error('Error loading recipients:', err);
                 document.getElementById('reportOutput').textContent = 'Failed to load recipients: ' + err.message;
                 document.getElementById('reportOutput').className = 'error';
             }
+        }
+        
+        function updateRecipientAutocomplete() {
+            const recipientSearchInput = document.getElementById('recipientSearchInput');
+            const autocompleteList = document.getElementById('recipientAutocompleteList');
+            
+            if (!recipientSearchInput || !autocompleteList) {
+                console.error('Recipient autocomplete elements not found');
+                return;
+            }
+            
+            const filterText = recipientSearchInput.value ? recipientSearchInput.value.toLowerCase() : '';
+            
+            // Clear previous list
+            autocompleteList.innerHTML = '';
+            
+            // Always show "Add New Recipient" at the top (not filtered)
+            const newRecipientItem = document.createElement('div');
+            newRecipientItem.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #ddd; background-color: #f8f9fa; font-weight: bold; transition: background-color 0.2s;';
+            newRecipientItem.textContent = '+ Add New Recipient...';
+            newRecipientItem.addEventListener('mouseenter', () => {
+                newRecipientItem.style.backgroundColor = '#e9ecef';
+            });
+            newRecipientItem.addEventListener('mouseleave', () => {
+                newRecipientItem.style.backgroundColor = '#f8f9fa';
+            });
+            newRecipientItem.addEventListener('click', () => {
+                selectRecipient('__NEW__', '+ Add New Recipient...');
+            });
+            autocompleteList.appendChild(newRecipientItem);
+            
+            // Ensure recipientsList is initialized
+            if (!recipientsList || recipientsList.length === 0) {
+                return; // Just show "Add New Recipient" option
+            }
+            
+            // Filter recipients based on search text
+            const filteredRecipients = filterText 
+                ? recipientsList.filter(r => r.name.toLowerCase().includes(filterText))
+                : recipientsList;
+            
+            if (filteredRecipients.length > 0) {
+                filteredRecipients.forEach(r => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                    item.textContent = r.name;
+                    item.addEventListener('mouseenter', () => {
+                        item.style.backgroundColor = '#f0f0f0';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', () => {
+                        selectRecipient(r.key, r.name);
+                    });
+                    autocompleteList.appendChild(item);
+                });
+            } else if (filterText) {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = 'No matching recipients found';
+                autocompleteList.appendChild(noResults);
+            }
+        }
+        
+        function selectRecipient(recipientKey, recipientName) {
+            const recipientSelectDisplay = document.getElementById('recipientSelectDisplay');
+            const recipientDropdownContainer = document.getElementById('recipientDropdownContainer');
+            const recipientSearchInput = document.getElementById('recipientSearchInput');
+            
+            // Update display
+            recipientSelectDisplay.textContent = recipientName;
+            recipientSelectDisplay.style.color = '#333';
+            
+            // Close dropdown
+            recipientDropdownContainer.style.display = 'none';
+            recipientSearchInput.value = '';
+            
+            // Handle new recipient option
+            if (recipientKey === '__NEW__') {
+                toggleRecipientInput();
+            } else {
+                const newRecipientInput = document.getElementById('newRecipientInput');
+                newRecipientInput.style.display = 'none';
+                document.getElementById('recipientInputInfo').style.display = 'none';
+                newRecipientInput.value = '';
+            }
+            
+            updateReportButtonState();
+        }
+
+        function toggleRecipientInput() {
+            const recipientSelectDisplay = document.getElementById('recipientSelectDisplay');
+            const newRecipientInput = document.getElementById('newRecipientInput');
+            const recipientInputInfo = document.getElementById('recipientInputInfo');
+            
+            if (recipientSelectDisplay && recipientSelectDisplay.textContent === '+ Add New Recipient...') {
+                if (newRecipientInput) {
+                    newRecipientInput.style.display = 'block';
+                    newRecipientInput.focus();
+                }
+                if (recipientInputInfo) {
+                    recipientInputInfo.style.display = 'block';
+                }
+            } else {
+                if (newRecipientInput) {
+                    newRecipientInput.style.display = 'none';
+                    newRecipientInput.value = '';
+                }
+                if (recipientInputInfo) {
+                    recipientInputInfo.style.display = 'none';
+                }
+            }
+            updateReportButtonState();
+        }
+
+        function getRecipientName() {
+            const recipientSelectDisplay = document.getElementById('recipientSelectDisplay');
+            const newRecipientInput = document.getElementById('newRecipientInput');
+            
+            // Check if "Add New Recipient" is selected
+            if (recipientSelectDisplay && recipientSelectDisplay.textContent === '+ Add New Recipient...') {
+                return newRecipientInput.value.trim();
+            } else if (recipientSelectDisplay && recipientSelectDisplay.style.color !== 'rgb(153, 153, 153)') {
+                // A recipient is selected (not the placeholder)
+                return recipientSelectDisplay.textContent;
+            }
+            return '';
         }
 
         async function loadAllCurrencies() {
@@ -640,17 +1787,197 @@
             }
         }
 
-        async function onManagerChange() {
-            const managerKey = this.value;
-            const itemSel = document.getElementById('itemSelect');
-            const qtyInput = document.getElementById('quantityInput');
-            document.getElementById('availableQuantity').textContent = '';
-            qtyInput.value = '';
-            if (!managerKey) {
-                itemSel.innerHTML = '<option value="">Select a manager first</option>';
-                itemSel.disabled = true;
-                qtyInput.disabled = true;
+        function showItemSelectLoading() {
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+            if (itemSelectDisplay) {
+                itemSelectDisplay.textContent = 'Loading inventory items...';
+                itemSelectDisplay.style.color = '#666';
+                itemSelectDisplay.style.fontStyle = 'italic';
+            }
+            if (itemSelectCombobox) {
+                itemSelectCombobox.style.pointerEvents = 'none';
+                itemSelectCombobox.classList.add('loading-items');
+            }
+        }
+        
+        function clearItemSelectLoading() {
+            const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+            if (itemSelectCombobox) {
+                itemSelectCombobox.style.pointerEvents = '';
+                itemSelectCombobox.classList.remove('loading-items');
+            }
+        }
+        
+        function updateItemAutocomplete() {
+            const itemSearchInput = document.getElementById('itemSearchInput');
+            const autocompleteList = document.getElementById('itemAutocompleteList');
+            
+            if (!itemSearchInput || !autocompleteList) {
+                console.error('Item autocomplete elements not found');
+                return;
+            }
+            
+            const filterText = itemSearchInput.value ? itemSearchInput.value.toLowerCase() : '';
+            
+            // Ensure itemsList is initialized
+            if (!itemsList || itemsList.length === 0) {
+                autocompleteList.innerHTML = '<div style="padding: 8px 12px; color: #999; font-style: italic;">No items available</div>';
+                return;
+            }
+            
+            // Filter items based on search text
+            const filteredItems = itemsList.filter(item => 
+                item.name && item.name.toLowerCase().includes(filterText)
+            );
+            
+            // Clear previous list
+            autocompleteList.innerHTML = '';
+            
+            // Show all items if no filter, otherwise show filtered results
+            const itemsToShow = filterText ? filteredItems : itemsList;
+            
+            if (itemsToShow.length > 0) {
+                // Group items by category if they have one
+                const grouped = {};
+                itemsToShow.forEach(item => {
+                    const category = item.category || 'Other';
+                    if (!grouped[category]) {
+                        grouped[category] = [];
+                    }
+                    grouped[category].push(item);
+                });
+                
+                // Display grouped items
+                Object.keys(grouped).sort().forEach(category => {
+                    if (Object.keys(grouped).length > 1) {
+                        const categoryHeader = document.createElement('div');
+                        categoryHeader.style.cssText = 'padding: 6px 12px; font-weight: bold; color: #666; background-color: #f5f5f5; font-size: 0.9rem;';
+                        categoryHeader.textContent = category;
+                        autocompleteList.appendChild(categoryHeader);
+                    }
+                    
+                    grouped[category].forEach(item => {
+                        const listItem = document.createElement('div');
+                        listItem.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                        listItem.textContent = item.name;
+                        if (item.availableAmount !== undefined) {
+                            listItem.textContent += ` (Available: ${item.availableAmount})`;
+                        }
+                        listItem.addEventListener('mouseenter', () => {
+                            listItem.style.backgroundColor = '#f0f0f0';
+                        });
+                        listItem.addEventListener('mouseleave', () => {
+                            listItem.style.backgroundColor = 'white';
+                        });
+                        listItem.addEventListener('click', () => {
+                            selectItem(item.value, item.name, item);
+                        });
+                        autocompleteList.appendChild(listItem);
+                    });
+                });
             } else {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = 'No matching items found';
+                autocompleteList.appendChild(noResults);
+            }
+        }
+        
+        function selectItem(itemValue, itemName, itemData) {
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            const itemDropdownContainer = document.getElementById('itemDropdownContainer');
+            const itemSearchInput = document.getElementById('itemSearchInput');
+            const availableQuantity = document.getElementById('availableQuantity');
+            const qtyInput = document.getElementById('quantityInput');
+            
+            // Update display
+            if (itemSelectDisplay) {
+                itemSelectDisplay.textContent = itemName;
+                itemSelectDisplay.style.color = '#333';
+            }
+            
+            // Close dropdown
+            if (itemDropdownContainer) {
+                itemDropdownContainer.style.display = 'none';
+            }
+            if (itemSearchInput) {
+                itemSearchInput.value = '';
+            }
+            
+            // Update available quantity display
+            if (availableQuantity && itemData) {
+                if (itemData.availableAmount !== undefined) {
+                    availableQuantity.textContent = `Available: ${itemData.availableAmount}`;
+                } else if (itemData.quantity !== undefined) {
+                    availableQuantity.textContent = `Quantity: ${itemData.quantity}`;
+                } else {
+                    availableQuantity.textContent = '';
+                }
+            }
+            
+            // Enable quantity input
+            if (qtyInput) {
+                qtyInput.disabled = false;
+            }
+            
+            // Trigger change event for other handlers
+            const event = new Event('itemSelected');
+            event.itemValue = itemValue;
+            event.itemName = itemName;
+            event.itemData = itemData;
+            document.dispatchEvent(event);
+            
+            updateReportButtonState();
+        }
+        
+        function getSelectedItemValue() {
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            if (itemSelectDisplay && itemSelectDisplay.style.color !== 'rgb(153, 153, 153)') {
+                return itemSelectDisplay.textContent;
+            }
+            return '';
+        }
+        
+        async function onManagerChange(managerKey) {
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+            const qtyInput = document.getElementById('quantityInput');
+            const inputMethodEl = document.getElementById('inputMethod');
+            const inputMethodVal = inputMethodEl ? inputMethodEl.value : '';
+            
+            // If QR code is selected, don't reset the item select (QR code already populated it)
+            if (inputMethodVal === 'qr_code' && lastQrParam) {
+                // Just update quantity input state, but keep the item select as-is
+                const selectedItemValue = getSelectedItemValue();
+                if (selectedItemValue) {
+                    if (qtyInput) qtyInput.disabled = false;
+                }
+                updateReportButtonState();
+                return;
+            }
+            
+            const availableQuantityEl = document.getElementById('availableQuantity');
+            if (availableQuantityEl) availableQuantityEl.textContent = '';
+            if (qtyInput) qtyInput.value = '';
+            
+            if (!managerKey) {
+                if (itemSelectDisplay) {
+                    itemSelectDisplay.textContent = 'Select a manager first';
+                    itemSelectDisplay.style.color = '#999';
+                }
+                if (itemSelectCombobox) {
+                    itemSelectCombobox.style.pointerEvents = 'none';
+                }
+                if (qtyInput) qtyInput.disabled = true;
+                clearItemSelectLoading();
+            } else {
+                // Store the manager key for caching
+                currentManagerKey = managerKey;
+                
+                // Show loading state
+                showItemSelectLoading();
+                
                 try {
                     // Load manager assets
                     const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?manager=' + encodeURIComponent(managerKey));
@@ -658,180 +1985,245 @@
                     console.log('Loaded manager assets:', assets.length, assets);
                     console.log('All currencies available:', allCurrencies.length, allCurrencies);
                     
-                    itemSel.innerHTML = '<option value="">Select an item</option>';
+                    // Clear loading state
+                    clearItemSelectLoading();
                     
-                    // Add manager-controlled assets with available quantity info
-                    if (assets.length > 0) {
-                        const managerGroup = document.createElement('optgroup');
-                        managerGroup.label = 'Assets under manager control';
-                        // Sort assets alphabetically by currency name
-                        const sortedAssets = assets.sort((a, b) => a.currency.localeCompare(b.currency));
-                        sortedAssets.forEach(a => {
-                        const opt = document.createElement('option');
-                        opt.value = a.currency;
-                            opt.textContent = `${a.currency} (Available: ${a.amount})`;
-                            opt.dataset.managerControlled = 'true';
-                            opt.dataset.availableAmount = a.amount;
-                            managerGroup.appendChild(opt);
-                        });
-                        itemSel.appendChild(managerGroup);
-                    }
-                    
-                    // Add all currencies that are not under manager control
-                    if (allCurrencies.length > 0) {
-                        const managerCurrencies = assets.map(a => a.currency);
-                        // Show all currencies from the listAllCurrencies endpoint
-                        // Each currency object has ledger_quantities with ledger names as keys
-                        const otherCurrencies = allCurrencies.map(currencyObj => {
-                            const currencyName = currencyObj.product_name;
-                            const ledgerQuantities = currencyObj.ledger_quantities || {};
-                            const totalQuantity = currencyObj.total_quantity || 0;
-                            
-                            const currencyOptions = [];
-                            
-                            // Always include the base currency option (without ledger prefix)
-                            currencyOptions.push({
-                                ...currencyObj,
-                                formattedName: currencyName,
-                                ledgerName: '',
-                                quantity: totalQuantity
-                            });
-                            
-                            // Add individual ledger options for each ledger that has quantities
-                            for (const [ledgerName, quantity] of Object.entries(ledgerQuantities)) {
-                                if (quantity > 0) {
-                                    currencyOptions.push({
-                                        ...currencyObj,
-                                        formattedName: `[${ledgerName}] ${currencyName}`,
-                                        ledgerName: ledgerName,
-                                        quantity: quantity
-                                    });
-                                }
-                            }
-                            
-                            return currencyOptions;
-                        }).flat(); // Flatten the array of arrays
-                        
-                        // Sort all options alphabetically by formattedName
-                        otherCurrencies.sort((a, b) => a.formattedName.localeCompare(b.formattedName));
-                        console.log('Manager currencies:', managerCurrencies);
-                        console.log('Other currencies (objects):', otherCurrencies);
-                        console.log('Filtering logic example:');
-                        if (allCurrencies.length > 0 && managerCurrencies.length > 0) {
-                            const exampleCurrency = allCurrencies[0];
-                            const exampleMgrCurrency = managerCurrencies[0];
-                            console.log('Example currency:', exampleCurrency.product_name);
-                            console.log('Example mgr currency:', exampleMgrCurrency);
-                            console.log('Extracted mgr currency name:', exampleMgrCurrency.replace(/^\[[^\]]+\]\s*/, ''));
-                        }
-                        
-                        if (otherCurrencies.length > 0) {
-                            const otherGroup = document.createElement('optgroup');
-                            otherGroup.label = 'Other currencies (from all ledgers)';
-                            otherCurrencies.forEach(currencyOption => {
-                                const opt = document.createElement('option');
-                                opt.value = currencyOption.formattedName;
-                                opt.textContent = currencyOption.formattedName;
-                                opt.dataset.managerControlled = 'false';
-                                opt.dataset.quantity = currencyOption.quantity || 0;
-                                opt.dataset.ledgerName = currencyOption.ledgerName || '';
-                                otherGroup.appendChild(opt);
-                            });
-                            itemSel.appendChild(otherGroup);
-                        }
-                    } else {
-                        // If allCurrencies is still empty, show a message
-                        console.warn('All currencies not yet loaded, showing only manager-controlled assets');
-                        console.log('Attempting to reload all currencies...');
-                        await loadAllCurrencies();
-                        
-                        // Try again after reloading
-                        if (allCurrencies.length > 0) {
-                            const managerCurrencies = assets.map(a => a.currency);
-                            const otherCurrencies = allCurrencies.filter(currency => !managerCurrencies.includes(currency));
-                            console.log('After reload - Other currencies:', otherCurrencies);
-                            
-                            if (otherCurrencies.length > 0) {
-                                const otherGroup = document.createElement('optgroup');
-                                otherGroup.label = 'Other currencies (pending processing)';
-                                otherCurrencies.forEach(currency => {
-                                    const opt = document.createElement('option');
-                                    opt.value = currency;
-                                    opt.textContent = currency;
-                                    opt.dataset.managerControlled = 'false';
-                                    otherGroup.appendChild(opt);
-                                });
-                                itemSel.appendChild(otherGroup);
-                            }
-                        }
-                    }
-                    
-                    itemSel.disabled = false;
-                    qtyInput.disabled = true;
+                    // Populate item select with cached data
+                    populateItemSelectFromManagerAssets();
                 } catch (err) {
                     console.error('Error loading assets:', err);
-                    document.getElementById('reportOutput').textContent = 'Failed to load assets: ' + err.message;
-                    document.getElementById('reportOutput').className = 'error';
+                    clearItemSelectLoading();
+                    if (itemSel) {
+                        itemSel.innerHTML = '<option value="">Error loading items. Please try again.</option>';
+                        itemSel.disabled = true;
+                    }
+                    const reportOutput = document.getElementById('reportOutput');
+                    if (reportOutput) {
+                        reportOutput.textContent = 'Failed to load assets: ' + err.message;
+                        reportOutput.className = 'error';
+                    }
                 }
             }
             updateReportButtonState();
         }
+        
+        function populateItemSelectFromManagerAssets() {
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+            const qtyInput = document.getElementById('quantityInput');
+            const inputMethodEl = document.getElementById('inputMethod');
+            const inputMethodVal = inputMethodEl ? inputMethodEl.value : '';
+            
+            // Preserve current item value if QR code is selected
+            const currentItemValue = (inputMethodVal === 'qr_code' && lastQrParam) ? getSelectedItemValue() : null;
+            
+            // Build itemsList for combobox
+            itemsList = [];
+            
+            // Add manager-controlled assets with available quantity info
+            if (assets.length > 0) {
+                // Sort assets alphabetically by currency name
+                const sortedAssets = assets.sort((a, b) => a.currency.localeCompare(b.currency));
+                sortedAssets.forEach(a => {
+                    itemsList.push({
+                        value: a.currency,
+                        name: a.currency,
+                        category: 'Assets under manager control',
+                        availableAmount: a.amount,
+                        managerControlled: true
+                    });
+                });
+            }
+            
+            // Add all currencies that are not under manager control
+            if (allCurrencies.length > 0) {
+                const managerCurrencies = assets.map(a => a.currency);
+                // Show all currencies from the listAllCurrencies endpoint
+                // Each currency object has ledger_quantities with ledger names as keys
+                const otherCurrencies = allCurrencies.map(currencyObj => {
+                    const currencyName = currencyObj.product_name;
+                    const ledgerQuantities = currencyObj.ledger_quantities || {};
+                    const totalQuantity = currencyObj.total_quantity || 0;
+                    
+                    const currencyOptions = [];
+                    
+                    // Always include the base currency option (without ledger prefix)
+                    currencyOptions.push({
+                        ...currencyObj,
+                        formattedName: currencyName,
+                        ledgerName: '',
+                        quantity: totalQuantity
+                    });
+                    
+                    // Add individual ledger options for each ledger that has quantities
+                    for (const [ledgerName, quantity] of Object.entries(ledgerQuantities)) {
+                        if (quantity > 0) {
+                            currencyOptions.push({
+                                ...currencyObj,
+                                formattedName: `[${ledgerName}] ${currencyName}`,
+                                ledgerName: ledgerName,
+                                quantity: quantity
+                            });
+                        }
+                    }
+                    
+                    return currencyOptions;
+                }).flat(); // Flatten the array of arrays
+                
+                // Sort all options alphabetically by formattedName
+                otherCurrencies.sort((a, b) => a.formattedName.localeCompare(b.formattedName));
+                
+                otherCurrencies.forEach(currencyOption => {
+                    itemsList.push({
+                        value: currencyOption.formattedName,
+                        name: currencyOption.formattedName,
+                        category: 'Other currencies (from all ledgers)',
+                        quantity: currencyOption.quantity || 0,
+                        ledgerName: currencyOption.ledgerName || '',
+                        managerControlled: false
+                    });
+                });
+            } else {
+                // If allCurrencies is still empty, try to load it
+                if (allCurrencies.length === 0) {
+                    loadAllCurrencies().then(() => {
+                        // Retry populating after currencies are loaded
+                        populateItemSelectFromManagerAssets();
+                    });
+                    return;
+                }
+            }
+            
+            // Enable combobox
+            if (itemSelectCombobox) {
+                itemSelectCombobox.style.pointerEvents = 'auto';
+            }
+            if (itemSelectDisplay) {
+                if (itemsList.length === 0) {
+                    itemSelectDisplay.textContent = 'No items available';
+                    itemSelectDisplay.style.color = '#999';
+                } else {
+                    itemSelectDisplay.textContent = 'Select an item';
+                    itemSelectDisplay.style.color = '#999';
+                }
+            }
+            if (qtyInput) {
+                qtyInput.disabled = true;
+            }
+            
+            // Update autocomplete list
+            updateItemAutocomplete();
+            
+            // Restore item value if it was preserved (QR code mode)
+            if (currentItemValue) {
+                const matchingItem = itemsList.find(item => item.value === currentItemValue || item.name === currentItemValue);
+                if (matchingItem) {
+                    selectItem(matchingItem.value, matchingItem.name, matchingItem);
+                }
+            }
+        }
 
         function onItemChange() {
-            const selected = this.value;
-            const selectedOption = this.options[this.selectedIndex];
+            const selectedItemValue = getSelectedItemValue();
             const av = document.getElementById('availableQuantity');
             const qtyInput = document.getElementById('quantityInput');
             
-            // Check if this item is under manager control
-            const isManagerControlled = selectedOption.dataset.managerControlled === 'true';
-            const quantity = selectedOption.dataset.quantity || '0';
+            // Find the selected item in itemsList
+            const selectedItem = itemsList.find(item => item.value === selectedItemValue || item.name === selectedItemValue);
             
-            if (isManagerControlled) {
-                // Handle available quantity for manager-controlled assets
-            const asset = assets.find(a => a.currency === selected);
-            if (asset) {
-                av.textContent = 'Available: ' + asset.amount;
-                qtyInput.max = asset.amount;
-                qtyInput.disabled = false;
-            } else {
-                av.textContent = '';
-                qtyInput.value = '';
-                qtyInput.disabled = true;
-                }
-            } else {
-                // Item is from listAllCurrencies (not manager-controlled)
-                if (selectedOption.dataset.ledgerName === '') {
-                    // Base currency option (no ledger prefix)
-                    if (parseInt(quantity) > 0) {
-                        av.textContent = `Total quantity across all ledgers: ${quantity}`;
+            if (selectedItem) {
+                // Check if this item is under manager control
+                const isManagerControlled = selectedItem.managerControlled === true;
+                
+                if (isManagerControlled) {
+                    // Handle available quantity for manager-controlled assets
+                    const asset = assets.find(a => a.currency === selectedItemValue);
+                    if (asset) {
+                        if (av) av.textContent = 'Available: ' + asset.amount;
+                        if (qtyInput) {
+                            qtyInput.max = asset.amount;
+                            qtyInput.disabled = false;
+                        }
                     } else {
-                        av.textContent = 'Currency with no quantity tracking';
+                        if (av) av.textContent = '';
+                        if (qtyInput) {
+                            qtyInput.value = '';
+                            qtyInput.disabled = true;
+                        }
                     }
                 } else {
-                    // Specific ledger option
-                    const ledgerName = selectedOption.dataset.ledgerName || 'Unknown';
-                    if (parseInt(quantity) > 0) {
-                        av.textContent = `Quantity in ${ledgerName} ledger: ${quantity}`;
+                    // Item is from listAllCurrencies (not manager-controlled)
+                    if (selectedItem.ledgerName === '') {
+                        // Base currency option (no ledger prefix)
+                        const quantity = selectedItem.quantity || 0;
+                        if (parseInt(quantity) > 0) {
+                            if (av) av.textContent = `Total quantity across all ledgers: ${quantity}`;
+                        } else {
+                            if (av) av.textContent = 'Currency with no quantity tracking';
+                        }
                     } else {
-                        av.textContent = `${ledgerName} ledger (no quantity tracking)`;
+                        // Specific ledger option
+                        const ledgerName = selectedItem.ledgerName || 'Unknown';
+                        const quantity = selectedItem.quantity || 0;
+                        if (parseInt(quantity) > 0) {
+                            if (av) av.textContent = `Quantity in ${ledgerName} ledger: ${quantity}`;
+                        } else {
+                            if (av) av.textContent = `${ledgerName} ledger (no quantity tracking)`;
+                        }
+                    }
+                    // Enable quantity input for non-manager-controlled currencies
+                    if (qtyInput) {
+                        qtyInput.disabled = false;
+                        qtyInput.max = ''; // No maximum limit for non-manager currencies
+                        qtyInput.value = qtyInput.value || ''; // Keep existing value or empty
                     }
                 }
-                // Enable quantity input for non-manager-controlled currencies
-                qtyInput.disabled = false;
-                qtyInput.max = ''; // No maximum limit for non-manager currencies
-                qtyInput.value = qtyInput.value || ''; // Keep existing value or empty
             }
             updateReportButtonState();
         }
 
         function updateReportButtonState() {
-            const managerSel = document.getElementById('managerSelect');
+            const inputMethodEl = document.getElementById('inputMethod');
+            const inputMethodVal = inputMethodEl ? inputMethodEl.value : '';
+            const managerSelectDisplay = document.getElementById('managerSelectDisplay');
             const itemSel = document.getElementById('itemSelect');
-            const recSel = document.getElementById('recipientSelect');
             const qtyInput = document.getElementById('quantityInput');
             const btn = document.getElementById('reportButton');
-            btn.disabled = !(managerSel.value && itemSel.value && recSel.value && qtyInput.value && (inputMethod.value === 'camera' || uploadedFile));
+            const recipientName = getRecipientName();
+            
+            // Check if manager is selected (using combobox display, not select element)
+            // Manager is selected if display text is not the placeholder and color is not gray (#999)
+            const hasManagerSelected = managerSelectDisplay && 
+                managerSelectDisplay.textContent !== 'Select a manager' && 
+                managerSelectDisplay.textContent !== 'Loading managers...' &&
+                managerSelectDisplay.style.color !== 'rgb(153, 153, 153)';
+            
+            // For QR code input, we need QR code OR item selected
+            let hasItem = false;
+            const selectedItemValue = getSelectedItemValue();
+            if (inputMethodVal === 'qr_code') {
+                hasItem = lastQrParam || selectedItemValue;
+            } else {
+                hasItem = selectedItemValue;
+            }
+            
+            // For file uploads, we need file OR camera capture
+            let hasFile = false;
+            if (inputMethodVal === 'qr_code') {
+                hasFile = true; // QR code doesn't require file
+            } else if (inputMethodVal === 'camera') {
+                hasFile = true; // Camera will capture on submit
+            } else {
+                hasFile = uploadedFile !== null;
+            }
+            
+            // For QR code input, manager is optional (can be auto-detected from QR code)
+            const requiresManager = inputMethodVal !== 'qr_code';
+            const hasManager = hasManagerSelected || !requiresManager;
+            
+            if (btn) {
+                btn.disabled = !(hasManager && hasItem && recipientName && qtyInput && qtyInput.value && hasFile);
+            }
         }
 
         async function isOnline() {
@@ -867,16 +2259,36 @@
                 return;
             }
 
-            const managerSel = document.getElementById('managerSelect');
-            const managerName = managerSel.options[managerSel.selectedIndex].text;
-            const recSel = document.getElementById('recipientSelect');
-            const recipientName = recSel.options[recSel.selectedIndex].text;
-            const itemSel = document.getElementById('itemSelect');
-            const itemName = itemSel.value;
+            const managerSelectDisplay = document.getElementById('managerSelectDisplay');
+            const managerName = managerSelectDisplay && managerSelectDisplay.style.color !== 'rgb(153, 153, 153)' 
+                ? managerSelectDisplay.textContent 
+                : '';
+            const recipientName = getRecipientName();
+            
+            if (!recipientName) {
+                output.textContent = 'Please select or enter a recipient name.';
+                output.className = 'error';
+                return;
+            }
+            let itemName = getSelectedItemValue();
             const quantity = document.getElementById('quantityInput').value;
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
-            const inputMethodVal = inputMethod.value;
+            const inputMethodEl = document.getElementById('inputMethod');
+            const inputMethodVal = inputMethodEl ? inputMethodEl.value : '';
+            
+            // If QR code is provided, use the currency from QR code details as item name
+            // The QR code itself will be sent separately in the request text
+            if (inputMethodVal === 'qr_code' && lastQrParam) {
+                const qrDetails = qrCodeDetailsMap[lastQrParam];
+                if (qrDetails && qrDetails.currency) {
+                    itemName = qrDetails.currency; // Use currency name, not QR code
+                } else if (itemName) {
+                    // Fallback to selected item (already set)
+                } else {
+                    itemName = lastQrParam; // Last resort: use QR code
+                }
+            }
 
             if (!latitude || !longitude) {
                 output.textContent = 'Location not available. Please allow location access and try again.';
@@ -895,7 +2307,11 @@
 
             let fileName = '';
             let fileToShare = null;
-            if (inputMethodVal === 'upload' && uploadedFile) {
+            if (inputMethodVal === 'qr_code') {
+                // QR code mode - no file required, but allow optional file upload
+                fileName = '';
+                fileToShare = null;
+            } else if (inputMethodVal === 'upload' && uploadedFile) {
                 fileToShare = uploadedFile;
                 fileName = uploadedFile.name;
             } else if (inputMethodVal === 'camera') {
@@ -934,7 +2350,10 @@
                 // Use cached inventory filename to match what was shown in the info box
                 const inventoryFileName = cachedInventoryFileName || (fileName ? generateInventoryFileName(fileName) : '');
                 const inventoryLocation = fileName ? `${REPO_BASE_URL}${inventoryFileName}` : 'No file attached';
-                const requestText = `[INVENTORY MOVEMENT]\n- Manager Name: ${managerName}\n- Recipient Name: ${recipientName}\n- Inventory Item: ${formattedItemName}\n- Quantity: ${quantity}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Attached Filename: ${fileName || 'None'}\n- Destination Inventory File Location: ${inventoryLocation}\n- Submission Source: ${window.location.href}\n--------`;
+                
+                // Include QR code if provided
+                const qrCodeLine = lastQrParam ? `- QR Code: ${lastQrParam}\n` : '';
+                const requestText = `[INVENTORY MOVEMENT]\n- Manager Name: ${managerName}\n- Recipient Name: ${recipientName}\n- Inventory Item: ${formattedItemName}\n${qrCodeLine}- Quantity: ${quantity}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Attached Filename: ${fileName || 'None'}\n- Destination Inventory File Location: ${inventoryLocation}\n- Submission Source: ${window.location.href}\n--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
@@ -983,6 +2402,25 @@
                     isPostSubmission = true;
                     updateButtonText();
                     updateReportButtonState();
+                    
+                    // If a new recipient was added, add it to the local list immediately
+                    // This ensures it's available for the next submission even before backend sync
+                    const newRecipientInput = document.getElementById('newRecipientInput');
+                    if (newRecipientInput && newRecipientInput.value.trim()) {
+                        const newRecipientName = newRecipientInput.value.trim();
+                        // Check if it's not already in the list
+                        if (!recipientsList.find(r => r.name.toLowerCase() === newRecipientName.toLowerCase())) {
+                            recipientsList.push({
+                                key: encodeURIComponent(newRecipientName),
+                                name: newRecipientName
+                            });
+                            console.log('Added new recipient to local list:', newRecipientName);
+                        }
+                    }
+                    
+                    // Reload recipients to sync with backend (in case backend has added it)
+                    // This ensures the recipient list is up-to-date for the next submission
+                    loadRecipients();
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
@@ -1070,18 +2508,291 @@
                 loadManagers();
                 loadRecipients();
                 loadAllCurrencies();
+                await loadQrCodes();
                 toggleInputMethod();
-                inputMethod.addEventListener('change', toggleInputMethod);
-                document.getElementById('managerSelect').addEventListener('change', onManagerChange);
-                document.getElementById('itemSelect').addEventListener('change', onItemChange);
-                document.getElementById('recipientSelect').addEventListener('change', updateReportButtonState);
-                document.getElementById('quantityInput').addEventListener('input', updateReportButtonState);
-                document.getElementById('reportButton').addEventListener('click', onReport);
+                const inputMethodEl = document.getElementById('inputMethod');
+                if (inputMethodEl) {
+                    inputMethodEl.addEventListener('change', toggleInputMethod);
+                }
+                const qrInputMethodEl = document.getElementById('qrInputMethod');
+                if (qrInputMethodEl) {
+                    qrInputMethodEl.addEventListener('change', toggleQRInputMethod);
+                }
+                
+                // Setup combobox for QR code selection
+                const qrSelectCombobox = document.getElementById('qrSelectCombobox');
+                const qrDropdownContainer = document.getElementById('qrDropdownContainer');
+                const qrSearchInput = document.getElementById('qrSearchInput');
+                
+                if (qrSelectCombobox && qrDropdownContainer && qrSearchInput) {
+                    // Open dropdown when combobox is clicked
+                    qrSelectCombobox.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isOpen = qrDropdownContainer.style.display === 'block';
+                        qrDropdownContainer.style.display = isOpen ? 'none' : 'block';
+                        if (!isOpen) {
+                            // Focus search input when opening
+                            setTimeout(() => qrSearchInput.focus(), 10);
+                            // Show all QR codes initially
+                            updateQrCodeAutocomplete();
+                        }
+                    });
+                    
+                    // Update autocomplete list as user types
+                    qrSearchInput.addEventListener('input', updateQrCodeAutocomplete);
+                    
+                    // Handle Enter key to select first match
+                    qrSearchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const filterText = qrSearchInput.value ? qrSearchInput.value.toLowerCase() : '';
+                            const matches = qrCodes && qrCodes.length > 0
+                                ? qrCodes.filter(qr => qr.name && qr.name.toLowerCase().includes(filterText))
+                                : [];
+                            if (matches.length > 0) {
+                                selectQRCode(matches[0].key, matches[0].name);
+                            }
+                        } else if (e.key === 'Escape') {
+                            qrDropdownContainer.style.display = 'none';
+                            qrSearchInput.value = '';
+                        }
+                    });
+                    
+                    // Hide dropdown when clicking outside
+                    document.addEventListener('click', (e) => {
+                        if (!qrSelectCombobox.contains(e.target) && !qrDropdownContainer.contains(e.target)) {
+                            qrDropdownContainer.style.display = 'none';
+                            qrSearchInput.value = '';
+                        }
+                    });
+                } else {
+                    console.error('QR code combobox elements not found');
+                }
+                const qrImageInputEl = document.getElementById('qrImageInput');
+                if (qrImageInputEl) {
+                    qrImageInputEl.addEventListener('change', () => {
+                        if (qrImageInputEl.files && qrImageInputEl.files.length > 0) {
+                            processUploadedQRImage(qrImageInputEl.files[0]);
+                            // Hide file info box for QR code uploads
+                            const fileInfoBox = document.getElementById('file-info-box');
+                            if (fileInfoBox) {
+                                fileInfoBox.style.display = 'none';
+                            }
+                        } else {
+                            lastQrParam = null;
+                            const qrParamDisplay = document.getElementById('qr-param-display');
+                            if (qrParamDisplay) {
+                                qrParamDisplay.textContent = '';
+                                qrParamDisplay.style.display = 'none';
+                            }
+                            updateReportButtonState();
+                        }
+                    });
+                }
+                // Add scan button for QR code camera mode
+                const scanButton = document.createElement('input');
+                scanButton.type = 'button';
+                scanButton.value = 'Scan QR Code';
+                scanButton.id = 'scan-qr-button';
+                scanButton.style.cssText = 'padding: 0.8rem 2rem; font-size: 1rem; border: none; border-radius: 8px; background-color: #28a745; color: white; cursor: pointer; margin: 1rem 0; width: 100%;';
+                scanButton.disabled = true;
+                scanButton.style.display = 'none'; // Hidden by default, shown when camera mode is active
+                scanButton.addEventListener('click', () => {
+                    if (scanning) return;
+                    lastQrParam = null;
+                    const qrParamDisplay = document.getElementById('qr-param-display');
+                    if (qrParamDisplay) {
+                        qrParamDisplay.textContent = '';
+                        qrParamDisplay.style.display = 'none';
+                    }
+                    scanning = true;
+                    scanButton.value = 'Scanning...';
+                    scanButton.disabled = true;
+                    if (video) {
+                        video.classList.add('scanning');
+                    }
+                    scanQRCode();
+                });
+                const videoHolder = document.getElementById('video-holder');
+                if (videoHolder && !videoHolder.querySelector('#scan-qr-button')) {
+                    const scanButtonRow = document.createElement('div');
+                    scanButtonRow.style.cssText = 'text-align: center; margin: 1rem 0;';
+                    scanButtonRow.appendChild(scanButton);
+                    videoHolder.appendChild(scanButtonRow);
+                }
+                // Setup manager combobox
+                const managerSelectCombobox = document.getElementById('managerSelectCombobox');
+                const managerDropdownContainer = document.getElementById('managerDropdownContainer');
+                const managerSearchInput = document.getElementById('managerSearchInput');
+                
+                if (managerSelectCombobox && managerDropdownContainer && managerSearchInput) {
+                    managerSelectCombobox.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isOpen = managerDropdownContainer.style.display === 'block';
+                        managerDropdownContainer.style.display = isOpen ? 'none' : 'block';
+                        if (!isOpen) {
+                            setTimeout(() => managerSearchInput.focus(), 10);
+                            updateManagerAutocomplete();
+                        }
+                    });
+                    
+                    managerSearchInput.addEventListener('input', updateManagerAutocomplete);
+                    managerSearchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const filterText = managerSearchInput.value ? managerSearchInput.value.toLowerCase() : '';
+                            const matches = managersList && managersList.length > 0 
+                                ? managersList.filter(m => m.name.toLowerCase().includes(filterText))
+                                : [];
+                            if (matches.length > 0) {
+                                selectManager(matches[0].key, matches[0].name);
+                            }
+                        } else if (e.key === 'Escape') {
+                            managerDropdownContainer.style.display = 'none';
+                            managerSearchInput.value = '';
+                        }
+                    });
+                } else {
+                    console.error('Manager combobox elements not found');
+                }
+                
+                // Setup recipient combobox
+                const recipientSelectCombobox = document.getElementById('recipientSelectCombobox');
+                const recipientDropdownContainer = document.getElementById('recipientDropdownContainer');
+                const recipientSearchInput = document.getElementById('recipientSearchInput');
+                
+                if (recipientSelectCombobox && recipientDropdownContainer && recipientSearchInput) {
+                    recipientSelectCombobox.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isOpen = recipientDropdownContainer.style.display === 'block';
+                        recipientDropdownContainer.style.display = isOpen ? 'none' : 'block';
+                        if (!isOpen) {
+                            setTimeout(() => recipientSearchInput.focus(), 10);
+                            updateRecipientAutocomplete();
+                        }
+                    });
+                    
+                    recipientSearchInput.addEventListener('input', updateRecipientAutocomplete);
+                    recipientSearchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const filterText = recipientSearchInput.value ? recipientSearchInput.value.toLowerCase() : '';
+                            const matches = recipientsList && recipientsList.length > 0
+                                ? recipientsList.filter(r => r.name.toLowerCase().includes(filterText))
+                                : [];
+                            if (matches.length > 0) {
+                                selectRecipient(matches[0].key, matches[0].name);
+                            } else {
+                                // If no match, select "Add New Recipient"
+                                selectRecipient('__NEW__', '+ Add New Recipient...');
+                            }
+                        } else if (e.key === 'Escape') {
+                            recipientDropdownContainer.style.display = 'none';
+                            recipientSearchInput.value = '';
+                        }
+                    });
+                } else {
+                    console.error('Recipient combobox elements not found');
+                }
+                
+                // Hide dropdowns when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (managerSelectCombobox && managerDropdownContainer && managerSearchInput) {
+                        if (!managerSelectCombobox.contains(e.target) && !managerDropdownContainer.contains(e.target)) {
+                            managerDropdownContainer.style.display = 'none';
+                            managerSearchInput.value = '';
+                        }
+                    }
+                    if (recipientSelectCombobox && recipientDropdownContainer && recipientSearchInput) {
+                        if (!recipientSelectCombobox.contains(e.target) && !recipientDropdownContainer.contains(e.target)) {
+                            recipientDropdownContainer.style.display = 'none';
+                            recipientSearchInput.value = '';
+                        }
+                    }
+                });
+                
+                // Item combobox event listeners
+                const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+                const itemDropdownContainer = document.getElementById('itemDropdownContainer');
+                const itemSearchInput = document.getElementById('itemSearchInput');
+                
+                if (itemSelectCombobox) {
+                    itemSelectCombobox.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (itemDropdownContainer) {
+                            const isVisible = itemDropdownContainer.style.display === 'block';
+                            itemDropdownContainer.style.display = isVisible ? 'none' : 'block';
+                            if (!isVisible && itemSearchInput) {
+                                itemSearchInput.focus();
+                                updateItemAutocomplete();
+                            }
+                        }
+                    });
+                }
+                
+                if (itemSearchInput) {
+                    itemSearchInput.addEventListener('input', () => {
+                        updateItemAutocomplete();
+                    });
+                    itemSearchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape') {
+                            if (itemDropdownContainer) {
+                                itemDropdownContainer.style.display = 'none';
+                            }
+                        }
+                    });
+                }
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (itemDropdownContainer && itemSelectCombobox && 
+                        !itemSelectCombobox.contains(e.target) && 
+                        !itemDropdownContainer.contains(e.target)) {
+                        itemDropdownContainer.style.display = 'none';
+                    }
+                });
+                
+                // Listen for item selection events
+                document.addEventListener('itemSelected', (e) => {
+                    if (onItemChange) {
+                        onItemChange();
+                    }
+                });
+                const newRecipientInputEl = document.getElementById('newRecipientInput');
+                if (newRecipientInputEl) {
+                    newRecipientInputEl.addEventListener('input', updateReportButtonState);
+                }
+                const quantityInputEl = document.getElementById('quantityInput');
+                if (quantityInputEl) {
+                    quantityInputEl.addEventListener('input', updateReportButtonState);
+                }
+                const reportButtonEl = document.getElementById('reportButton');
+                if (reportButtonEl) {
+                    reportButtonEl.addEventListener('click', onReport);
+                }
                 updateButtonText();
             } catch (error) {
-                statusElement.textContent = 'Error fetching data: ' + error.message;
+                // Get more detailed error information
+                let errorDetails = error.message || 'Unknown error';
+                if (error.stack) {
+                    // Extract the first few lines of the stack trace to show where it occurred
+                    const stackLines = error.stack.split('\n').slice(0, 3);
+                    errorDetails += '\n\nStack trace:\n' + stackLines.join('\n');
+                }
+                if (error.fileName || error.sourceURL) {
+                    errorDetails += '\n\nFile: ' + (error.fileName || error.sourceURL);
+                }
+                if (error.lineNumber || error.line) {
+                    errorDetails += '\nLine: ' + (error.lineNumber || error.line);
+                }
+                statusElement.textContent = 'Error fetching data: ' + errorDetails;
                 statusElement.className = 'error fade-in';
-                document.getElementById('reportButton').style.display = 'none';
+                statusElement.style.whiteSpace = 'pre-wrap'; // Allow line breaks
+                console.error('Error in initialization:', error);
+                const reportButton = document.getElementById('reportButton');
+                if (reportButton) {
+                    reportButton.style.display = 'none';
+                }
             }
         });
     </script>
