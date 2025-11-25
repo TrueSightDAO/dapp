@@ -1074,7 +1074,10 @@
                     }
                     if (qtyInput) {
                         qtyInput.value = '';
-                        qtyInput.disabled = false;
+                        // In QR code mode, quantity should be disabled until a QR code is selected
+                        // But if no QR code is selected, we can enable it for manual entry
+                        // However, it should remain disabled until an item is selected
+                        qtyInput.disabled = true;
                     }
                     // Load all currencies for future QR code selection
                     if (allCurrencies.length === 0) {
@@ -1137,6 +1140,15 @@
                 lastQrParam = null;
                 clearQRCodeFields();
                 
+                // Ensure quantity is enabled when not in QR code mode
+                // (it will be disabled/enabled based on item selection in onItemChange())
+                const qtyInput = document.getElementById('quantityInput');
+                if (qtyInput) {
+                    // Quantity will be enabled/disabled based on item selection
+                    // But we ensure it's not locked due to QR code mode
+                    qtyInput.disabled = false;
+                }
+                
                 // If manager is already selected, load assets if needed and populate items
                 const managerSelectDisplay = document.getElementById('managerSelectDisplay');
                 const hasManagerSelected = managerSelectDisplay && 
@@ -1145,7 +1157,6 @@
                     managerSelectDisplay.style.color !== 'rgb(153, 153, 153)';
                 
                 const itemSelect = document.getElementById('itemSelect');
-                const qtyInput = document.getElementById('quantityInput');
                 
                 if (hasManagerSelected) {
                     // Manager is selected - get manager key and load assets if not cached
@@ -1238,6 +1249,15 @@
                 lastQrParam = null;
                 clearQRCodeFields();
                 
+                // Ensure quantity is enabled when not in QR code mode
+                // (it will be disabled/enabled based on item selection in onItemChange())
+                const qtyInput = document.getElementById('quantityInput');
+                if (qtyInput) {
+                    // Quantity will be enabled/disabled based on item selection
+                    // But we ensure it's not locked due to QR code mode
+                    qtyInput.disabled = false;
+                }
+                
                 // If manager is already selected, load assets if needed and populate items
                 const managerSelectDisplay = document.getElementById('managerSelectDisplay');
                 const hasManagerSelected = managerSelectDisplay && 
@@ -1246,7 +1266,6 @@
                     managerSelectDisplay.style.color !== 'rgb(153, 153, 153)';
                 
                 const itemSelect = document.getElementById('itemSelect');
-                const qtyInput = document.getElementById('quantityInput');
                 
                 if (hasManagerSelected) {
                     // Manager is selected - get manager key and load assets if not cached
@@ -1353,40 +1372,124 @@
 
         function resetForm() {
             const inputMethodEl = document.getElementById('inputMethod');
-            inputMethodEl.value = 'qr_code';
-            toggleInputMethod();
+            if (inputMethodEl) {
+                inputMethodEl.value = 'qr_code';
+                toggleInputMethod();
+            }
             updateFileInfo('');
             lastQrParam = null;
-            document.getElementById('qr-param-display').textContent = '';
-            document.getElementById('qr-param-display').style.display = 'none';
-            document.getElementById('qrSearchInput').value = '';
+            
+            // Reset QR code display
+            const qrParamDisplay = document.getElementById('qr-param-display');
+            if (qrParamDisplay) {
+                qrParamDisplay.textContent = '';
+                qrParamDisplay.style.display = 'none';
+            }
+            const qrSearchInput = document.getElementById('qrSearchInput');
+            if (qrSearchInput) {
+                qrSearchInput.value = '';
+            }
             filteredQrCodes = [...qrCodes];
-            document.getElementById('qrDropdownContainer').style.display = 'none';
+            const qrDropdownContainer = document.getElementById('qrDropdownContainer');
+            if (qrDropdownContainer) {
+                qrDropdownContainer.style.display = 'none';
+            }
             clearQRCodeSelection();
-            document.getElementById('file-info-box').style.display = 'none';
-            document.getElementById('uploaded-file-preview').style.display = 'none';
+            
+            // Reset file upload
+            const fileInfoBox = document.getElementById('file-info-box');
+            if (fileInfoBox) {
+                fileInfoBox.style.display = 'none';
+            }
+            const uploadedFilePreview = document.getElementById('uploaded-file-preview');
+            if (uploadedFilePreview) {
+                uploadedFilePreview.style.display = 'none';
+                uploadedFilePreview.src = '';
+            }
+            uploadedFile = null;
+            
+            // Reset manager combobox
             const managerSelectDisplay = document.getElementById('managerSelectDisplay');
             if (managerSelectDisplay) {
                 managerSelectDisplay.textContent = 'Select a manager';
                 managerSelectDisplay.style.color = '#999';
             }
-            const itemSel = document.getElementById('itemSelect');
-            itemSel.innerHTML = '<option value="">Select a manager first</option>';
-            itemSel.disabled = true;
+            const managerDropdownContainer = document.getElementById('managerDropdownContainer');
+            if (managerDropdownContainer) {
+                managerDropdownContainer.style.display = 'none';
+            }
+            const managerSearchInput = document.getElementById('managerSearchInput');
+            if (managerSearchInput) {
+                managerSearchInput.value = '';
+            }
+            currentManagerKey = null;
+            assets = [];
+            
+            // Reset item combobox
+            const itemSelectDisplay = document.getElementById('itemSelectDisplay');
+            const itemSelectCombobox = document.getElementById('itemSelectCombobox');
+            if (itemSelectDisplay) {
+                itemSelectDisplay.textContent = 'Select a manager first';
+                itemSelectDisplay.style.color = '#999';
+            }
+            if (itemSelectCombobox) {
+                itemSelectCombobox.style.pointerEvents = 'none';
+            }
+            itemsList = [];
+            const itemDropdownContainer = document.getElementById('itemDropdownContainer');
+            if (itemDropdownContainer) {
+                itemDropdownContainer.style.display = 'none';
+            }
+            const itemSearchInput = document.getElementById('itemSearchInput');
+            if (itemSearchInput) {
+                itemSearchInput.value = '';
+            }
+            
+            // Reset quantity
+            const qtyInput = document.getElementById('quantityInput');
+            if (qtyInput) {
+                qtyInput.value = '';
+                qtyInput.disabled = true;
+            }
+            const availableQuantity = document.getElementById('availableQuantity');
+            if (availableQuantity) {
+                availableQuantity.textContent = '';
+            }
+            
+            // Reset recipient combobox
             const recipientSelectDisplay = document.getElementById('recipientSelectDisplay');
             if (recipientSelectDisplay) {
                 recipientSelectDisplay.textContent = 'Select a recipient';
                 recipientSelectDisplay.style.color = '#999';
             }
+            const recipientDropdownContainer = document.getElementById('recipientDropdownContainer');
+            if (recipientDropdownContainer) {
+                recipientDropdownContainer.style.display = 'none';
+            }
+            const recipientSearchInput = document.getElementById('recipientSearchInput');
+            if (recipientSearchInput) {
+                recipientSearchInput.value = '';
+            }
             const newRecipientInput = document.getElementById('newRecipientInput');
-            newRecipientInput.value = '';
-            newRecipientInput.style.display = 'none';
-            document.getElementById('recipientInputInfo').style.display = 'none';
+            if (newRecipientInput) {
+                newRecipientInput.value = '';
+                newRecipientInput.style.display = 'none';
+            }
+            const recipientInputInfo = document.getElementById('recipientInputInfo');
+            if (recipientInputInfo) {
+                recipientInputInfo.style.display = 'none';
+            }
+            
             // Clear QR code fields (re-enables quantity and item select)
             clearQRCodeFields();
+            
+            // Clear output
             const outputEl = document.getElementById('reportOutput');
-            outputEl.textContent = '';
-            outputEl.className = '';
+            if (outputEl) {
+                outputEl.textContent = '';
+                outputEl.className = '';
+            }
+            
             updateReportButtonState();
         }
 
@@ -1626,13 +1729,21 @@
             const recipientInputInfo = document.getElementById('recipientInputInfo');
             
             if (recipientSelectDisplay && recipientSelectDisplay.textContent === '+ Add New Recipient...') {
-                newRecipientInput.style.display = 'block';
-                recipientInputInfo.style.display = 'block';
-                newRecipientInput.focus();
+                if (newRecipientInput) {
+                    newRecipientInput.style.display = 'block';
+                    newRecipientInput.focus();
+                }
+                if (recipientInputInfo) {
+                    recipientInputInfo.style.display = 'block';
+                }
             } else {
-                newRecipientInput.style.display = 'none';
-                recipientInputInfo.style.display = 'none';
-                newRecipientInput.value = '';
+                if (newRecipientInput) {
+                    newRecipientInput.style.display = 'none';
+                    newRecipientInput.value = '';
+                }
+                if (recipientInputInfo) {
+                    recipientInputInfo.style.display = 'none';
+                }
             }
             updateReportButtonState();
         }
@@ -2291,6 +2402,25 @@
                     isPostSubmission = true;
                     updateButtonText();
                     updateReportButtonState();
+                    
+                    // If a new recipient was added, add it to the local list immediately
+                    // This ensures it's available for the next submission even before backend sync
+                    const newRecipientInput = document.getElementById('newRecipientInput');
+                    if (newRecipientInput && newRecipientInput.value.trim()) {
+                        const newRecipientName = newRecipientInput.value.trim();
+                        // Check if it's not already in the list
+                        if (!recipientsList.find(r => r.name.toLowerCase() === newRecipientName.toLowerCase())) {
+                            recipientsList.push({
+                                key: encodeURIComponent(newRecipientName),
+                                name: newRecipientName
+                            });
+                            console.log('Added new recipient to local list:', newRecipientName);
+                        }
+                    }
+                    
+                    // Reload recipients to sync with backend (in case backend has added it)
+                    // This ensures the recipient list is up-to-date for the next submission
+                    loadRecipients();
                 } else {
                     if (isMobileDevice()) {
                         if (navigator.share) {
