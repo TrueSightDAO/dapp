@@ -274,12 +274,17 @@
                 <input type="file" id="imageInput" accept="image/*">
             </div>
             <div class="form-row" id="list-section" style="display: none;">
-                <label for="qrFilter">Filter QR Codes:</label>
-                <input type="text" id="qrFilter" placeholder="Type to filter QR codes...">
-                <label for="qrSelect" style="margin-top: 0.5rem;">Select QR Code:</label>
-                <select id="qrSelect">
-                    <option value="">Loading QR codes...</option>
-                </select>
+                <label for="qrSelectCombobox">Select QR Code:</label>
+                <div style="position: relative;">
+                    <div id="qrSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="qrSelectDisplay" style="color: #999;">Select a QR code...</span>
+                        <span style="color: #666;">▼</span>
+                    </div>
+                    <div id="qrDropdownContainer" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px;">
+                        <input type="text" id="qrSearchInput" placeholder="Type to search QR codes..." autocomplete="off" style="width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box; border: none; border-bottom: 1px solid #eee; outline: none;">
+                        <div id="qrAutocompleteList" style="max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
             </div>
             <div class="form-row">
                 <label for="salePriceInput">Sale Price ($):</label>
@@ -355,8 +360,11 @@
         const inputMethod = document.getElementById('inputMethod');
         const uploadSection = document.getElementById('upload-section');
         const listSection = document.getElementById('list-section');
-        const qrFilter = document.getElementById('qrFilter');
-        const qrSelect = document.getElementById('qrSelect');
+        const qrSelectCombobox = document.getElementById('qrSelectCombobox');
+        const qrDropdownContainer = document.getElementById('qrDropdownContainer');
+        const qrSearchInput = document.getElementById('qrSearchInput');
+        const qrSelectDisplay = document.getElementById('qrSelectDisplay');
+        const qrAutocompleteList = document.getElementById('qrAutocompleteList');
         const imageInput = document.getElementById('imageInput');
         const videoHolder = document.getElementById('video-holder');
         const uploadedImage = document.getElementById('uploaded-image');
@@ -375,7 +383,7 @@
                 }
                 qrCodes = data.qr_codes.map(qr => ({ key: qr, name: qr }));
                 filteredQrCodes = [...qrCodes];
-                updateQrCodeDropdown();
+                updateQrCodeAutocomplete();
             } catch (err) {
                 console.error('Error loading QR codes:', err);
                 reportOutput.textContent = 'Failed to load QR codes. Please try again later.';
@@ -424,20 +432,84 @@
             updateReportButtonState();
         }
 
-        function updateQrCodeDropdown() {
-            qrSelect.innerHTML = '<option value="">Select a QR code</option>';
-            filteredQrCodes.forEach(qr => {
-                const opt = document.createElement('option');
-                opt.value = qr.key;
-                opt.textContent = qr.name;
-                qrSelect.appendChild(opt);
-            });
-        }
-
-        function filterQrCodes() {
-            const filterText = qrFilter.value.toLowerCase();
+        function updateQrCodeAutocomplete() {
+            if (!qrSearchInput || !qrAutocompleteList) {
+                console.error('QR code autocomplete elements not found');
+                return;
+            }
+            
+            const filterText = qrSearchInput.value ? qrSearchInput.value.toLowerCase() : '';
+            
+            // Filter QR codes based on search text
             filteredQrCodes = qrCodes.filter(qr => qr.name.toLowerCase().includes(filterText));
-            updateQrCodeDropdown();
+            
+            // Clear previous list
+            qrAutocompleteList.innerHTML = '';
+            
+            // Show all QR codes if no filter, otherwise show filtered results
+            const qrCodesToShow = filterText ? filteredQrCodes : qrCodes;
+            
+            if (qrCodesToShow.length > 0) {
+                // Create list items for each QR code
+                qrCodesToShow.forEach(qr => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                    item.textContent = qr.name;
+                    item.addEventListener('mouseenter', () => {
+                        item.style.backgroundColor = '#f0f0f0';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', () => {
+                        selectQRCode(qr.key, qr.name);
+                    });
+                    qrAutocompleteList.appendChild(item);
+                });
+            } else {
+                // No matches found
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = 'No matching QR codes found';
+                qrAutocompleteList.appendChild(noResults);
+            }
+        }
+        
+        function selectQRCode(qrKey, qrName) {
+            lastQrParam = qrKey;
+            
+            // Update display
+            if (qrSelectDisplay) {
+                qrSelectDisplay.textContent = qrName;
+                qrSelectDisplay.style.color = '#333';
+            }
+            
+            // Close dropdown
+            if (qrDropdownContainer) {
+                qrDropdownContainer.style.display = 'none';
+            }
+            if (qrSearchInput) {
+                qrSearchInput.value = '';
+            }
+            
+            // Show QR code in param display
+            qrParamDisplay.textContent = lastQrParam ? `QR Code: ${lastQrParam}` : '';
+            
+            // Auto-select contributor based on QR code
+            if (lastQrParam && allContributors.length > 0) {
+                const matchingContributor = allContributors.find(contributor => 
+                    contributor.qr_codes.includes(lastQrParam)
+                );
+                if (matchingContributor) {
+                    contributorSelect.value = matchingContributor.key;
+                } else {
+                    contributorSelect.value = '';
+                }
+            } else {
+                contributorSelect.value = '';
+            }
+            
+            updateReportButtonState();
         }
 
         function updateReportButtonState() {
@@ -456,9 +528,18 @@
             lastQrParam = null;
             qrParamDisplay.textContent = '';
             reportOutput.textContent = '';
-            qrFilter.value = '';
+            if (qrSearchInput) {
+                qrSearchInput.value = '';
+            }
+            if (qrSelectDisplay) {
+                qrSelectDisplay.textContent = 'Select a QR code...';
+                qrSelectDisplay.style.color = '#999';
+            }
+            if (qrDropdownContainer) {
+                qrDropdownContainer.style.display = 'none';
+            }
             filteredQrCodes = [...qrCodes];
-            updateQrCodeDropdown();
+            updateQrCodeAutocomplete();
             output.textContent = 'Upload an image containing a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
             scan_button.value = 'Scan QR Code';
             scanning = false;
@@ -687,28 +768,47 @@
 
         inputMethod.addEventListener('change', toggleInputMethod);
 
-        qrFilter.addEventListener('input', filterQrCodes);
-
-        qrSelect.addEventListener('change', () => {
-            lastQrParam = qrSelect.value;
-            qrParamDisplay.textContent = lastQrParam ? `QR Code: ${lastQrParam}` : '';
-            
-            // Auto-select contributor based on QR code
-            if (lastQrParam && allContributors.length > 0) {
-                const matchingContributor = allContributors.find(contributor => 
-                    contributor.qr_codes.includes(lastQrParam)
-                );
-                if (matchingContributor) {
-                    contributorSelect.value = matchingContributor.key;
+        // QR Code combobox event handlers
+        if (qrSelectCombobox && qrDropdownContainer && qrSearchInput) {
+            // Open dropdown when clicking on combobox
+            qrSelectCombobox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (qrDropdownContainer.style.display === 'none' || qrDropdownContainer.style.display === '') {
+                    qrDropdownContainer.style.display = 'block';
+                    qrSearchInput.focus();
                 } else {
-                    contributorSelect.value = '';
+                    qrDropdownContainer.style.display = 'none';
                 }
-            } else {
-                contributorSelect.value = '';
-            }
+            });
             
-            updateReportButtonState();
-        });
+            // Update autocomplete as user types
+            qrSearchInput.addEventListener('input', () => {
+                updateQrCodeAutocomplete();
+            });
+            
+            // Handle keyboard navigation
+            qrSearchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const firstMatch = filteredQrCodes.length > 0 ? filteredQrCodes[0] : null;
+                    if (firstMatch) {
+                        selectQRCode(firstMatch.key, firstMatch.name);
+                    }
+                } else if (e.key === 'Escape') {
+                    qrDropdownContainer.style.display = 'none';
+                    qrSearchInput.value = '';
+                }
+            });
+            
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!qrSelectCombobox.contains(e.target) && !qrDropdownContainer.contains(e.target)) {
+                    qrDropdownContainer.style.display = 'none';
+                    qrSearchInput.value = '';
+                }
+            });
+        } else {
+            console.error('QR code combobox elements not found');
+        }
 
         imageInput.addEventListener('change', () => {
             if (imageInput.files.length > 0) {
