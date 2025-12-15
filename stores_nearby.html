@@ -391,6 +391,23 @@
             color: white;
             font-weight: 500;
         }
+        .badge-instagram-followed {
+            background: #e1306c;
+            color: white;
+        }
+        .badge-partnered {
+            background: #28a745;
+            color: white;
+            font-weight: 600;
+        }
+        .badge-on-hold {
+            background: #ffc107;
+            color: #333;
+        }
+        .badge-rejected {
+            background: #dc3545;
+            color: white;
+        }
         .store-details-link {
             color: #007bff;
             text-decoration: none;
@@ -929,12 +946,16 @@
                             <div class="form-group">
                                 <label for="newStoreStatus">Status</label>
                                 <select id="newStoreStatus">
-                                    <option value="Shortlisted">Shortlisted</option>
                                     <option value="Research">Research</option>
+                                    <option value="Shortlisted">Shortlisted</option>
+                                    <option value="Instagram Followed">Instagram Followed</option>
                                     <option value="Contacted">Contacted</option>
+                                    <option value="Manager Follow-up">Manager Follow-up</option>
+                                    <option value="Followed Up">Followed Up</option>
                                     <option value="Partnered">Partnered</option>
-                                    <option value="Rejected">Rejected</option>
                                     <option value="On Hold">On Hold</option>
+                                    <option value="Rejected">Rejected</option>
+                                    <option value="Not Appropriate">Not Appropriate</option>
                                 </select>
                             </div>
 
@@ -972,6 +993,18 @@
                         </div>
                         <div class="multi-select-container" style="border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem; background: white; max-height: 200px; overflow-y: auto; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Research" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Research</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Shortlisted" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Shortlisted</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Instagram Followed" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Instagram Followed</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="Contacted" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
                                 <span style="flex: 1;">Contacted</span>
                             </label>
@@ -984,16 +1017,12 @@
                                 <span style="flex: 1;">Followed Up</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
-                                <input type="checkbox" class="status-filter-checkbox" value="Research" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
-                                <span style="flex: 1;">Research</span>
-                            </label>
-                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
-                                <input type="checkbox" class="status-filter-checkbox" value="Shortlisted" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
-                                <span style="flex: 1;">Shortlisted</span>
-                            </label>
-                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="Partnered" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
                                 <span style="flex: 1;">Partnered</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="On Hold" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">On Hold</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="Rejected" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
@@ -1002,10 +1031,6 @@
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="Not Appropriate" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
                                 <span style="flex: 1;">Not Appropriate</span>
-                            </label>
-                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
-                                <input type="checkbox" class="status-filter-checkbox" value="On Hold" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
-                                <span style="flex: 1;">On Hold</span>
                             </label>
                         </div>
                         <div id="statusFilterSummary" style="margin-top: 0.5rem; font-size: 0.875rem; color: #6c757d; min-height: 1.25rem; font-style: italic;"></div>
@@ -1121,6 +1146,18 @@
                         <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.9rem;">Status (multiple):</label>
                         <div class="expanded-multi-select-container" style="border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem; background: white; max-height: 150px; overflow-y: auto; font-size: 0.875rem;">
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Research" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Research</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Shortlisted" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Shortlisted</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Instagram Followed" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Instagram Followed</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-status-filter-checkbox" value="Contacted" style="margin-right: 0.5rem; cursor: pointer;">
                                 <span>Contacted</span>
                             </label>
@@ -1133,16 +1170,12 @@
                                 <span>Followed Up</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
-                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Shortlisted" style="margin-right: 0.5rem; cursor: pointer;">
-                                <span>Shortlisted</span>
-                            </label>
-                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
-                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Research" style="margin-right: 0.5rem; cursor: pointer;">
-                                <span>Research</span>
-                            </label>
-                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-status-filter-checkbox" value="Partnered" style="margin-right: 0.5rem; cursor: pointer;">
                                 <span>Partnered</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="On Hold" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>On Hold</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-status-filter-checkbox" value="Rejected" style="margin-right: 0.5rem; cursor: pointer;">
@@ -1151,10 +1184,6 @@
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-status-filter-checkbox" value="Not Appropriate" style="margin-right: 0.5rem; cursor: pointer;">
                                 <span>Not Appropriate</span>
-                            </label>
-                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
-                                <input type="checkbox" class="expanded-status-filter-checkbox" value="On Hold" style="margin-right: 0.5rem; cursor: pointer;">
-                                <span>On Hold</span>
                             </label>
                         </div>
                     </div>
@@ -1255,12 +1284,14 @@
         };
 
         const statusDescriptions = {
+            'Research': 'Store is being researched. Gathering information about the store, their products, and potential fit.',
+            'Shortlisted': 'Store looks promising and is queued for outreach or in-person visit. Prepare materials and plan next steps.',
+            'Instagram Followed': 'Store has been followed on Instagram. Monitoring their social media presence and engagement.',
             'Contacted': 'Initial contact has been made with the store. This is the first step in the outreach process.',
             'Manager Follow-up': 'Store visit completed. Staff indicated to follow up with the manager using provided contact details. Action required.',
             'Followed Up': 'Follow-up contact with the manager has been completed. Waiting for their response or next steps.',
-            'Research': 'Store is being researched. Gathering information about the store, their products, and potential fit.',
-            'Shortlisted': 'Store looks promising and is queued for outreach or in-person visit. Prepare materials and plan next steps.',
             'Partnered': 'Store is an active partner. They carry our products and have an established business relationship.',
+            'On Hold': 'Store partnership is temporarily on hold. Waiting for further developments or decisions.',
             'Rejected': 'Store declined partnership or is not interested in carrying our products.',
             'Not Appropriate': 'Store does not align with our values or target market. Not a good fit for partnership.',
             '': 'Showing all stores regardless of status. Use this to see the complete list.'
@@ -4128,10 +4159,14 @@
             if (!status) return '';
             const statusLower = status.toLowerCase();
             let badgeClass = 'badge-research';
-            if (statusLower === 'contacted') badgeClass = 'badge-contacted';
+            if (statusLower === 'research') badgeClass = 'badge-research';
+            else if (statusLower === 'shortlisted') badgeClass = 'badge-research';
+            else if (statusLower === 'instagram followed') badgeClass = 'badge-instagram-followed';
+            else if (statusLower === 'contacted') badgeClass = 'badge-contacted';
             else if (statusLower === 'manager follow-up' || statusLower === 'manager followup') badgeClass = 'badge-followup';
             else if (statusLower === 'followed up' || statusLower === 'followedup') badgeClass = 'badge-followedup';
             else if (statusLower === 'partnered') badgeClass = 'badge-partnered';
+            else if (statusLower === 'on hold') badgeClass = 'badge-on-hold';
             else if (statusLower === 'rejected') badgeClass = 'badge-rejected';
             else if (statusLower === 'not appropriate') badgeClass = 'badge-rejected'; // Use rejected style for not appropriate
             return `<span class="store-badge ${badgeClass}">${escapeHtml(status)}</span>`;
@@ -5363,15 +5398,16 @@
                                 class="status-update-select"
                                 data-requires-signature="true"
                                 style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                            <option value="Research" ${store.status === 'Research' ? 'selected' : ''}>Research</option>
+                            <option value="Shortlisted" ${store.status === 'Shortlisted' ? 'selected' : ''}>Shortlisted</option>
+                            <option value="Instagram Followed" ${store.status === 'Instagram Followed' ? 'selected' : ''}>Instagram Followed</option>
                             <option value="Contacted" ${store.status === 'Contacted' ? 'selected' : ''}>Contacted</option>
                             <option value="Manager Follow-up" ${store.status === 'Manager Follow-up' ? 'selected' : ''}>Manager Follow-up</option>
                             <option value="Followed Up" ${store.status === 'Followed Up' ? 'selected' : ''}>Followed Up</option>
-                            <option value="Research" ${store.status === 'Research' ? 'selected' : ''}>Research</option>
-                            <option value="Shortlisted" ${store.status === 'Shortlisted' ? 'selected' : ''}>Shortlisted</option>                                
                             <option value="Partnered" ${store.status === 'Partnered' ? 'selected' : ''}>Partnered</option>
+                            <option value="On Hold" ${store.status === 'On Hold' ? 'selected' : ''}>On Hold</option>
                             <option value="Rejected" ${store.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
                             <option value="Not Appropriate" ${store.status === 'Not Appropriate' ? 'selected' : ''}>Not Appropriate</option>
-                            <option value="On Hold" ${store.status === 'On Hold' ? 'selected' : ''}>On Hold</option>
                         </select>
                         <label for="shopTypeUpdate-${index}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Shop Type:</label>
                         <select id="shopTypeUpdate-${index}" 
