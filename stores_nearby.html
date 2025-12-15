@@ -5446,6 +5446,107 @@
                             <option value="Apothecary" ${store.shop_type === 'Apothecary' ? 'selected' : ''}>Apothecary</option>
                             <option value="Other" ${store.shop_type === 'Other' ? 'selected' : ''}>Other</option>
                         </select>
+                        <label for="instagramUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Instagram Profile URL (optional):</label>
+                        <input type="url" 
+                               id="instagramUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="instagram-update-input"
+                               data-requires-signature="true"
+                               placeholder="https://instagram.com/handle"
+                               value="${store.instagram ? escapeHtml(store.instagram) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="ownerNameUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Owner Name (optional):</label>
+                        <input type="text" 
+                               id="ownerNameUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="owner-name-update-input"
+                               data-requires-signature="true"
+                               placeholder="Owner Name"
+                               value="${store.owner_name ? escapeHtml(store.owner_name) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="contactPersonUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Contact Person (optional):</label>
+                        <input type="text" 
+                               id="contactPersonUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="contact-person-update-input"
+                               data-requires-signature="true"
+                               placeholder="Contact Person"
+                               value="${store.contact_person ? escapeHtml(store.contact_person) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="emailUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Email (optional):</label>
+                        <input type="email" 
+                               id="emailUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="email-update-input"
+                               data-requires-signature="true"
+                               placeholder="email@example.com"
+                               value="${store.email ? escapeHtml(store.email) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="cellPhoneUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Cell Phone (optional):</label>
+                        <input type="tel" 
+                               id="cellPhoneUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="cell-phone-update-input"
+                               data-requires-signature="true"
+                               placeholder="(555) 123-4567"
+                               value="${store.cell_phone ? escapeHtml(store.cell_phone) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="phoneUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Phone (optional):</label>
+                        <input type="tel" 
+                               id="phoneUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="phone-update-input"
+                               data-requires-signature="true"
+                               placeholder="(555) 123-4567"
+                               value="${store.phone ? escapeHtml(store.phone) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="websiteUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Website (optional):</label>
+                        <input type="url" 
+                               id="websiteUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="website-update-input"
+                               data-requires-signature="true"
+                               placeholder="https://example.com"
+                               value="${store.website ? escapeHtml(store.website) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="followUpDateUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Follow Up Date (optional):</label>
+                        <input type="date" 
+                               id="followUpDateUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="follow-up-date-update-input"
+                               data-requires-signature="true"
+                               value="${store.follow_up_date ? escapeHtml(store.follow_up_date) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="visitDateUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Visit Date (optional):</label>
+                        <input type="date" 
+                               id="visitDateUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="visit-date-update-input"
+                               data-requires-signature="true"
+                               value="${store.visit_date ? escapeHtml(store.visit_date) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="contactDateUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Contact Date (optional):</label>
+                        <input type="date" 
+                               id="contactDateUpdate-${index}"
+                               data-shop-index="${index}"
+                               class="contact-date-update-input"
+                               data-requires-signature="true"
+                               value="${store.contact_date ? escapeHtml(store.contact_date) : ''}"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                        <label for="contactMethodUpdate-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Contact Method (optional):</label>
+                        <select id="contactMethodUpdate-${index}" 
+                                data-shop-index="${index}"
+                                class="contact-method-update-select"
+                                data-requires-signature="true"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
+                            <option value="">-- Select Contact Method --</option>
+                            <option value="Email" ${store.contact_method === 'Email' ? 'selected' : ''}>Email</option>
+                            <option value="Phone" ${store.contact_method === 'Phone' ? 'selected' : ''}>Phone</option>
+                            <option value="In Person" ${store.contact_method === 'In Person' ? 'selected' : ''}>In Person</option>
+                            <option value="Social Media" ${store.contact_method === 'Social Media' ? 'selected' : ''}>Social Media</option>
+                            <option value="Text" ${store.contact_method === 'Text' ? 'selected' : ''}>Text</option>
+                            <option value="Other" ${store.contact_method === 'Other' ? 'selected' : ''}>Other</option>
+                        </select>
                         <label for="statusRemarks-${index}" style="display: block; margin: 0.75rem 0 0.5rem; font-weight: 600;">Remarks (optional):</label>
                         <textarea id="statusRemarks-${index}"
                                   rows="3"
@@ -5458,7 +5559,7 @@
                                 data-status-update="true"
                                 data-requires-signature="true"
                                 style="width: 100%; padding: 0.6rem; font-size: 0.95rem; margin-top: 0.5rem;">
-                            Update Status & Shop Type
+                            Update Store Information
                         </button>
                         <div id="${statusMessageId}" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
                     </div>
@@ -5518,6 +5619,17 @@
             const shopName = store.name;
             const selectElement = document.getElementById(`statusUpdate-${index}`);
             const shopTypeElement = document.getElementById(`shopTypeUpdate-${index}`);
+            const instagramElement = document.getElementById(`instagramUpdate-${index}`);
+            const ownerNameElement = document.getElementById(`ownerNameUpdate-${index}`);
+            const contactPersonElement = document.getElementById(`contactPersonUpdate-${index}`);
+            const emailElement = document.getElementById(`emailUpdate-${index}`);
+            const cellPhoneElement = document.getElementById(`cellPhoneUpdate-${index}`);
+            const phoneElement = document.getElementById(`phoneUpdate-${index}`);
+            const websiteElement = document.getElementById(`websiteUpdate-${index}`);
+            const followUpDateElement = document.getElementById(`followUpDateUpdate-${index}`);
+            const visitDateElement = document.getElementById(`visitDateUpdate-${index}`);
+            const contactDateElement = document.getElementById(`contactDateUpdate-${index}`);
+            const contactMethodElement = document.getElementById(`contactMethodUpdate-${index}`);
             const messageElement = document.getElementById(`statusUpdateMessage-${index}`);
             const remarksElement = document.getElementById(`statusRemarks-${index}`);
             
@@ -5536,25 +5648,51 @@
             
             const newStatus = selectElement.value;
             const newShopType = shopTypeElement ? shopTypeElement.value.trim() : '';
+            const newInstagram = instagramElement ? instagramElement.value.trim() : '';
+            const newOwnerName = ownerNameElement ? ownerNameElement.value.trim() : '';
+            const newContactPerson = contactPersonElement ? contactPersonElement.value.trim() : '';
+            const newEmail = emailElement ? emailElement.value.trim() : '';
+            const newCellPhone = cellPhoneElement ? cellPhoneElement.value.trim() : '';
+            const newPhone = phoneElement ? phoneElement.value.trim() : '';
+            const newWebsite = websiteElement ? websiteElement.value.trim() : '';
+            const newFollowUpDate = followUpDateElement ? followUpDateElement.value.trim() : '';
+            const newVisitDate = visitDateElement ? visitDateElement.value.trim() : '';
+            const newContactDate = contactDateElement ? contactDateElement.value.trim() : '';
+            const newContactMethod = contactMethodElement ? contactMethodElement.value.trim() : '';
+            const remarks = remarksElement ? remarksElement.value.trim() : '';
+            
             const currentStatus = store.status;
             const currentShopType = store.shop_type || '';
-            const remarks = remarksElement ? remarksElement.value.trim() : '';
+            const currentInstagram = store.instagram || '';
+            const currentOwnerName = store.owner_name || '';
+            const currentContactPerson = store.contact_person || '';
+            const currentEmail = store.email || '';
+            const currentCellPhone = store.cell_phone || '';
+            const currentPhone = store.phone || '';
+            const currentWebsite = store.website || '';
+            const currentFollowUpDate = store.follow_up_date || '';
+            const currentVisitDate = store.visit_date || '';
+            const currentContactDate = store.contact_date || '';
+            const currentContactMethod = store.contact_method || '';
 
             // Don't update if nothing changed
-            if (newStatus === currentStatus && newShopType === currentShopType && !remarks) {
-                messageElement.innerHTML = '<span style="color: #6c757d;">Status and shop type unchanged and no remarks added</span>';                                         
+            if (newStatus === currentStatus && newShopType === currentShopType && newInstagram === currentInstagram && 
+                newOwnerName === currentOwnerName && newContactPerson === currentContactPerson && newEmail === currentEmail &&
+                newCellPhone === currentCellPhone && newPhone === currentPhone && newWebsite === currentWebsite &&
+                newFollowUpDate === currentFollowUpDate && newVisitDate === currentVisitDate && 
+                newContactDate === currentContactDate && newContactMethod === currentContactMethod && !remarks) {
+                messageElement.innerHTML = '<span style="color: #6c757d;">No changes detected</span>';                                         
                 return;
             }
 
             // Show loading state
-            messageElement.innerHTML = '<span style="color: #007bff;">Updating status and shop type...</span>';
-            selectElement.disabled = true;
-            if (shopTypeElement) {
-                shopTypeElement.disabled = true;
-            }
-            if (remarksElement) {
-                remarksElement.disabled = true;
-            }
+            messageElement.innerHTML = '<span style="color: #007bff;">Updating store information...</span>';
+            const allInputs = [selectElement, shopTypeElement, instagramElement, ownerNameElement, contactPersonElement, 
+                              emailElement, cellPhoneElement, phoneElement, websiteElement, followUpDateElement, 
+                              visitDateElement, contactDateElement, contactMethodElement, remarksElement];
+            allInputs.forEach(input => {
+                if (input) input.disabled = true;
+            });
 
             // Get digital signature (public key) from localStorage
             const publicKey = localStorage.getItem('publicKey');
@@ -5567,6 +5705,39 @@
             });
             if (newShopType) {
                 params.append('shop_type', newShopType);
+            }
+            if (newInstagram) {
+                params.append('instagram', newInstagram);
+            }
+            if (newOwnerName) {
+                params.append('owner_name', newOwnerName);
+            }
+            if (newContactPerson) {
+                params.append('contact_person', newContactPerson);
+            }
+            if (newEmail) {
+                params.append('email', newEmail);
+            }
+            if (newCellPhone) {
+                params.append('cell_phone', newCellPhone);
+            }
+            if (newPhone) {
+                params.append('phone', newPhone);
+            }
+            if (newWebsite) {
+                params.append('website', newWebsite);
+            }
+            if (newFollowUpDate) {
+                params.append('follow_up_date', newFollowUpDate);
+            }
+            if (newVisitDate) {
+                params.append('visit_date', newVisitDate);
+            }
+            if (newContactDate) {
+                params.append('contact_date', newContactDate);
+            }
+            if (newContactMethod) {
+                params.append('contact_method', newContactMethod);
             }
             if (remarks) {
                 params.append('remarks', remarks);
@@ -5590,9 +5761,47 @@
                         if (newShopType) {
                             window.storesData[index].shop_type = newShopType;
                         }
+                        if (newInstagram) {
+                            window.storesData[index].instagram = newInstagram;
+                        }
+                        if (newOwnerName) {
+                            window.storesData[index].owner_name = newOwnerName;
+                        }
+                        if (newContactPerson) {
+                            window.storesData[index].contact_person = newContactPerson;
+                        }
+                        if (newEmail) {
+                            window.storesData[index].email = newEmail;
+                        }
+                        if (newCellPhone) {
+                            window.storesData[index].cell_phone = newCellPhone;
+                        }
+                        if (newPhone) {
+                            window.storesData[index].phone = newPhone;
+                        }
+                        if (newWebsite) {
+                            window.storesData[index].website = newWebsite;
+                        }
+                        if (newFollowUpDate) {
+                            window.storesData[index].follow_up_date = newFollowUpDate;
+                        }
+                        if (newVisitDate) {
+                            window.storesData[index].visit_date = newVisitDate;
+                        }
+                        if (newContactDate) {
+                            window.storesData[index].contact_date = newContactDate;
+                        }
+                        if (newContactMethod) {
+                            window.storesData[index].contact_method = newContactMethod;
+                        }
                         if (remarksElement) {
                             remarksElement.value = '';
                         }
+                        
+                        // Re-enable all inputs
+                        allInputs.forEach(input => {
+                            if (input) input.disabled = false;
+                        });
                         
                         // Update the badge in the card
                         const card = document.querySelector(`[data-store-index="${index}"]`);
@@ -5636,24 +5845,20 @@
                                 searchStores();
                             }
                         }, 1500);
-                        selectElement.disabled = false;
-                        if (remarksElement) {
-                            remarksElement.disabled = false;
-                        }
                     } else {
                         messageElement.innerHTML = `<span style="color: #dc3545;">❌ Error: ${data.error || data.message || 'Unknown error'}</span>`;
-                        selectElement.disabled = false;
-                        if (remarksElement) {
-                            remarksElement.disabled = false;
-                        }
+                        // Re-enable all inputs on error
+                        allInputs.forEach(input => {
+                            if (input) input.disabled = false;
+                        });
                     }
                 })
                 .catch(error => {
                     messageElement.innerHTML = `<span style="color: #dc3545;">❌ Error updating status: ${error.message}</span>`;
-                    selectElement.disabled = false;
-                    if (remarksElement) {
-                        remarksElement.disabled = false;
-                    }
+                    // Re-enable all inputs on error
+                    allInputs.forEach(input => {
+                        if (input) input.disabled = false;
+                    });
                     console.error('Error:', error);
                 });
         }
