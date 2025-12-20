@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Shipping Planner - Calculate shipping costs for TrueSight DAO inventory. Select inventory items, choose packaging (box or pallet), and get instant estimates for local USPS shipping or international freight with detailed cost breakdowns.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shipping Planner - TrueSight DAO</title>
+
+    <!-- Open Graph tags for WhatsApp, Facebook, LinkedIn, and social media previews -->
+    <meta property="og:title" content="Shipping Planner - TrueSight DAO">
+    <meta property="og:description" content="Calculate shipping costs for TrueSight DAO inventory. Select inventory items, choose packaging (box or pallet), and get instant estimates for local USPS shipping or international freight with detailed cost breakdowns.">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/shipping_planner.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TrueSight DAO">
+    
+    <!-- Twitter Card tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Shipping Planner - TrueSight DAO">
+    <meta name="twitter:description" content="Calculate shipping costs for TrueSight DAO inventory. Select inventory items, choose packaging (box or pallet), and get instant estimates for local USPS shipping or international freight with detailed cost breakdowns.">
+    <meta name="twitter:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    
+    <!-- Google Places API for address autocomplete -->
+    <script>
+        window.__tsdGoogleMaps = window.__tsdGoogleMaps || {
+            ready: false,
+            callbacks: [],
+            placesLib: null,
+            error: null
+        };
+        window.onGoogleMapsReady = async function () {
+            try {
+                window.__tsdGoogleMaps.placesLib = await google.maps.importLibrary("places");
+                window.__tsdGoogleMaps.ready = true;
+            } catch (err) {
+                window.__tsdGoogleMaps.error = err;
+                console.error('Google Maps initialization failed:', err);
+            } finally {
+                const queued = window.__tsdGoogleMaps.callbacks.splice(0);
+                queued.forEach(callback => {
+                    try {
+                        if (typeof callback === 'function') {
+                            callback();
+                        }
+                    } catch (callbackError) {
+                        console.error('Google Maps ready callback error:', callbackError);
+                    }
+                });
+            }
+        };
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS5tz9sp9mWG6d_glVO19UUk8ZyZ3LdbQ&callback=onGoogleMapsReady&v=weekly&loading=async&libraries=places"></script>
+    <script src="./menu.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #backLink {
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
+            color: #007bff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: color 0.2s;
+        }
+        #backLink:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        #backLink::before {
+            content: "←";
+            font-size: 1.2rem;
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1.5rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .loading {
+            color: #6c757d;
+        }
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1rem;
+            width: 100%;
+        }
+        label {
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        select, input[type="number"], input[type="text"], button {
+            padding: 0.8rem;
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        select:disabled, input:disabled {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+        button {
+            margin-top: 1rem;
+            border: none;
+            border-radius: 8px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+            transform: scale(1.02);
+        }
+        button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .inventory-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .inventory-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+            gap: 0.75rem;
+        }
+        .inventory-item:last-child {
+            border-bottom: none;
+        }
+        .inventory-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            flex-grow: 0;
+            margin-top: 0.25rem;
+        }
+        .inventory-item-info {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .inventory-item-name {
+            font-weight: bold;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .inventory-item-details {
+            font-size: 0.9rem;
+            color: #666;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .inventory-item-no-weight {
+            font-size: 0.9rem;
+            color: #dc3545;
+            font-weight: bold;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .inventory-item-quantity {
+            width: 90px;
+            min-width: 90px;
+            max-width: 90px;
+            flex-shrink: 0;
+            flex-grow: 0;
+            padding: 0.4rem;
+            box-sizing: border-box;
+        }
+        .warning-box {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #fff3cd;
+            border-radius: 4px;
+            border: 1px solid #ffc107;
+            color: #856404;
+        }
+        .warning-box h4 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .selected-items-summary {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .selected-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        .selected-item:last-child {
+            border-bottom: none;
+        }
+        .shipping-manifest {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .shipping-manifest h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        #lineItemsList {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .line-item {
+            display: grid;
+            grid-template-columns: 2fr 0.8fr 1fr 1fr;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-bottom: 1px solid #ddd;
+            align-items: center;
+            min-width: 0;
+        }
+        .line-item:last-child {
+            border-bottom: none;
+        }
+        .line-item-header {
+            font-weight: bold;
+            background-color: #e9ecef;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+        .line-item-description {
+            font-weight: 500;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            min-width: 0;
+        }
+        .line-item-quantity {
+            text-align: center;
+            font-weight: 500;
+        }
+        .line-item-weight {
+            text-align: right;
+            font-family: monospace;
+            font-size: 0.95rem;
+        }
+        .manifest-total {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #e7f3ff;
+            border-radius: 4px;
+            border: 2px solid #007bff;
+            font-weight: bold;
+            text-align: right;
+        }
+        @media (max-width: 600px) {
+            .line-item {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+            .line-item-header {
+                display: none;
+            }
+            .line-item::before {
+                content: attr(data-label);
+                font-weight: bold;
+                margin-right: 0.5rem;
+            }
+            .line-item-description::before {
+                content: 'Description: ';
+                font-weight: bold;
+            }
+            .line-item-quantity::before {
+                content: 'Quantity: ';
+                font-weight: bold;
+            }
+            .line-item-weight::before {
+                content: 'Weight: ';
+                font-weight: bold;
+            }
+        }
+        .loading-indicator {
+            text-align: center;
+            padding: 2rem;
+            color: #0056b3;
+        }
+        .loading-indicator p {
+            margin: 0.5rem 0 0 0;
+            font-size: 1rem;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0056b3;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            padding: 1rem;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            color: #721c24;
+            text-align: center;
+        }
+        .weight-summary {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #e7f3ff;
+            border-radius: 4px;
+            border: 1px solid #b3d9ff;
+        }
+        .weight-summary h3 {
+            margin-top: 0;
+            color: #0056b3;
+        }
+        .weight-detail {
+            margin: 0.5rem 0;
+        }
+        .estimated-weight-highlight {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #0056b3;
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background-color: white;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .shipping-options {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f0f8e7;
+            border-radius: 4px;
+            border: 1px solid #c8e6c9;
+        }
+        .shipping-options h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .estimated-cost-highlight {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1b5e20;
+            margin: 0.5rem 0;
+            padding: 0.75rem;
+            background-color: white;
+            border-radius: 4px;
+            text-align: center;
+            border: 2px solid #2e7d32;
+        }
+        .shipping-option {
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #c8e6c9;
+        }
+        .shipping-option-name {
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .shipping-option-price {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1b5e20;
+            margin-top: 0.25rem;
+        }
+        .address-form {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #fff3cd;
+            border-radius: 4px;
+            border: 1px solid #ffc107;
+        }
+        .address-form h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        @media (max-width: 600px) {
+            body {
+                margin: 0.5rem;
+                padding: 0.5rem;
+            }
+            .container {
+                padding: 0.8rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>
+        <h1>Shipping Planner</h1>
+        <p id="description">Select inventory items and calculate shipping costs for local or freight shipping.</p>
+        <p id="status" class="loading" aria-live="polite">Loading...</p>
+        
+        <div id="mainContent" style="display: none;">
+            <!-- Member Selection -->
+            <div class="form-row">
+                <label for="managerSelect">Select Member/Manager:</label>
+                <div style="position: relative;">
+                    <input type="text" id="managerSearchInput" placeholder="Type to search managers..." autocomplete="off" style="width: 100%; padding: 0.6rem; font-size: 1rem; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; outline: none;">
+                    <div id="managerAutocompleteList" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; border-radius: 0 0 4px 4px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+                </div>
+                <select id="managerSelect" style="display: none;">
+                    <option value="">Loading managers...</option>
+                </select>
+            </div>
+            
+            <!-- Inventory List -->
+            <div id="inventorySection" style="display: none;">
+                <div class="form-row">
+                    <label>Select Inventory Items:</label>
+                    <div class="inventory-list" id="inventoryList">
+                        <p>Select a member first to load inventory.</p>
+                    </div>
+                </div>
+                
+                <!-- Shipping Manifest / Line Items -->
+                <div id="shippingManifest" class="shipping-manifest" style="display: none;">
+                    <h3>📋 Shipping Manifest</h3>
+                    <div id="lineItemsList"></div>
+                    <div id="manifestTotal" class="manifest-total"></div>
+                </div>
+                
+                <!-- Shipping Type -->
+                <div class="form-row">
+                    <label for="shippingType">Shipping Type:</label>
+                    <select id="shippingType">
+                        <option value="local">Local Shipping (USPS via EasyPost)</option>
+                        <option value="freight" selected>Freight</option>
+                    </select>
+                    <small style="color: #666; font-size: 0.85rem; margin-top: 0.25rem; display: block;">
+                        Local shipping uses Box packaging. Freight uses Pallet packaging.
+                    </small>
+                </div>
+                
+                <!-- Packaging Type (auto-set, disabled) -->
+                <div class="form-row">
+                    <label for="packagingType">Packaging Type:</label>
+                    <select id="packagingType" disabled>
+                        <option value="box">Box</option>
+                        <option value="pallet">Pallet</option>
+                    </select>
+                    <small style="color: #666; font-size: 0.85rem; margin-top: 0.25rem; display: block;">
+                        Automatically set based on shipping type
+                    </small>
+                </div>
+                
+                <!-- Destination Address (for local shipping) -->
+                <div id="destinationAddressSection" class="address-form" style="display: none;">
+                    <h3>Destination Address (for local shipping)</h3>
+                    <div class="form-row">
+                        <label for="destStreet1">Street Address:</label>
+                        <input type="text" id="destStreet1" placeholder="123 Main St">
+                    </div>
+                    <div class="form-row">
+                        <label for="destCity">City:</label>
+                        <input type="text" id="destCity" placeholder="San Francisco">
+                    </div>
+                    <div class="form-row">
+                        <label for="destState">State:</label>
+                        <input type="text" id="destState" placeholder="CA" maxlength="2">
+                    </div>
+                    <div class="form-row">
+                        <label for="destZip">ZIP Code:</label>
+                        <input type="text" id="destZip" placeholder="94117">
+                    </div>
+                    <div class="form-row">
+                        <label for="destCountry">Country:</label>
+                        <input type="text" id="destCountry" placeholder="US" value="US">
+                    </div>
+                </div>
+                
+                <!-- Calculate Button -->
+                <button id="calculateBtn" onclick="calculateShipping()" disabled style="margin-top: 1rem; width: 100%; padding: 0.75rem; font-size: 1rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Calculate Shipping Cost</button>
+                
+                <!-- Weight Summary - Shows as items are selected -->
+                <div id="weightSummary" class="weight-summary" style="display: none;">
+                    <h3>📦 Estimated Shipping Weight</h3>
+                    <div id="weightDetails"></div>
+                </div>
+                
+                <!-- Shipping Options / Cost -->
+                <div id="shippingOptions" class="shipping-options" style="display: none;">
+                    <h3>Shipping Cost Estimate</h3>
+                    <div id="shippingOptionsList"></div>
+                    <button id="savePdfBtn" onclick="saveAsPDF()" style="margin-top: 1rem; background-color: #28a745;">💾 Save Shipping Manifest as PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- jsPDF library for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script>
+        // Configuration - Google Apps Script deployment URL
+        const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz5Tt_vz1X26i82yqlGUSI_OtCUEO31jImZH2tXfNaxMbfmJ01dkwUIEZDjsnd10xMbcg/exec';
+        
+        // Store current shipping data for PDF export
+        let currentShippingData = null;
+        
+        let managersList = [];
+        let inventoryList = [];
+        let selectedItems = [];
+        
+        // Format number with thousand separators
+        function formatNumber(num, decimals) {
+            if (decimals === undefined) decimals = 2;
+            return parseFloat(num).toLocaleString('en-US', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+        
+        // Load image from URL and convert to data URL for PDF
+        function loadImageAsDataUrl(url) {
+            return new Promise(function(resolve, reject) {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                img.onload = function() {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        const dataUrl = canvas.toDataURL('image/png');
+                        resolve(dataUrl);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                
+                img.onerror = function() {
+                    reject(new Error('Failed to load image from URL'));
+                };
+                
+                img.src = url;
+            });
+        }
+        
+        // Initialize
+        window.addEventListener('DOMContentLoaded', function() {
+            loadManagers();
+            document.getElementById('shippingType').addEventListener('change', onShippingTypeChange);
+            // Packaging type is auto-set, but we still update when it changes programmatically
+            document.getElementById('packagingType').addEventListener('change', function() {
+                updateShippingManifest();
+                updateWeightSummary();
+            });
+            // Set up manager search input
+            const managerSearchInput = document.getElementById('managerSearchInput');
+            const managerAutocompleteList = document.getElementById('managerAutocompleteList');
+            
+            if (managerSearchInput) {
+                managerSearchInput.addEventListener('input', updateManagerAutocomplete);
+                managerSearchInput.addEventListener('focus', function() {
+                    if (managersList.length > 0) {
+                        updateManagerAutocomplete();
+                    }
+                });
+                
+                // Hide autocomplete when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (managerSearchInput && managerAutocompleteList && 
+                        !managerSearchInput.contains(e.target) && 
+                        !managerAutocompleteList.contains(e.target)) {
+                        managerAutocompleteList.style.display = 'none';
+                    }
+                });
+                
+                // Handle keyboard navigation
+                managerSearchInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const firstItem = managerAutocompleteList.querySelector('div[style*="cursor: pointer"]');
+                        if (firstItem) {
+                            firstItem.click();
+                        }
+                    } else if (e.key === 'Escape') {
+                        if (managerAutocompleteList) {
+                            managerAutocompleteList.style.display = 'none';
+                        }
+                    }
+                });
+            }
+            
+            // Keep the select for compatibility
+            document.getElementById('managerSelect').addEventListener('change', onManagerChange);
+            
+            // Set initial packaging type based on default shipping type
+            onShippingTypeChange();
+            
+            // Initialize calculate button state
+            updateCalculateButton();
+            
+            // Initialize Google Places autocomplete for destination address
+            initAddressAutocomplete();
+        });
+        
+        // Initialize Google Places autocomplete for destination address
+        function initAddressAutocomplete() {
+            const streetInput = document.getElementById('destStreet1');
+            if (!streetInput) return;
+            
+            // Wait for Google Maps to be ready
+            function tryInitAutocomplete() {
+                if (window.__tsdGoogleMaps && window.__tsdGoogleMaps.ready && window.google && window.google.maps && window.google.maps.places) {
+                    try {
+                        const autocomplete = new google.maps.places.Autocomplete(streetInput, {
+                            types: ['address'],
+                            fields: ['address_components', 'formatted_address', 'geometry']
+                        });
+                        
+                        autocomplete.addListener('place_changed', function() {
+                            const place = autocomplete.getPlace();
+                            if (!place.address_components) return;
+                            
+                            // Parse address components
+                            let streetNumber = '';
+                            let route = '';
+                            let city = '';
+                            let state = '';
+                            let zip = '';
+                            
+                            place.address_components.forEach(function(component) {
+                                const types = component.types;
+                                
+                                if (types.includes('street_number')) {
+                                    streetNumber = component.long_name;
+                                }
+                                if (types.includes('route')) {
+                                    route = component.long_name;
+                                }
+                                if (types.includes('locality')) {
+                                    city = component.long_name;
+                                }
+                                if (types.includes('administrative_area_level_1')) {
+                                    state = component.short_name;
+                                }
+                                if (types.includes('postal_code')) {
+                                    zip = component.long_name;
+                                }
+                            });
+                            
+                            // Fill in the form fields
+                            document.getElementById('destStreet1').value = (streetNumber + ' ' + route).trim() || place.formatted_address;
+                            if (city) document.getElementById('destCity').value = city;
+                            if (state) document.getElementById('destState').value = state;
+                            if (zip) document.getElementById('destZip').value = zip;
+                            
+                            // Update calculate button state
+                            updateCalculateButton();
+                        });
+                    } catch (error) {
+                        console.log('Google Places autocomplete initialization failed:', error);
+                    }
+                } else if (window.__tsdGoogleMaps && !window.__tsdGoogleMaps.error) {
+                    // Google Maps not ready yet, try again
+                    setTimeout(tryInitAutocomplete, 100);
+                }
+            }
+            
+            // Register callback or try immediately
+            if (window.__tsdGoogleMaps) {
+                if (window.__tsdGoogleMaps.ready) {
+                    tryInitAutocomplete();
+                } else {
+                    window.__tsdGoogleMaps.callbacks.push(tryInitAutocomplete);
+                }
+            } else {
+                setTimeout(tryInitAutocomplete, 500);
+            }
+        }
+        
+        // Load managers
+        async function loadManagers() {
+            try {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = 'Loading managers...';
+                statusEl.className = 'loading';
+                
+                const url = API_BASE_URL + '?action=list_managers';
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.data.managers) {
+                    managersList = data.data.managers;
+                    populateManagerSelect();
+                    statusEl.textContent = 'Ready';
+                    statusEl.className = 'status';
+                    document.getElementById('mainContent').style.display = 'block';
+                } else {
+                    throw new Error(data.message || 'Failed to load managers');
+                }
+            } catch (error) {
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+                document.getElementById('status').className = 'error';
+            }
+        }
+        
+        // Populate manager select and autocomplete
+        function populateManagerSelect() {
+            const select = document.getElementById('managerSelect');
+            const searchInput = document.getElementById('managerSearchInput');
+            const autocompleteList = document.getElementById('managerAutocompleteList');
+            
+            // Keep the select for compatibility, but hide it
+            select.innerHTML = '<option value="">Select a member...</option>';
+            managersList.forEach(function(manager) {
+                const option = document.createElement('option');
+                option.value = manager.key;
+                option.textContent = manager.name;
+                select.appendChild(option);
+            });
+            
+            // Update autocomplete list
+            updateManagerAutocomplete();
+        }
+        
+        // Update manager autocomplete list based on search input
+        function updateManagerAutocomplete() {
+            const searchInput = document.getElementById('managerSearchInput');
+            const autocompleteList = document.getElementById('managerAutocompleteList');
+            
+            if (!searchInput || !autocompleteList) {
+                return;
+            }
+            
+            const filterText = searchInput.value ? searchInput.value.toLowerCase() : '';
+            
+            // Filter managers based on search text
+            const filteredManagers = managersList && managersList.length > 0
+                ? managersList.filter(function(m) {
+                    return m.name && m.name.toLowerCase().includes(filterText);
+                })
+                : [];
+            
+            // Clear previous list
+            autocompleteList.innerHTML = '';
+            
+            // Show all managers if no filter, otherwise show filtered results
+            const managersToShow = filterText ? filteredManagers : managersList;
+            
+            if (managersToShow.length === 0) {
+                const item = document.createElement('div');
+                item.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                item.textContent = 'No managers found';
+                autocompleteList.appendChild(item);
+                autocompleteList.style.display = 'block';
+            } else if (managersToShow.length > 0) {
+                managersToShow.forEach(function(m) {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                    item.textContent = m.name;
+                    item.addEventListener('mouseenter', function() {
+                        item.style.backgroundColor = '#f0f0f0';
+                    });
+                    item.addEventListener('mouseleave', function() {
+                        item.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', function() {
+                        searchInput.value = m.name;
+                        autocompleteList.style.display = 'none';
+                        // Trigger manager change
+                        document.getElementById('managerSelect').value = m.key;
+                        onManagerChange();
+                    });
+                    autocompleteList.appendChild(item);
+                });
+                autocompleteList.style.display = 'block';
+            }
+        }
+        
+        // Handle manager change
+        async function onManagerChange() {
+            const managerKey = document.getElementById('managerSelect').value;
+            const managerSearchInput = document.getElementById('managerSearchInput');
+            const managerAutocompleteList = document.getElementById('managerAutocompleteList');
+            const inventorySection = document.getElementById('inventorySection');
+            const inventoryListContainer = document.getElementById('inventoryList');
+            
+            // Update search input to show selected manager name
+            if (managerKey && managerSearchInput) {
+                const selectedManager = managersList.find(function(m) { return m.key === managerKey; });
+                if (selectedManager) {
+                    managerSearchInput.value = selectedManager.name;
+                }
+            }
+            
+            // Hide autocomplete
+            if (managerAutocompleteList) {
+                managerAutocompleteList.style.display = 'none';
+            }
+            
+            if (!managerKey) {
+                inventorySection.style.display = 'none';
+                return;
+            }
+            
+            // Show inventory section with loading indicator
+            inventorySection.style.display = 'block';
+            inventoryListContainer.innerHTML = '<div class="loading-indicator"><div class="spinner"></div><p>Loading inventory from all ledgers...</p></div>';
+            
+            // Clear previous selections
+            selectedItems = [];
+            updateShippingManifest();
+            updateWeightSummary();
+            updateCalculateButton();
+            
+            try {
+                document.getElementById('status').textContent = 'Loading inventory...';
+                document.getElementById('status').className = 'loading';
+                
+                const url = API_BASE_URL + '?action=get_inventory&manager=' + encodeURIComponent(managerKey);
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.data.inventory) {
+                    inventoryList = data.data.inventory;
+                    populateInventoryList();
+                    document.getElementById('status').textContent = 'Ready';
+                    document.getElementById('status').className = 'status';
+                } else {
+                    throw new Error(data.message || 'Failed to load inventory');
+                }
+            } catch (error) {
+                inventoryListContainer.innerHTML = '<div class="error-message">❌ Error loading inventory: ' + error.message + '</div>';
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+                document.getElementById('status').className = 'error';
+            }
+        }
+        
+        // Populate inventory list
+        function populateInventoryList() {
+            const container = document.getElementById('inventoryList');
+            container.innerHTML = '';
+            
+            if (inventoryList.length === 0) {
+                container.innerHTML = '<p>No inventory found for this member.</p>';
+                return;
+            }
+            
+            // Sort inventory: items with weight first, items without weight after
+            // First, add original index to each item
+            const inventoryWithIndex = inventoryList.map(function(item, index) {
+                return { ...item, _originalIndex: index };
+            });
+            
+            const sortedInventory = inventoryWithIndex.sort(function(a, b) {
+                // Items with weight come first (return -1), items without weight come after (return 1)
+                if (a.has_weight && !b.has_weight) return -1;
+                if (!a.has_weight && b.has_weight) return 1;
+                return 0; // Keep original order for items with same weight status
+            });
+            
+            sortedInventory.forEach(function(item) {
+                // Use the original index from the unsorted array for checkbox value
+                const index = item._originalIndex;
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'inventory-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = 'item_' + index;
+                checkbox.value = index;
+                checkbox.addEventListener('change', onItemSelectionChange);
+                
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'inventory-item-info';
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'inventory-item-name';
+                // Show ledger name in the item name for better visibility
+                nameDiv.innerHTML = item.currency + ' <span style="color: #007bff; font-size: 0.85em; font-weight: normal;">[' + item.ledger_name + ']</span>';
+                
+                const detailsDiv = document.createElement('div');
+                if (item.has_weight && item.weight_grams > 0) {
+                    detailsDiv.className = 'inventory-item-details';
+                    detailsDiv.textContent = 'Available: ' + item.amount + ' | Weight: ' + formatNumber(item.weight_grams, 2) + 'g per unit';
+                } else {
+                    detailsDiv.className = 'inventory-item-no-weight';
+                    detailsDiv.textContent = '⚠️ Available: ' + item.amount + ' | Weight: NOT AVAILABLE - Cannot be included in shipping';
+                    checkbox.disabled = true;
+                    checkbox.title = 'This item has no weight data and cannot be included in shipping calculations';
+                }
+                
+                infoDiv.appendChild(nameDiv);
+                infoDiv.appendChild(detailsDiv);
+                
+                const quantityInput = document.createElement('input');
+                quantityInput.type = 'number';
+                quantityInput.className = 'inventory-item-quantity';
+                quantityInput.min = '1';
+                quantityInput.max = item.amount;
+                quantityInput.value = item.amount; // Default to available stock
+                quantityInput.disabled = !item.has_weight; // Disable if no weight
+                quantityInput.addEventListener('change', onItemSelectionChange);
+                
+                itemDiv.appendChild(checkbox);
+                itemDiv.appendChild(infoDiv);
+                itemDiv.appendChild(quantityInput);
+                container.appendChild(itemDiv);
+            });
+        }
+        
+        // Handle item selection change
+        function onItemSelectionChange() {
+            selectedItems = [];
+            const checkboxes = document.querySelectorAll('#inventoryList input[type="checkbox"]');
+            const itemsWithoutWeight = [];
+            
+            checkboxes.forEach(function(checkbox) {
+                if (checkbox.checked) {
+                    const index = parseInt(checkbox.value);
+                    const item = inventoryList[index];
+                    const quantityInput = checkbox.parentElement.querySelector('input[type="number"]');
+                    const quantity = parseInt(quantityInput.value) || 1;
+                    
+                    // Check if item has weight data
+                    if (item.has_weight && item.weight_grams > 0) {
+                        selectedItems.push({
+                            currency: item.currency,
+                            quantity: quantity,
+                            weight_grams: item.weight_grams,
+                            ledger_name: item.ledger_name
+                        });
+                    } else {
+                        // Item without weight - show warning
+                        itemsWithoutWeight.push(item.currency);
+                        // Uncheck the checkbox
+                        checkbox.checked = false;
+                        // Show alert
+                        alert('Warning: "' + item.currency + '" has no weight data (Column K or L missing). This item cannot be included in shipping calculations.');
+                    }
+                }
+            });
+            
+            // Show warning if any items without weight were attempted to be selected
+            if (itemsWithoutWeight.length > 0) {
+                showNoWeightWarning(itemsWithoutWeight);
+            } else {
+                hideNoWeightWarning();
+            }
+            
+            updateShippingManifest();
+            updateWeightSummary();
+            updateCalculateButton();
+        }
+        
+        // Show warning for items without weight
+        function showNoWeightWarning(items) {
+            let warningDiv = document.getElementById('noWeightWarning');
+            if (!warningDiv) {
+                warningDiv = document.createElement('div');
+                warningDiv.id = 'noWeightWarning';
+                warningDiv.className = 'warning-box';
+                const inventorySection = document.getElementById('inventorySection');
+                inventorySection.insertBefore(warningDiv, inventorySection.querySelector('.form-row:last-of-type'));
+            }
+            warningDiv.innerHTML = 
+                '<h4>⚠️ Warning: Items Without Weight Data</h4>' +
+                '<p>The following items cannot be included because they have no weight data in Column K (grams) or Column L (ounces):</p>' +
+                '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">' +
+                items.map(function(item) { return '<li>' + item + '</li>'; }).join('') +
+                '</ul>' +
+                '<p style="margin-bottom: 0;"><strong>Please add weight data to the Currencies sheet before including these items.</strong></p>';
+            warningDiv.style.display = 'block';
+        }
+        
+        // Hide warning
+        function hideNoWeightWarning() {
+            const warningDiv = document.getElementById('noWeightWarning');
+            if (warningDiv) {
+                warningDiv.style.display = 'none';
+            }
+        }
+        
+        // Update shipping manifest / line items
+        function updateShippingManifest() {
+            const manifestDiv = document.getElementById('shippingManifest');
+            const listDiv = document.getElementById('lineItemsList');
+            const totalDiv = document.getElementById('manifestTotal');
+            
+            if (selectedItems.length === 0) {
+                manifestDiv.style.display = 'none';
+                return;
+            }
+            
+            manifestDiv.style.display = 'block';
+            listDiv.innerHTML = '';
+            
+            const packagingType = document.getElementById('packagingType').value;
+            const useKilograms = packagingType === 'pallet'; // Use kg for pallet, g for box
+            
+            // Add header row
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'line-item line-item-header';
+            if (useKilograms) {
+                headerDiv.innerHTML = 
+                    '<div>Description</div>' +
+                    '<div style="text-align: center;">Quantity</div>' +
+                    '<div style="text-align: right;">Unit Weight (kg)</div>' +
+                    '<div style="text-align: right;">Total Weight (kg)</div>';
+            } else {
+                headerDiv.innerHTML = 
+                    '<div>Description</div>' +
+                    '<div style="text-align: center;">Quantity</div>' +
+                    '<div style="text-align: right;">Unit Weight (g)</div>' +
+                    '<div style="text-align: right;">Total Weight (g)</div>';
+            }
+            listDiv.appendChild(headerDiv);
+            
+            // Calculate totals
+            let totalProductWeightGrams = 0;
+            let totalQuantity = 0;
+            
+            // Add line items for each selected item
+            selectedItems.forEach(function(item) {
+                const itemWeightGrams = item.weight_grams * item.quantity;
+                totalProductWeightGrams += itemWeightGrams;
+                totalQuantity += item.quantity;
+                
+                const lineItemDiv = document.createElement('div');
+                lineItemDiv.className = 'line-item';
+                
+                if (useKilograms) {
+                    const unitWeightKg = item.weight_grams / 1000;
+                    const totalWeightKg = itemWeightGrams / 1000;
+                    lineItemDiv.innerHTML = 
+                        '<div class="line-item-description">' + item.currency + '</div>' +
+                        '<div class="line-item-quantity">' + item.quantity + '</div>' +
+                        '<div class="line-item-weight">' + formatNumber(unitWeightKg, 3) + ' kg</div>' +
+                        '<div class="line-item-weight">' + formatNumber(totalWeightKg, 3) + ' kg</div>';
+                } else {
+                    lineItemDiv.innerHTML = 
+                        '<div class="line-item-description">' + item.currency + '</div>' +
+                        '<div class="line-item-quantity">' + item.quantity + '</div>' +
+                        '<div class="line-item-weight">' + formatNumber(item.weight_grams, 2) + 'g</div>' +
+                        '<div class="line-item-weight">' + formatNumber(itemWeightGrams, 2) + 'g</div>';
+                }
+                listDiv.appendChild(lineItemDiv);
+            });
+            
+            // Add packaging as a line item
+            let packagingWeightGrams = 0;
+            let packagingDescription = '';
+            
+            if (packagingType === 'box') {
+                // Box: 11.5 oz only (no per-item packaging)
+                const baseBoxOz = 11.5;
+                packagingWeightGrams = baseBoxOz / 0.035274;
+                packagingDescription = 'Packaging - Box (11.5 oz)';
+            } else if (packagingType === 'pallet') {
+                packagingWeightGrams = 35 * 1000;
+                packagingDescription = 'Packaging - Pallet (35 kg)';
+            }
+            
+            if (packagingWeightGrams > 0) {
+                const packagingDiv = document.createElement('div');
+                packagingDiv.className = 'line-item';
+                packagingDiv.style.backgroundColor = '#fff3cd';
+                
+                if (useKilograms) {
+                    const packagingWeightKg = packagingWeightGrams / 1000;
+                    packagingDiv.innerHTML = 
+                        '<div class="line-item-description">' + packagingDescription + '</div>' +
+                        '<div class="line-item-quantity">1</div>' +
+                        '<div class="line-item-weight">' + formatNumber(packagingWeightKg, 3) + ' kg</div>' +
+                        '<div class="line-item-weight">' + formatNumber(packagingWeightKg, 3) + ' kg</div>';
+                } else {
+                    packagingDiv.innerHTML = 
+                        '<div class="line-item-description">' + packagingDescription + '</div>' +
+                        '<div class="line-item-quantity">1</div>' +
+                        '<div class="line-item-weight">' + formatNumber(packagingWeightGrams, 2) + 'g</div>' +
+                        '<div class="line-item-weight">' + formatNumber(packagingWeightGrams, 2) + 'g</div>';
+                }
+                listDiv.appendChild(packagingDiv);
+            }
+            
+            // Calculate and display total
+            const totalWeightGrams = totalProductWeightGrams + packagingWeightGrams;
+            const totalWeightKg = totalWeightGrams / 1000;
+            const totalWeightOz = totalWeightGrams * 0.035274;
+            
+            if (useKilograms) {
+                totalDiv.innerHTML = 
+                    '<div style="font-size: 1.1rem;">Total Items: ' + totalQuantity + '</div>' +
+                    '<div style="font-size: 1.2rem; margin-top: 0.5rem;">Total Weight: ' + formatNumber(totalWeightKg, 3) + ' kg</div>';
+            } else {
+                totalDiv.innerHTML = 
+                    '<div style="font-size: 1.1rem;">Total Items: ' + totalQuantity + '</div>' +
+                    '<div style="font-size: 1.2rem; margin-top: 0.5rem;">Total Weight: ' + formatNumber(totalWeightGrams, 2) + 'g (' + formatNumber(totalWeightKg, 3) + ' kg / ' + formatNumber(totalWeightOz, 2) + ' oz)</div>';
+            }
+        }
+        
+        // Update weight summary - called whenever items or packaging type changes
+        function updateWeightSummary() {
+            // Always show weight summary if items are selected, even if empty initially
+            const weightSummaryDiv = document.getElementById('weightSummary');
+            
+            if (selectedItems.length === 0) {
+                weightSummaryDiv.style.display = 'none';
+                return;
+            }
+            
+            const packagingType = document.getElementById('packagingType').value;
+            
+            // Calculate product weight
+            let productWeightGrams = 0;
+            let totalQuantity = 0;
+            
+            selectedItems.forEach(function(item) {
+                productWeightGrams += item.weight_grams * item.quantity;
+                totalQuantity += item.quantity;
+            });
+            
+            // Calculate packaging weight
+            let packagingWeightGrams = 0;
+            if (packagingType === 'box') {
+                // Box: 11.5 oz only (no per-item packaging)
+                const baseBoxOz = 11.5;
+                packagingWeightGrams = baseBoxOz / 0.035274; // Convert oz to grams
+            } else if (packagingType === 'pallet') {
+                // Pallet: 35 kg
+                packagingWeightGrams = 35 * 1000;
+            }
+            
+            const totalWeightGrams = productWeightGrams + packagingWeightGrams;
+            const totalWeightOz = totalWeightGrams * 0.035274;
+            const totalWeightKg = totalWeightGrams / 1000;
+            
+            const detailsDiv = document.getElementById('weightDetails');
+            detailsDiv.innerHTML = 
+                '<div class="estimated-weight-highlight">📦 Estimated Total Weight: ' + formatNumber(totalWeightKg, 2) + ' kg (' + formatNumber(totalWeightOz, 2) + ' oz)</div>' +
+                '<div class="weight-detail"><strong>Product Weight:</strong> ' + formatNumber(productWeightGrams, 2) + 'g (' + formatNumber(productWeightGrams / 1000, 2) + ' kg)</div>' +
+                '<div class="weight-detail"><strong>Packaging Weight:</strong> ' + formatNumber(packagingWeightGrams, 2) + 'g (' + formatNumber(packagingWeightGrams / 1000, 2) + ' kg)</div>' +
+                '<div class="weight-detail"><strong>Total Weight:</strong> ' + formatNumber(totalWeightGrams, 2) + 'g (' + formatNumber(totalWeightKg, 2) + ' kg / ' + formatNumber(totalWeightOz, 2) + ' oz)</div>';
+            
+            // Always show when items are selected
+            weightSummaryDiv.style.display = 'block';
+        }
+        
+        // Handle shipping type change
+        function onShippingTypeChange() {
+            const shippingType = document.getElementById('shippingType').value;
+            const packagingTypeSelect = document.getElementById('packagingType');
+            const addressSection = document.getElementById('destinationAddressSection');
+            
+            // Automatically set packaging type based on shipping type
+            if (shippingType === 'local') {
+                packagingTypeSelect.value = 'box';
+                addressSection.style.display = 'block';
+                
+                // Show origin address information
+                let originInfo = document.getElementById('originAddressInfo');
+                if (!originInfo) {
+                    originInfo = document.createElement('div');
+                    originInfo.id = 'originAddressInfo';
+                    originInfo.className = 'origin-address-info';
+                    originInfo.style.marginTop = '0.5rem';
+                    originInfo.style.padding = '0.75rem';
+                    originInfo.style.backgroundColor = '#e7f3ff';
+                    originInfo.style.borderRadius = '4px';
+                    originInfo.style.border = '1px solid #b3d9ff';
+                    originInfo.style.fontSize = '0.9rem';
+                    originInfo.style.color = '#0056b3';
+                    const shippingTypeRow = document.getElementById('shippingType').closest('.form-row');
+                    shippingTypeRow.appendChild(originInfo);
+                }
+                originInfo.innerHTML = '<strong>📦 Shipping From:</strong> 1423 Hayes St, San Francisco, CA 94117, US';
+                originInfo.style.display = 'block';
+            } else if (shippingType === 'freight') {
+                packagingTypeSelect.value = 'pallet';
+                addressSection.style.display = 'none';
+                
+                // Hide origin address info for freight
+                const originInfo = document.getElementById('originAddressInfo');
+                if (originInfo) {
+                    originInfo.style.display = 'none';
+                }
+            }
+            
+            // Disable packaging type selection (auto-set based on shipping type)
+            packagingTypeSelect.disabled = true;
+            
+            // Clear previous results
+            document.getElementById('shippingOptions').style.display = 'none';
+            
+            // Update manifest and weight summary if items are selected
+            if (selectedItems.length > 0) {
+                updateShippingManifest();
+                updateWeightSummary();
+            }
+            
+            // Always update calculate button state
+            updateCalculateButton();
+        }
+        
+        // Update calculate button state
+        function updateCalculateButton() {
+            const btn = document.getElementById('calculateBtn');
+            const shippingType = document.getElementById('shippingType').value;
+            
+            let canCalculate = selectedItems.length > 0;
+            
+            if (shippingType === 'local') {
+                // Check if destination address is filled
+                const street1 = document.getElementById('destStreet1').value.trim();
+                const city = document.getElementById('destCity').value.trim();
+                const state = document.getElementById('destState').value.trim();
+                const zip = document.getElementById('destZip').value.trim();
+                canCalculate = canCalculate && street1 && city && state && zip;
+            }
+            
+            btn.disabled = !canCalculate;
+        }
+        
+        // Add event listeners for address fields
+        ['destStreet1', 'destCity', 'destState', 'destZip', 'destCountry'].forEach(function(id) {
+            document.getElementById(id).addEventListener('input', updateCalculateButton);
+        });
+        
+        // Calculate shipping
+        async function calculateShipping() {
+            const btn = document.getElementById('calculateBtn');
+            btn.disabled = true;
+            btn.textContent = 'Calculating...';
+            
+            try {
+                const shippingType = document.getElementById('shippingType').value;
+                const packagingType = document.getElementById('packagingType').value;
+                
+                let destinationAddress = null;
+                if (shippingType === 'local') {
+                    destinationAddress = {
+                        street1: document.getElementById('destStreet1').value.trim(),
+                        city: document.getElementById('destCity').value.trim(),
+                        state: document.getElementById('destState').value.trim(),
+                        zip: document.getElementById('destZip').value.trim(),
+                        country: document.getElementById('destCountry').value.trim() || 'US'
+                    };
+                }
+                
+                // Build URL with parameters for GET request (avoids CORS issues)
+                const params = new URLSearchParams();
+                params.append('action', 'calculate_shipping');
+                params.append('selected_items', JSON.stringify(selectedItems));
+                params.append('packaging_type', packagingType);
+                params.append('shipping_type', shippingType);
+                
+                if (destinationAddress) {
+                    params.append('destination_address', JSON.stringify(destinationAddress));
+                }
+                
+                // For freight, add optional parameters (using defaults for now)
+                // These can be added as UI inputs later if needed
+                // params.append('cargo_value_usd', cargoValueUsd);
+                // params.append('fda_required', fdaRequired);
+                // params.append('bond_required', bondRequired);
+                // params.append('invoice_lines', invoiceLines);
+                // params.append('customs_exams', customsExams);
+                // params.append('duty_percent', dutyPercent);
+                
+                const url = API_BASE_URL + '?' + params.toString();
+                const response = await fetch(url);
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    displayShippingResults(data.data);
+                } else {
+                    throw new Error(data.message || 'Failed to calculate shipping');
+                }
+            } catch (error) {
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+                document.getElementById('status').className = 'error';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Calculate Shipping Cost';
+            }
+        }
+        
+        // Display shipping results
+        function displayShippingResults(data) {
+            // Save shipping data for PDF export
+            currentShippingData = data;
+            
+            const optionsDiv = document.getElementById('shippingOptions');
+            const listDiv = document.getElementById('shippingOptionsList');
+            
+            listDiv.innerHTML = '';
+            
+            // Get total weight in kg for cost per kg calculation
+            const totalWeightKg = data.weight_info ? data.weight_info.total_weight_kg : 0;
+            
+            let bestCost = null;
+            let bestOption = null;
+            
+            if (data.shipping_type === 'local' && data.shipping_options && data.shipping_options.length > 0) {
+                // Find the cheapest option
+                data.shipping_options.forEach(function(option) {
+                    if (bestCost === null || option.rate < bestCost) {
+                        bestCost = option.rate;
+                        bestOption = option;
+                    }
+                });
+                
+                // Calculate cost per kg
+                const costPerKg = totalWeightKg > 0 ? bestCost / totalWeightKg : 0;
+                
+                // Show highlighted best/cheapest option first
+                if (bestOption) {
+                    const highlightDiv = document.createElement('div');
+                    highlightDiv.className = 'estimated-cost-highlight';
+                    highlightDiv.innerHTML = 
+                        '💰 Estimated Shipping Cost: $' + formatNumber(bestCost, 2) + '<br>' +
+                        '<span style="font-size: 0.9rem; font-weight: normal;">(' + bestOption.service + ' - ' + bestOption.carrier + ')</span><br>' +
+                        '<span style="font-size: 1.1rem; font-weight: bold; margin-top: 0.5rem; display: block; color: #1b5e20;">📊 Cost per Kilogram: $' + formatNumber(costPerKg, 2) + '/kg</span>';
+                    listDiv.appendChild(highlightDiv);
+                }
+                
+                // Show all options
+                data.shipping_options.forEach(function(option) {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'shipping-option';
+                    const optionCostPerKg = totalWeightKg > 0 ? option.rate / totalWeightKg : 0;
+                    optionDiv.innerHTML = 
+                        '<div class="shipping-option-name">' + option.service + ' - ' + option.carrier + '</div>' +
+                        '<div class="shipping-option-price">$' + formatNumber(option.rate, 2) + '</div>' +
+                        '<div style="font-size: 0.85rem; color: #666; margin-top: 0.25rem;">$' + formatNumber(optionCostPerKg, 2) + '/kg</div>';
+                    listDiv.appendChild(optionDiv);
+                });
+            } else if (data.shipping_type === 'freight' && data.freight_cost) {
+                const freight = data.freight_cost;
+                if (freight.estimated_cost_usd !== null) {
+                    // Calculate cost per kg
+                    const costPerKg = freight.weight_kg > 0 ? freight.estimated_cost_usd / freight.weight_kg : 0;
+                    
+                    // Show highlighted freight cost
+                    const highlightDiv = document.createElement('div');
+                    highlightDiv.className = 'estimated-cost-highlight';
+                    highlightDiv.innerHTML = 
+                        '💰 Estimated Freight Cost: $' + formatNumber(freight.estimated_cost_usd, 2) + '<br>' +
+                        '<span style="font-size: 0.9rem; font-weight: normal;">(Weight: ' + formatNumber(freight.weight_kg, 2) + ' kg)</span><br>' +
+                        '<span style="font-size: 1.1rem; font-weight: bold; margin-top: 0.5rem; display: block; color: #1b5e20;">📊 Cost per Kilogram: $' + formatNumber(costPerKg, 2) + '/kg</span>';
+                    listDiv.appendChild(highlightDiv);
+                    
+                    // Show freight line items if available
+                    if (freight.line_items && freight.line_items.length > 0) {
+                        const lineItemsDiv = document.createElement('div');
+                        lineItemsDiv.style.marginTop = '1rem';
+                        lineItemsDiv.style.padding = '0.5rem';
+                        lineItemsDiv.style.backgroundColor = 'white';
+                        lineItemsDiv.style.borderRadius = '4px';
+                        lineItemsDiv.innerHTML = '<div style="font-weight: bold; margin-bottom: 0.5rem; font-size: 0.9rem;">Cost Breakdown:</div>';
+                        
+                        freight.line_items.forEach(function(lineItem) {
+                            const itemDiv = document.createElement('div');
+                            itemDiv.style.display = 'flex';
+                            itemDiv.style.justifyContent = 'space-between';
+                            itemDiv.style.padding = '0.25rem 0';
+                            itemDiv.style.fontSize = '0.85rem';
+                            itemDiv.style.borderBottom = '1px solid #eee';
+                            itemDiv.innerHTML = 
+                                '<span>' + lineItem.description + (lineItem.note ? ' <span style="color: #888;">(' + lineItem.note + ')</span>' : '') + '</span>' +
+                                '<span style="font-weight: bold;">$' + lineItem.amount.toFixed(2) + '</span>';
+                            lineItemsDiv.appendChild(itemDiv);
+                        });
+                        
+                        listDiv.appendChild(lineItemsDiv);
+                    }
+                    
+                    // Show total
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'shipping-option';
+                    optionDiv.style.marginTop = '0.5rem';
+                    // costPerKg already calculated above
+                    optionDiv.innerHTML = 
+                        '<div class="shipping-option-name">Total Freight Cost</div>' +
+                        '<div class="shipping-option-price">$' + formatNumber(freight.estimated_cost_usd, 2) + '</div>' +
+                        '<div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">Weight: ' + formatNumber(freight.weight_kg, 2) + ' kg</div>' +
+                        '<div style="font-size: 0.9rem; color: #666; font-weight: bold;">Cost per kg: $' + formatNumber(costPerKg, 2) + '/kg</div>';
+                    if (freight.cargo_value_usd) {
+                        optionDiv.innerHTML += '<div style="font-size: 0.9rem; color: #666;">Cargo Value: $' + formatNumber(freight.cargo_value_usd, 2) + '</div>';
+                    }
+                    listDiv.appendChild(optionDiv);
+                } else {
+                    listDiv.innerHTML = '<p>Could not calculate freight cost. ' + (freight.error || freight.note || '') + '</p>';
+                }
+            } else {
+                listDiv.innerHTML = '<p>No shipping options available. Please check your configuration.</p>';
+            }
+            
+            optionsDiv.style.display = 'block';
+        }
+        
+        // Save shipping manifest as PDF
+        async function saveAsPDF() {
+            if (!currentShippingData || selectedItems.length === 0) {
+                alert('No shipping data available. Please calculate shipping cost first.');
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Get page width once for reuse
+            const pageWidth = doc.internal.pageSize.getWidth();
+            
+            // Get manager name
+            const managerName = document.getElementById('managerSelect').options[document.getElementById('managerSelect').selectedIndex].text;
+            const packagingType = document.getElementById('packagingType').value;
+            const shippingType = document.getElementById('shippingType').value;
+            const packagingTypeText = packagingType === 'box' ? 'Box' : 'Pallet';
+            const shippingTypeText = shippingType === 'local' ? 'Local Shipping (USPS)' : 'Freight';
+            
+            // Logo URL (using raw.githubusercontent.com for direct access)
+            const logoUrl = 'https://raw.githubusercontent.com/TrueSightDAO/.github/main/assets/20240612_truesight_dao_logo_square.png';
+            
+            // Add logo at the top
+            let yPos = 20;
+            
+            // Load and add logo image
+            const logoWidth = 50;
+            const logoHeight = 50;
+            const logoX = (pageWidth - logoWidth) / 2;
+            
+            // Load image and convert to data URL
+            try {
+                const imgData = await loadImageAsDataUrl(logoUrl);
+                if (imgData) {
+                    doc.addImage(imgData, 'PNG', logoX, yPos, logoWidth, logoHeight);
+                }
+            } catch (error) {
+                console.log('Logo could not be loaded:', error);
+            }
+            
+            yPos += logoHeight + 10;
+            
+            // Title (centered)
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            const titleWidth = doc.getTextWidth('Shipping Manifest');
+            doc.text('Shipping Manifest', (pageWidth - titleWidth) / 2, yPos);
+            yPos += 10;
+            
+            // Header information
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text('Manager: ' + managerName, 14, yPos);
+            yPos += 7;
+            doc.text('Packaging Type: ' + packagingTypeText, 14, yPos);
+            yPos += 7;
+            doc.text('Shipping Type: ' + shippingTypeText, 14, yPos);
+            yPos += 7;
+            doc.text('Date: ' + new Date().toLocaleDateString(), 14, yPos);
+            yPos += 7;
+            
+            // Add clickable URL link
+            const pageUrl = window.location.href;
+            doc.setTextColor(0, 0, 255); // Blue color for link
+            doc.setFont(undefined, 'underline');
+            const urlText = 'Generated from: ' + pageUrl;
+            const urlWidth = doc.getTextWidth(urlText);
+            const urlX = (pageWidth - urlWidth) / 2; // Center the URL
+            
+            // Add clickable link using jsPDF's link method
+            doc.text(urlText, urlX, yPos);
+            // Create clickable area for the link
+            doc.link(urlX, yPos - 4, urlWidth, 5, { url: pageUrl });
+            yPos += 7;
+            
+            // Reset text color and style
+            doc.setTextColor(0, 0, 0); // Black
+            doc.setFont(undefined, 'normal');
+            yPos += 3;
+            
+            // Line items table header
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('Line Items', 14, yPos);
+            yPos += 8;
+            
+            // Determine unit system based on packaging type
+            const useKilograms = packagingType === 'pallet';
+            
+            // Table headers
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('Description', 14, yPos);
+            doc.text('Qty', 100, yPos);
+            if (useKilograms) {
+                doc.text('Unit Wt (kg)', 120, yPos);
+                doc.text('Total Wt (kg)', 160, yPos);
+            } else {
+                doc.text('Unit Wt (g)', 120, yPos);
+                doc.text('Total Wt (g)', 160, yPos);
+                doc.text('Total Wt (kg)', 190, yPos);
+            }
+            yPos += 6;
+            
+            // Draw line
+            doc.setLineWidth(0.5);
+            doc.line(14, yPos - 2, 200, yPos - 2);
+            yPos += 3;
+            
+            // Line items
+            doc.setFont(undefined, 'normal');
+            let totalProductWeightGrams = 0;
+            let totalQuantity = 0;
+            
+            selectedItems.forEach(function(item) {
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                const itemWeightGrams = item.weight_grams * item.quantity;
+                totalProductWeightGrams += itemWeightGrams;
+                totalQuantity += item.quantity;
+                
+                // Build description with ledger name
+                let itemDescription = item.currency;
+                if (item.ledger_name) {
+                    itemDescription += ' [' + item.ledger_name + ']';
+                }
+                
+                // Split long descriptions across multiple lines if needed
+                const maxWidth = 85; // Maximum width for description column
+                const descriptionLines = doc.splitTextToSize(itemDescription, maxWidth);
+                const startYPos = yPos;
+                
+                // Draw description (may span multiple lines)
+                doc.text(descriptionLines, 14, startYPos);
+                
+                // Calculate height needed for description
+                const lineHeight = 5;
+                const descriptionHeight = descriptionLines.length * lineHeight;
+                
+                // Position quantity and weights on the first line
+                doc.text(item.quantity.toString(), 100, startYPos);
+                
+                if (useKilograms) {
+                    const unitWeightKg = item.weight_grams / 1000;
+                    const totalWeightKg = itemWeightGrams / 1000;
+                    doc.text(formatNumber(unitWeightKg, 3), 120, startYPos);
+                    doc.text(formatNumber(totalWeightKg, 3), 160, startYPos);
+                } else {
+                    doc.text(formatNumber(item.weight_grams, 2), 120, startYPos);
+                    doc.text(formatNumber(itemWeightGrams, 2), 160, startYPos);
+                    doc.text(formatNumber(itemWeightGrams / 1000, 3), 190, startYPos);
+                }
+                
+                // Move yPos down based on description height
+                yPos += Math.max(descriptionHeight, 6);
+            });
+            
+            // Packaging line item
+            let packagingWeightGrams = 0;
+            let packagingDescription = '';
+            
+            if (packagingType === 'box') {
+                const baseBoxOz = 11.5;
+                // Box: 11.5 oz only (no per-item packaging)
+                const packagingOz = baseBoxOz;
+                packagingWeightGrams = packagingOz / 0.035274;
+                packagingDescription = 'Packaging - Box';
+            } else if (packagingType === 'pallet') {
+                packagingWeightGrams = 35 * 1000;
+                packagingDescription = 'Packaging - Pallet';
+            }
+            
+            if (yPos > 270) {
+                doc.addPage();
+                yPos = 20;
+            }
+            
+            doc.setFont(undefined, 'bold');
+            doc.text(packagingDescription, 14, yPos);
+            doc.text('1', 100, yPos);
+            
+            if (useKilograms) {
+                const packagingWeightKg = packagingWeightGrams / 1000;
+                doc.text(formatNumber(packagingWeightKg, 3), 120, yPos);
+                doc.text(formatNumber(packagingWeightKg, 3), 160, yPos);
+            } else {
+                doc.text(formatNumber(packagingWeightGrams, 2), 120, yPos);
+                doc.text(formatNumber(packagingWeightGrams, 2), 160, yPos);
+                doc.text(formatNumber(packagingWeightGrams / 1000, 3), 190, yPos);
+            }
+            yPos += 8;
+            
+            // Total line
+            doc.line(14, yPos, 200, yPos);
+            yPos += 6;
+            
+            const totalWeightGrams = totalProductWeightGrams + packagingWeightGrams;
+            const totalWeightKg = totalWeightGrams / 1000;
+            const totalWeightOz = totalWeightGrams * 0.035274;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('TOTAL', 14, yPos);
+            doc.text(totalQuantity.toString(), 100, yPos);
+            
+            if (useKilograms) {
+                doc.text('', 120, yPos);
+                doc.text(formatNumber(totalWeightKg, 3), 160, yPos);
+            } else {
+                doc.text('', 120, yPos);
+                doc.text(formatNumber(totalWeightGrams, 2), 160, yPos);
+                doc.text(formatNumber(totalWeightKg, 3), 190, yPos);
+            }
+            yPos += 10;
+            
+            // Shipping cost information
+            if (currentShippingData.shipping_options && currentShippingData.shipping_options.length > 0) {
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('Shipping Cost Estimate', 14, yPos);
+                yPos += 8;
+                
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                
+                currentShippingData.shipping_options.forEach(function(option) {
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    doc.text(option.service + ' - ' + option.carrier + ': $' + formatNumber(option.rate, 2), 14, yPos);
+                    yPos += 6;
+                });
+            } else if (currentShippingData.freight_cost && currentShippingData.freight_cost.estimated_cost_usd !== null) {
+                const freight = currentShippingData.freight_cost;
+                
+                if (yPos > 230) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('Freight Cost Breakdown', 14, yPos);
+                yPos += 8;
+                
+                // Freight line items table
+                if (freight.line_items && freight.line_items.length > 0) {
+                    // Table headers
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Cost Component', 14, yPos);
+                    doc.text('Amount (USD)', 150, yPos);
+                    yPos += 6;
+                    
+                    // Draw line
+                    doc.setLineWidth(0.5);
+                    doc.line(14, yPos - 2, 200, yPos - 2);
+                    yPos += 3;
+                    
+                    // Line items
+                    doc.setFont(undefined, 'normal');
+                    freight.line_items.forEach(function(lineItem) {
+                        if (yPos > 270) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        
+                        let description = lineItem.description;
+                        if (lineItem.note) {
+                            description += ' (' + lineItem.note + ')';
+                        }
+                        // Split long descriptions across multiple lines if needed
+                        const maxWidth = 130; // Maximum width for description column
+                        const descriptionLines = doc.splitTextToSize(description, maxWidth);
+                        const startYPos = yPos;
+                        
+                        // Draw description (may span multiple lines)
+                        doc.text(descriptionLines, 14, startYPos);
+                        
+                        // Amount on the first line, aligned to the right
+                        doc.text('$' + formatNumber(lineItem.amount, 2), 150, startYPos);
+                        
+                        // Calculate height needed for description and move yPos accordingly
+                        const lineHeight = 5;
+                        const descriptionHeight = descriptionLines.length * lineHeight;
+                        yPos += Math.max(descriptionHeight, 6);
+                    });
+                    
+                    // Total line
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    doc.line(14, yPos, 200, yPos);
+                    yPos += 6;
+                    doc.setFont(undefined, 'bold');
+                    doc.text('TOTAL FREIGHT COST', 14, yPos);
+                    doc.text('$' + formatNumber(freight.estimated_cost_usd, 2), 150, yPos);
+                    yPos += 8;
+                } else {
+                    // Fallback if line items not available
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'normal');
+                    doc.text('Estimated Cost: $' + formatNumber(freight.estimated_cost_usd, 2), 14, yPos);
+                    yPos += 6;
+                    doc.text('Weight: ' + formatNumber(freight.weight_kg, 2) + ' kg', 14, yPos);
+                    yPos += 6;
+                    if (freight.cargo_value_usd) {
+                        doc.text('Cargo Value: $' + formatNumber(freight.cargo_value_usd, 2), 14, yPos);
+                        yPos += 6;
+                    }
+                }
+            }
+            
+            // Save PDF
+            const fileName = 'Shipping_Manifest_' + managerName.replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().toISOString().split('T')[0] + '.pdf';
+            doc.save(fileName);
+        }
+    </script>
+</body>
+</html>
+
