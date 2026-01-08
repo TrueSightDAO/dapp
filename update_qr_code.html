@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Update QR code status, email, and associated member">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update QR Code</title>
+
+    <!-- Open Graph tags for WhatsApp and social media previews -->
+    <meta property="og:title" content="Update QR Code">
+    <meta property="og:description" content="Update QR code status, email, and associated member">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./menu.js"></script>
+    <script src="./scripts/edgar_payload_helper.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #welcome {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0.8rem 0;
+            text-align: center;
+            display: none;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        .form-row {
+            margin: 1rem 0;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            font-size: 1rem;
+            color: #333;
+        }
+        .optional {
+            color: #666;
+            font-weight: normal;
+            font-size: 0.9em;
+        }
+        input[type="text"],
+        input[type="email"],
+        select {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            margin-bottom: 0.5rem;
+        }
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .help-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        .combobox-display {
+            position: relative;
+            cursor: pointer;
+            padding: 0.8rem;
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            background-color: white;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .combobox-display:hover {
+            border-color: #007bff;
+        }
+        .dropdown-arrow {
+            color: #666;
+        }
+        .combobox-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 0 0 5px 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .combobox-search-input {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1rem;
+            box-sizing: border-box;
+            border: none;
+            border-bottom: 1px solid #eee;
+            outline: none;
+        }
+        .combobox-autocomplete-list {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .combobox-autocomplete-list > div {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+        .combobox-autocomplete-list > div:hover {
+            background-color: #f0f0f0;
+        }
+        button, input[type="button"] {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background-color 0.2s;
+        }
+        button:hover, input[type="button"]:hover {
+            background-color: #0056b3;
+        }
+        button:disabled, input[type="button"]:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #report_output {
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 5px;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        #report_output.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        #report_output.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        @media (max-width: 600px) {
+            body {
+                margin: 0.5rem;
+                padding: 0.5rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .container {
+                padding: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>
+        <h1>Update QR Code</h1>
+        <p id="description">
+            Update the status, email address, or associated member for an existing QR code.
+        </p>
+        <div id="status" class="loading fade-in" style="display: none;"></div>
+        <div id="welcome" style="display: none;"></div>
+        <div id="report_output" style="display: none;"></div>
+
+        <div id="form_container" style="display: none;">
+            <div class="form-row">
+                <label for="qrSelectCombobox">QR Code <span style="color: red;">*</span></label>
+                <div style="position: relative;">
+                    <div id="qrSelectCombobox" class="combobox-display">
+                        <span id="qrSelectDisplay" style="color: #999;">Select a QR code...</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div id="qrDropdownContainer" class="combobox-dropdown">
+                        <input type="text" id="qrSearchInput" placeholder="Type to search QR codes..." autocomplete="off" class="combobox-search-input">
+                        <div id="qrAutocompleteList" class="combobox-autocomplete-list"></div>
+                    </div>
+                </div>
+                <div class="help-text">Select a QR code from the dropdown or search by typing</div>
+            </div>
+
+            <div class="form-row">
+                <label for="member_select">Associate Member <span class="optional">(optional)</span></label>
+                <select id="member_select" disabled>
+                    <option value="">Loading members...</option>
+                </select>
+                <div class="help-text">Select a member to associate with this QR code (leave as "-- No change --" to keep current association)</div>
+            </div>
+
+            <div class="form-row">
+                <label for="status_select">Status <span class="optional">(optional)</span></label>
+                <select id="status_select">
+                    <option value="">-- No change --</option>
+                    <option value="SCHEDULED_FOR_MINTING">SCHEDULED_FOR_MINTING</option>
+                    <option value="MINTED">MINTED</option>
+                    <option value="WAREHOUSED">WAREHOUSED</option>
+                    <option value="ON CONSIGNMENT">ON CONSIGNMENT</option>
+                    <option value="CACAO CIRCLE">CACAO CIRCLE</option>
+                    <option value="LOST">LOST</option>
+                    <option value="SOLD">SOLD</option>
+                    <option value="EXPENSED">EXPENSED</option>
+                    <option value="ASSIGNED_TO_TREE">ASSIGNED_TO_TREE</option>
+                    <option value="GIFT">GIFT</option>
+                </select>
+                <div class="help-text">Update the QR code status (leave as "-- No change --" to keep current status)</div>
+            </div>
+
+            <div class="form-row">
+                <label for="email_input">Email Address <span class="optional">(optional)</span></label>
+                <input type="email" id="email_input" placeholder="owner@example.com">
+                <div class="help-text">Update the owner's email address (leave empty to keep current email)</div>
+            </div>
+
+            <div class="form-row">
+                <input type="button" id="update_button" value="Update QR Code" onclick="updateQrCode()">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_ENDPOINT = 'https://edgar.truesight.me/dao/submit_contribution';
+        const VERIFY_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const MEMBERS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec?list_with_members=true';
+        const QR_CODE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec?list_all=true';
+        const LOOKUP_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec';
+
+        let qrCodes = [];
+        let filteredQrCodes = [];
+        let allMembers = [];
+        let lastQrParam = '';
+        let contributorName = '';
+        const statusElement = document.getElementById('status');
+        const reportOutput = document.getElementById('report_output');
+        const memberSelect = document.getElementById('member_select');
+        
+        let currentQrCodeData = {
+            status: '',
+            email: '',
+            manager_name: ''
+        };
+
+        async function loadMembers() {
+            try {
+                const res = await fetch(MEMBERS_ENDPOINT);
+                const data = await res.json();
+                if (data.status === 'error') {
+                    throw new Error(data.message);
+                }
+                const memberMap = new Map();
+                data.items.forEach(item => {
+                    if (item.contributor_name && item.contributor_name.trim() !== '') {
+                        if (!memberMap.has(item.contributor_name)) {
+                            memberMap.set(item.contributor_name, {
+                                key: item.contributor_name,
+                                name: item.contributor_name
+                            });
+                        }
+                    }
+                });
+                allMembers = Array.from(memberMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+                updateMemberDropdown();
+            } catch (err) {
+                console.error('Error loading members:', err);
+                memberSelect.innerHTML = '<option value="">Error loading members</option>';
+            }
+        }
+
+        function updateMemberDropdown() {
+            memberSelect.innerHTML = '<option value="">-- No change --</option>';
+            allMembers.forEach(member => {
+                const opt = document.createElement('option');
+                opt.value = member.key;
+                opt.textContent = member.name;
+                memberSelect.appendChild(opt);
+            });
+            memberSelect.disabled = false;
+        }
+
+        async function loadQrCodes() {
+            try {
+                const res = await fetch(QR_CODE_ENDPOINT);
+                const data = await res.json();
+                if (data.status === 'error') {
+                    throw new Error(data.message);
+                }
+                qrCodes = data.qr_codes.map(qr => ({ key: qr, name: qr }));
+                filteredQrCodes = [...qrCodes];
+                updateQrCodeAutocomplete();
+            } catch (err) {
+                console.error('Error loading QR codes:', err);
+                reportOutput.textContent = 'Failed to load QR codes. Please try again later.';
+                reportOutput.className = 'error';
+                reportOutput.style.display = 'block';
+            }
+        }
+
+        function updateQrCodeAutocomplete() {
+            const qrSearchInput = document.getElementById('qrSearchInput');
+            const autocompleteList = document.getElementById('qrAutocompleteList');
+            const filterText = qrSearchInput ? qrSearchInput.value.toLowerCase() : '';
+            
+            if (!qrSearchInput || !autocompleteList) {
+                return;
+            }
+
+            filteredQrCodes = qrCodes.filter(qr => qr.name.toLowerCase().includes(filterText));
+            
+            autocompleteList.innerHTML = '';
+            
+            const qrCodesToShow = filterText ? filteredQrCodes : qrCodes;
+            
+            if (qrCodesToShow.length > 0) {
+                qrCodesToShow.forEach(qr => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                    item.textContent = qr.name;
+                    item.addEventListener('mouseenter', () => {
+                        item.style.backgroundColor = '#f0f0f0';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', () => {
+                        selectQRCode(qr.key, qr.name);
+                    });
+                    autocompleteList.appendChild(item);
+                });
+            } else {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = 'No matching QR codes found';
+                autocompleteList.appendChild(noResults);
+            }
+        }
+
+        async function selectQRCode(qrKey, qrName) {
+            lastQrParam = qrKey;
+            const qrSelectDisplay = document.getElementById('qrSelectDisplay');
+            const qrDropdownContainer = document.getElementById('qrDropdownContainer');
+            const qrSearchInput = document.getElementById('qrSearchInput');
+            
+            if (qrSelectDisplay) {
+                qrSelectDisplay.textContent = qrName;
+                qrSelectDisplay.style.color = '#333';
+            }
+            
+            if (qrDropdownContainer) {
+                qrDropdownContainer.style.display = 'none';
+            }
+            if (qrSearchInput) {
+                qrSearchInput.value = '';
+            }
+
+            try {
+                const lookupUrl = `${LOOKUP_ENDPOINT}?lookup=true&qr_code=${encodeURIComponent(qrKey)}`;
+                const response = await fetch(lookupUrl);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const qrStatus = data.qr_status || '';
+                    const qrEmail = data.email || '';
+                    const qrManagerName = data.manager_name || '';
+                    
+                    currentQrCodeData = {
+                        status: qrStatus,
+                        email: qrEmail,
+                        manager_name: qrManagerName
+                    };
+
+                    const statusSelect = document.getElementById('status_select');
+                    const emailInput = document.getElementById('email_input');
+                    
+                    if (statusSelect && qrStatus) {
+                        const statusValue = qrStatus.trim().toUpperCase();
+                        const statusOption = Array.from(statusSelect.options).find(opt => opt.value === statusValue);
+                        if (statusOption) {
+                            statusSelect.value = statusValue;
+                        } else {
+                            statusSelect.value = '';
+                            const helpText = statusSelect.nextElementSibling;
+                            if (helpText && helpText.classList.contains('help-text')) {
+                                helpText.textContent = `Update the QR code status (Current: ${qrStatus})`;
+                            }
+                        }
+                    } else if (statusSelect && !qrStatus) {
+                        statusSelect.value = '';
+                    }
+                    
+                    if (emailInput) {
+                        if (qrEmail) {
+                            emailInput.value = qrEmail;
+                            emailInput.placeholder = `Current: ${qrEmail}`;
+                        } else {
+                            emailInput.value = '';
+                            emailInput.placeholder = 'owner@example.com';
+                        }
+                    }
+                    
+                    if (memberSelect) {
+                        if (qrManagerName) {
+                            const memberOption = Array.from(memberSelect.options).find(opt => {
+                                const optText = opt.textContent.trim();
+                                const optValue = opt.value.trim();
+                                const managerNameLower = qrManagerName.trim().toLowerCase();
+                                return optText.toLowerCase() === managerNameLower || 
+                                       optValue.toLowerCase() === managerNameLower ||
+                                       optText.toLowerCase().includes(managerNameLower) ||
+                                       optValue.toLowerCase().includes(managerNameLower);
+                            });
+                            if (memberOption) {
+                                memberSelect.value = memberOption.value;
+                            } else {
+                                memberSelect.value = '';
+                                const managerOption = document.createElement('option');
+                                managerOption.value = qrManagerName;
+                                managerOption.textContent = `${qrManagerName} (current)`;
+                                managerOption.selected = true;
+                                memberSelect.insertBefore(managerOption, memberSelect.firstChild.nextSibling);
+                            }
+                        } else {
+                            memberSelect.value = '';
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching QR code details:', err);
+                currentQrCodeData = {
+                    status: '',
+                    email: '',
+                    manager_name: ''
+                };
+            }
+        }
+
+        async function updateQrCode() {
+            const qrCode = lastQrParam || '';
+            const memberSelectEl = document.getElementById('member_select');
+            const statusSelectEl = document.getElementById('status_select');
+            const emailInputEl = document.getElementById('email_input');
+            
+            const member = memberSelectEl && memberSelectEl.value ? memberSelectEl.value.trim() : '';
+            const status = statusSelectEl && statusSelectEl.value ? statusSelectEl.value.trim() : '';
+            const email = emailInputEl && emailInputEl.value ? emailInputEl.value.trim() : '';
+            const updateButton = document.getElementById('update_button');
+
+            if (!qrCode) {
+                reportOutput.textContent = 'Please select a QR code.';
+                reportOutput.className = 'error';
+                reportOutput.style.display = 'block';
+                return;
+            }
+
+            const currentManagerName = (currentQrCodeData.manager_name || '').trim().toLowerCase();
+            const currentStatus = (currentQrCodeData.status || '').trim().toUpperCase();
+            const currentEmail = (currentQrCodeData.email || '').trim().toLowerCase();
+            
+            const memberValue = member.trim().toLowerCase();
+            const memberChanged = member && member !== '-- No change --' && 
+                                 memberValue !== '' && 
+                                 memberValue !== currentManagerName;
+            const statusChanged = status && status !== '-- No change --' && 
+                                 status.trim().toUpperCase() !== currentStatus;
+            const emailChanged = email && email.trim().toLowerCase() !== currentEmail && email.trim() !== '';
+
+            if (!memberChanged && !statusChanged && !emailChanged) {
+                reportOutput.textContent = 'Please make at least one change to update.';
+                reportOutput.className = 'error';
+                reportOutput.style.display = 'block';
+                return;
+            }
+
+            if (updateButton) {
+                updateButton.disabled = true;
+                updateButton.value = 'Updating...';
+            }
+
+            reportOutput.style.display = 'none';
+
+            try {
+                const publicKey = localStorage.getItem('publicKey');
+                const privateKey = localStorage.getItem('privateKey');
+
+                if (!publicKey || !privateKey) {
+                    throw new Error('Digital signature not found. Please create one first.');
+                }
+
+                const memberResponse = await fetch(`${VERIFY_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
+                const memberData = await memberResponse.json();
+
+                if (memberData.error) {
+                    if (memberData.error.includes('No matching')) {
+                        let seconds = 2;
+                        reportOutput.textContent = `Your digital signature is not registered. Redirecting to create one in ${seconds} seconds...`;
+                        reportOutput.className = 'error';
+                        reportOutput.style.display = 'block';
+                        const countdown = setInterval(() => {
+                            seconds--;
+                            if (seconds > 0) {
+                                reportOutput.textContent = `Your digital signature is not registered. Redirecting to create one in ${seconds} seconds...`;
+                            } else {
+                                clearInterval(countdown);
+                                window.location.href = './create_signature.html';
+                            }
+                        }, 1000);
+                        if (updateButton) {
+                            updateButton.disabled = false;
+                            updateButton.value = 'Update QR Code';
+                        }
+                        return;
+                    }
+                    throw new Error(memberData.error);
+                }
+
+                const memberName = memberData.name || contributorName || 'Unknown';
+
+                const attributes = {
+                    'QR Code': qrCode,
+                    'Updated by': memberName
+                };
+
+                if (memberChanged) {
+                    const selectedMember = allMembers.find(m => m.key === member || m.name === member);
+                    attributes['Associated Member'] = selectedMember ? selectedMember.name : member;
+                }
+
+                if (statusChanged) {
+                    attributes['New Status'] = status;
+                }
+
+                if (emailChanged) {
+                    attributes['New Email'] = email;
+                }
+
+                const helper = new EdgarPayloadHelper({
+                    digitalSignature: publicKey,
+                    generationSource: window.location.href
+                });
+
+                const { payload, requestTransactionId, shareText } = await helper.generatePayload({
+                    eventName: 'QR CODE UPDATE EVENT',
+                    attributes: attributes,
+                    privateKey: privateKey
+                });
+
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: payload,
+                        request_transaction_id: requestTransactionId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    reportOutput.textContent = 'QR code updated successfully!';
+                    reportOutput.className = 'success';
+                    reportOutput.style.display = 'block';
+
+                    setTimeout(() => {
+                        lastQrParam = '';
+                        currentQrCodeData = { status: '', email: '', manager_name: '' };
+                        document.getElementById('qrSelectDisplay').textContent = 'Select a QR code...';
+                        document.getElementById('qrSelectDisplay').style.color = '#999';
+                        document.getElementById('status_select').value = '';
+                        document.getElementById('email_input').value = '';
+                        document.getElementById('email_input').placeholder = 'owner@example.com';
+                        document.getElementById('member_select').value = '';
+                    }, 2000);
+                } else {
+                    const errorMsg = result.error || result.message || 'Failed to update QR code';
+                    
+                    if (navigator.onLine === false) {
+                        if (await copyToClipboard(shareText)) {
+                            reportOutput.innerHTML = `Internet is not available. Update request copied to clipboard. Please paste it into our <a href="https://t.me/truesightdao" target="_blank">Telegram</a> channel.`;
+                        } else {
+                            reportOutput.innerHTML = `Internet is not available and clipboard copy failed. Please manually copy the request below and share it to our <a href="https://t.me/truesightdao" target="_blank">Telegram</a> channel:<br><br><pre>${shareText}</pre>`;
+                        }
+                    } else {
+                        reportOutput.textContent = `Error: ${errorMsg}`;
+                    }
+                    reportOutput.className = 'error';
+                    reportOutput.style.display = 'block';
+                }
+            } catch (err) {
+                console.error('Error updating QR code:', err);
+                reportOutput.textContent = `Error: ${err.message}`;
+                reportOutput.className = 'error';
+                reportOutput.style.display = 'block';
+            } finally {
+                if (updateButton) {
+                    updateButton.disabled = false;
+                    updateButton.value = 'Update QR Code';
+                }
+            }
+        }
+
+        async function copyToClipboard(text) {
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } else {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.opacity = '0';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    const success = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    return success;
+                }
+            } catch (err) {
+                console.error('Failed to copy to clipboard:', err);
+                return false;
+            }
+        }
+
+        window.onload = async function() {
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading';
+            statusElement.style.display = 'block';
+
+            const publicKey = localStorage.getItem('publicKey');
+            if (!publicKey) {
+                let seconds = 2;
+                statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                statusElement.className = 'error';
+                const countdown = setInterval(() => {
+                    seconds--;
+                    if (seconds > 0) {
+                        statusElement.textContent = `No digital signature found. Redirecting to create one in ${seconds} seconds...`;
+                    } else {
+                        clearInterval(countdown);
+                        window.location.href = './create_signature.html';
+                    }
+                }, 1000);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${VERIFY_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    if (data.error.includes('No matching')) {
+                        let seconds = 2;
+                        statusElement.textContent = `Your digital signature is not registered. Redirecting to create one in ${seconds} seconds...`;
+                        statusElement.className = 'error';
+                        const countdown = setInterval(() => {
+                            seconds--;
+                            if (seconds > 0) {
+                                statusElement.textContent = `Your digital signature is not registered. Redirecting to create one in ${seconds} seconds...`;
+                            } else {
+                                clearInterval(countdown);
+                                window.location.href = './create_signature.html';
+                            }
+                        }, 1000);
+                        return;
+                    } else {
+                        statusElement.textContent = 'Error: ' + data.error;
+                        statusElement.className = 'error';
+                        return;
+                    }
+                }
+
+                contributorName = data.contributor_name || data.name || 'Contributor';
+                document.getElementById('form_container').style.display = 'block';
+                document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
+                document.getElementById('welcome').style.display = 'block';
+                statusElement.textContent = 'Signature verified successfully';
+                statusElement.className = 'status fade-in';
+            } catch (err) {
+                console.error('Verification error:', err);
+                statusElement.textContent = 'Error verifying digital signature. Please try again.';
+                statusElement.className = 'error fade-in';
+                return;
+            }
+
+            await Promise.all([loadMembers(), loadQrCodes()]);
+
+            const qrSelectCombobox = document.getElementById('qrSelectCombobox');
+            const qrDropdownContainer = document.getElementById('qrDropdownContainer');
+            const qrSearchInput = document.getElementById('qrSearchInput');
+
+            if (qrSelectCombobox && qrDropdownContainer && qrSearchInput) {
+                qrSelectCombobox.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = qrDropdownContainer.style.display === 'block';
+                    qrDropdownContainer.style.display = isOpen ? 'none' : 'block';
+                    if (!isOpen) {
+                        setTimeout(() => qrSearchInput.focus(), 10);
+                        updateQrCodeAutocomplete();
+                    }
+                });
+                qrSearchInput.addEventListener('input', updateQrCodeAutocomplete);
+                qrSearchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const filterText = qrSearchInput.value ? qrSearchInput.value.toLowerCase() : '';
+                        const matches = qrCodes && qrCodes.length > 0
+                            ? qrCodes.filter(qr => qr.name && qr.name.toLowerCase().includes(filterText))
+                            : [];
+                        if (matches.length > 0) {
+                            selectQRCode(matches[0].key, matches[0].name);
+                        }
+                    } else if (e.key === 'Escape') {
+                        qrDropdownContainer.style.display = 'none';
+                        qrSearchInput.value = '';
+                    }
+                });
+                document.addEventListener('click', (e) => {
+                    if (!qrSelectCombobox.contains(e.target) && !qrDropdownContainer.contains(e.target)) {
+                        qrDropdownContainer.style.display = 'none';
+                        qrSearchInput.value = '';
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>
