@@ -114,6 +114,52 @@
             margin: 1rem 0;
             text-align: left;
         }
+        .selected-contributor-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            background-color: #007bff;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 0.25rem 0;
+        }
+        .selected-contributor-tag .remove-btn {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1rem;
+            line-height: 1;
+            padding: 0 0.2rem;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.3);
+            transition: background-color 0.2s;
+        }
+        .selected-contributor-tag .remove-btn:hover {
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+        .combobox-display {
+            position: relative;
+            cursor: pointer;
+            padding: 0.8rem;
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            background-color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .combobox-display:hover {
+            border-color: #007bff;
+        }
+        .help-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
         label {
             display: block;
             margin-bottom: 0.3rem;
@@ -317,14 +363,19 @@
             <canvas id="canvas" style="display: none;"></canvas>
             <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
             <div class="form-row">
-                <label for="contributorFilter">Filter Contributors:</label>
-                <input type="text" id="contributorFilter" placeholder="Type to filter contributors...">
-            </div>
-            <div class="form-row">
-                <label for="contributorSelect">Contributor(s):</label>
-                <select id="contributorSelect" multiple>
-                    <option value="">Loading contributors...</option>
-                </select>
+                <label for="contributorSelectCombobox">Contributor(s):</label>
+                <div id="selectedContributors" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; min-height: 2rem;"></div>
+                <div style="position: relative;">
+                    <div id="contributorSelectCombobox" class="combobox-display" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="contributorSelectDisplay" style="color: #999;">Type to search and add contributors...</span>
+                        <span style="color: #666;">▼</span>
+                    </div>
+                    <div id="contributorDropdownContainer" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px;">
+                        <input type="text" id="contributorSearchInput" placeholder="Type to search contributors..." autocomplete="off" style="width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box; border: none; border-bottom: 1px solid #eee; outline: none;">
+                        <div id="contributorAutocompleteList" style="max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="help-text">Select contributors from the dropdown. Selected contributors will appear above.</div>
             </div>
             <div class="form-row">
                 <label for="typeSelect">Contribution Type:</label>
@@ -377,6 +428,7 @@
         const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
         let contributorName = '';
         let allContributors = [];
+        let selectedContributors = []; // Array of {key, name} objects
         let currentStream = null;
 
         function arrayBufferToBase64(buffer) {
@@ -441,9 +493,8 @@
             const hoursInput = document.getElementById('hoursInput');
             const minutesInput = document.getElementById('minutesInput');
             const usdInput = document.getElementById('usdInput');
-            const contributorSel = document.getElementById('contributorSelect');
             const tdgOutput = document.getElementById('tdgOutput');
-            const contributorsCount = contributorSel.selectedOptions.length;
+            const contributorsCount = selectedContributors.length;
             const type = typeSel.value;
             const hours = hoursInput.value;
             const minutes = minutesInput.value;
@@ -451,7 +502,7 @@
 
             if (type && contributorsCount > 0) {
                 const tdgValues = calculateTDG(type, hours, minutes, usd, contributorsCount);
-                const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
+                const contributorNames = selectedContributors.map(c => c.name);
                 const tdgText = contributorNames.map((name, index) => `${name}: ${tdgValues[index]} TDG`).join(', ');
                 if (type === 'Time' && (hours || minutes)) {
                     const hoursText = hours ? `${hours} hour${hours == 1 ? '' : 's'}` : '';
@@ -468,39 +519,116 @@
             }
         }
 
-        function filterContributors() {
-            const filterInput = document.getElementById('contributorFilter').value.toLowerCase();
-            const sel = document.getElementById('contributorSelect');
-            const selectedValues = Array.from(sel.selectedOptions).map(opt => opt.value);
-            const selectedContributors = allContributors.filter(contributor => selectedValues.includes(contributor.key));
+        function renderSelectedContributors() {
+            const container = document.getElementById('selectedContributors');
+            container.innerHTML = '';
             
-            sel.innerHTML = '';
-            const filteredContributors = allContributors.filter(contributor => 
-                contributor.name.toLowerCase().includes(filterInput) || selectedValues.includes(contributor.key)
-            );
-
-            if (filteredContributors.length === 0) {
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = 'No contributors found';
-                sel.appendChild(opt);
-            } else {
-                filteredContributors.forEach(contributor => {
-                    const opt = document.createElement('option');
-                    opt.value = contributor.key;
-                    opt.textContent = contributor.name;
-                    opt.selected = selectedValues.includes(contributor.key) || contributor.name === contributorName;
-                    sel.appendChild(opt);
-                });
+            if (selectedContributors.length === 0) {
+                container.style.display = 'none';
+                return;
             }
+            
+            container.style.display = 'flex';
+            selectedContributors.forEach(contributor => {
+                const tag = document.createElement('div');
+                tag.className = 'selected-contributor-tag';
+                tag.innerHTML = `
+                    <span>${contributor.name}</span>
+                    <span class="remove-btn" data-key="${contributor.key}">×</span>
+                `;
+                tag.querySelector('.remove-btn').addEventListener('click', () => {
+                    removeContributor(contributor.key);
+                });
+                container.appendChild(tag);
+            });
+        }
+
+        function addContributor(contributorKey, contributorName) {
+            // Check if already selected
+            if (selectedContributors.some(c => c.key === contributorKey)) {
+                return;
+            }
+            
+            selectedContributors.push({ key: contributorKey, name: contributorName });
+            renderSelectedContributors();
             updateSubmitButtonState();
+            updateTDGOutput();
+        }
+
+        function removeContributor(contributorKey) {
+            selectedContributors = selectedContributors.filter(c => c.key !== contributorKey);
+            renderSelectedContributors();
+            updateSubmitButtonState();
+            updateTDGOutput();
+        }
+
+        function updateContributorAutocomplete() {
+            const contributorSearchInput = document.getElementById('contributorSearchInput');
+            const autocompleteList = document.getElementById('contributorAutocompleteList');
+            
+            if (!contributorSearchInput || !autocompleteList) {
+                return;
+            }
+            
+            const filterText = contributorSearchInput.value ? contributorSearchInput.value.toLowerCase() : '';
+            
+            if (!allContributors || allContributors.length === 0) {
+                autocompleteList.innerHTML = '<div style="padding: 8px 12px; color: #999; font-style: italic;">Loading contributors...</div>';
+                return;
+            }
+            
+            // Filter out already selected contributors
+            const selectedKeys = selectedContributors.map(c => c.key);
+            const availableContributors = allContributors.filter(contributor => 
+                !selectedKeys.includes(contributor.key)
+            );
+            
+            // Filter by search text
+            const filteredContributors = filterText
+                ? availableContributors.filter(c => c.name && c.name.toLowerCase().includes(filterText))
+                : availableContributors;
+            
+            autocompleteList.innerHTML = '';
+            
+            if (filteredContributors.length > 0) {
+                filteredContributors.forEach(contributor => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                    item.textContent = contributor.name;
+                    item.addEventListener('mouseenter', () => {
+                        item.style.backgroundColor = '#f0f0f0';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', () => {
+                        addContributor(contributor.key, contributor.name);
+                        contributorSearchInput.value = '';
+                        updateContributorAutocomplete();
+                    });
+                    autocompleteList.appendChild(item);
+                });
+            } else {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = filterText ? 'No matching contributors found' : 'All contributors selected';
+                autocompleteList.appendChild(noResults);
+            }
         }
 
         async function loadContributors() {
             try {
                 const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?recipients=true');
                 allContributors = await res.json();
-                filterContributors();
+                updateContributorAutocomplete();
+                
+                // Auto-select current contributor if available
+                if (contributorName) {
+                    const currentContributor = allContributors.find(c => c.name === contributorName);
+                    if (currentContributor) {
+                        addContributor(currentContributor.key, currentContributor.name);
+                    }
+                }
             } catch (err) {
                 console.error('Error loading contributors:', err);
                 document.getElementById('outputMessage').textContent = 'Error loading contributors: ' + err.message;
@@ -509,17 +637,16 @@
         }
 
         function updateSubmitButtonState() {
-            const contributorSel = document.getElementById('contributorSelect');
             const typeSel = document.getElementById('typeSelect');
             const hoursInput = document.getElementById('hoursInput');
             const minutesInput = document.getElementById('minutesInput');
             const usdInput = document.getElementById('usdInput');
             const descriptionInput = document.getElementById('descriptionInput');
             const submitBtn = document.getElementById('submitButton');
-            const selectedContributors = Array.from(contributorSel.selectedOptions).length > 0;
+            const hasSelectedContributors = selectedContributors.length > 0;
             const isTimeValid = typeSel.value === 'Time' && (hoursInput.value > 0 || minutesInput.value > 0);
             const isUSDValid = typeSel.value === 'USD' && usdInput.value > 0;
-            submitBtn.disabled = !(selectedContributors && typeSel.value && (isTimeValid || isUSDValid) && descriptionInput.value.trim());
+            submitBtn.disabled = !(hasSelectedContributors && typeSel.value && (isTimeValid || isUSDValid) && descriptionInput.value.trim());
             updateTDGOutput();
         }
 
@@ -706,8 +833,7 @@
                 return;
             }
 
-            const contributorSel = document.getElementById('contributorSelect');
-            const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
+            const contributorNames = selectedContributors.map(c => c.name);
             const typeSel = document.getElementById('typeSelect');
             const typeName = typeSel.value;
             const hoursInput = document.getElementById('hoursInput');
@@ -762,8 +888,7 @@
         }
 
         async function submitReport(file, fileName, typeName, amount) {
-            const contributorSel = document.getElementById('contributorSelect');
-            const contributorNames = Array.from(contributorSel.selectedOptions).map(opt => opt.text);
+            const contributorNames = selectedContributors.map(c => c.name);
             const hoursInput = document.getElementById('hoursInput');
             const minutesInput = document.getElementById('minutesInput');
             const description = document.getElementById('descriptionInput').value.trim();                                                                      
@@ -914,7 +1039,7 @@
                 loadContributors();
                 toggleInputMethod();
                 document.getElementById('inputMethod').addEventListener('change', toggleInputMethod);
-                document.getElementById('contributorSelect').addEventListener('change', updateSubmitButtonState);
+                // Contributor selection is now handled by combobox, no change event needed
                 document.getElementById('typeSelect').addEventListener('change', function() {
                     const amountSection = document.getElementById('amountInputSection');
                     const hoursInput = document.getElementById('hoursInput');
@@ -958,7 +1083,48 @@
                     charCount.textContent = this.value.length;
                     updateSubmitButtonState();
                 });
-                document.getElementById('contributorFilter').addEventListener('input', filterContributors);
+                // Setup contributor combobox
+                const contributorSelectCombobox = document.getElementById('contributorSelectCombobox');
+                const contributorDropdownContainer = document.getElementById('contributorDropdownContainer');
+                const contributorSearchInput = document.getElementById('contributorSearchInput');
+                
+                if (contributorSelectCombobox && contributorDropdownContainer && contributorSearchInput) {
+                    contributorSelectCombobox.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isOpen = contributorDropdownContainer.style.display === 'block';
+                        contributorDropdownContainer.style.display = isOpen ? 'none' : 'block';
+                        if (!isOpen) {
+                            setTimeout(() => contributorSearchInput.focus(), 10);
+                            updateContributorAutocomplete();
+                        }
+                    });
+                    contributorSearchInput.addEventListener('input', updateContributorAutocomplete);
+                    contributorSearchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const filterText = contributorSearchInput.value ? contributorSearchInput.value.toLowerCase() : '';
+                            const selectedKeys = selectedContributors.map(c => c.key);
+                            const availableContributors = allContributors.filter(c => !selectedKeys.includes(c.key));
+                            const matches = filterText
+                                ? availableContributors.filter(c => c.name && c.name.toLowerCase().includes(filterText))
+                                : availableContributors;
+                            if (matches.length > 0) {
+                                addContributor(matches[0].key, matches[0].name);
+                                contributorSearchInput.value = '';
+                                updateContributorAutocomplete();
+                            }
+                        } else if (e.key === 'Escape') {
+                            contributorDropdownContainer.style.display = 'none';
+                            contributorSearchInput.value = '';
+                        }
+                    });
+                    document.addEventListener('click', (e) => {
+                        if (!contributorSelectCombobox.contains(e.target) && !contributorDropdownContainer.contains(e.target)) {
+                            contributorDropdownContainer.style.display = 'none';
+                            contributorSearchInput.value = '';
+                        }
+                    });
+                }
                 document.getElementById('submitButton').addEventListener('click', onSubmit);
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
@@ -968,7 +1134,6 @@
         });
 
         function resetForm() {
-            const contributorSel = document.getElementById('contributorSelect');
             const typeSel = document.getElementById('typeSelect');
             const hoursInput = document.getElementById('hoursInput');
             const minutesInput = document.getElementById('minutesInput');
@@ -977,16 +1142,19 @@
             const uploadedFilePreview = document.getElementById('uploaded-file-preview');
             const output = document.getElementById('outputMessage');
             const charCount = document.getElementById('charCount');
-            const contributorFilter = document.getElementById('contributorFilter');
+            const contributorSearchInput = document.getElementById('contributorSearchInput');
+            const contributorDropdownContainer = document.getElementById('contributorDropdownContainer');
             const inputMethod = document.getElementById('inputMethod');
 
-            contributorSel.selectedIndex = -1;
+            selectedContributors = [];
+            renderSelectedContributors();
             typeSel.value = '';
             hoursInput.value = '';
             minutesInput.value = '';
             usdInput.value = '';
             descriptionInput.value = '';
-            contributorFilter.value = '';
+            if (contributorSearchInput) contributorSearchInput.value = '';
+            if (contributorDropdownContainer) contributorDropdownContainer.style.display = 'none';
             uploadedFilePreview.src = '';
             uploadedFilePreview.style.display = 'none';
             output.textContent = '';
