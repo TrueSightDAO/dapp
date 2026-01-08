@@ -17,6 +17,7 @@
     { title: 'Cacao Bag Scanner', url: './scanner.html', section: 'Inventory & Sales' },
     { title: 'Sales Reporter', url: './report_sales.html', section: 'Inventory & Sales' },
     { title: 'Batch QR Code Generator', url: './batch_qr_generator.html', section: 'Inventory & Sales' },
+    { title: 'Update QR Code', url: './update_qr_code.html', section: 'Inventory & Sales' },
     { title: 'Stores Nearby', url: './stores_nearby.html', section: 'Inventory & Sales' },
     { title: 'Shipping Planner', url: './shipping_planner.html', section: 'Inventory & Sales' },
     { title: 'Register Your Farm', url: './register_farm.html', section: 'Sunmint Tree Planting Program' }
