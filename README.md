@@ -10,6 +10,10 @@ Welcome to the TrueSight DAO DApp, a suite of web-based tools for managing decen
 
 For comprehensive API documentation covering all endpoints used by this DApp, including request formats, authentication, and response examples, see the [API.md file in the tokenomics repository](https://github.com/TrueSightDAO/tokenomics/blob/main/API.md).
 
+## UX Conventions
+
+For UX patterns and conventions used across the DApp, including remote data loading, form field states, and error handling, see [UX_CONVENTIONS.md](./UX_CONVENTIONS.md). This document ensures consistency across all DApp modules and provides implementation guidelines for common UX patterns.
+
 ## Modules
 
 This repository contains tools for TrueSight DAO members, each accessible via the live DApp at [https://dapp.truesight.me](https://dapp.truesight.me):
