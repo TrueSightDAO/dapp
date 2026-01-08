@@ -127,6 +127,27 @@
             color: #666;
             margin-top: 0.25rem;
         }
+        .loading-field {
+            opacity: 0.6;
+            pointer-events: none;
+            position: relative;
+        }
+        .loading-field::after {
+            content: 'Loading...';
+            position: absolute;
+            right: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #007bff;
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+        .field-loading-message {
+            font-size: 0.85rem;
+            color: #007bff;
+            font-style: italic;
+            margin-top: 0.25rem;
+        }
         .combobox-display {
             position: relative;
             cursor: pointer;
@@ -265,11 +286,18 @@
             </div>
 
             <div class="form-row">
-                <label for="member_select">Associate Member <span class="optional">(optional)</span></label>
-                <select id="member_select" disabled>
-                    <option value="">Loading members...</option>
-                </select>
-                <div class="help-text">Select a member to associate with this QR code (leave as "-- No change --" to keep current association)</div>
+                <label for="memberSelectCombobox">Associate Member <span class="optional">(optional)</span></label>
+                <div style="position: relative;">
+                    <div id="memberSelectCombobox" class="combobox-display">
+                        <span id="memberSelectDisplay" style="color: #999;">Loading members...</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div id="memberDropdownContainer" class="combobox-dropdown">
+                        <input type="text" id="memberSearchInput" placeholder="Type to search members..." autocomplete="off" class="combobox-search-input">
+                        <div id="memberAutocompleteList" class="combobox-autocomplete-list"></div>
+                    </div>
+                </div>
+                <div class="help-text" id="memberHelpText">Select a member to associate with this QR code (leave as "-- No change --" to keep current association)</div>
             </div>
 
             <div class="form-row">
@@ -287,13 +315,13 @@
                     <option value="ASSIGNED_TO_TREE">ASSIGNED_TO_TREE</option>
                     <option value="GIFT">GIFT</option>
                 </select>
-                <div class="help-text">Update the QR code status (leave as "-- No change --" to keep current status)</div>
+                <div class="help-text" id="statusHelpText">Update the QR code status (leave as "-- No change --" to keep current status)</div>
             </div>
 
             <div class="form-row">
                 <label for="email_input">Email Address <span class="optional">(optional)</span></label>
                 <input type="email" id="email_input" placeholder="owner@example.com">
-                <div class="help-text">Update the owner's email address (leave empty to keep current email)</div>
+                <div class="help-text" id="emailHelpText">Update the owner's email address (leave empty to keep current email)</div>
             </div>
 
             <div class="form-row">
@@ -314,9 +342,9 @@
         let allMembers = [];
         let lastQrParam = '';
         let contributorName = '';
+        let currentMemberKey = null;
         const statusElement = document.getElementById('status');
         const reportOutput = document.getElementById('report_output');
-        const memberSelect = document.getElementById('member_select');
         
         let currentQrCodeData = {
             status: '',
@@ -346,19 +374,100 @@
                 updateMemberDropdown();
             } catch (err) {
                 console.error('Error loading members:', err);
-                memberSelect.innerHTML = '<option value="">Error loading members</option>';
+                const memberSelectDisplay = document.getElementById('memberSelectDisplay');
+                if (memberSelectDisplay) {
+                    memberSelectDisplay.textContent = 'Error loading members';
+                    memberSelectDisplay.style.color = '#dc3545';
+                }
             }
         }
 
         function updateMemberDropdown() {
-            memberSelect.innerHTML = '<option value="">-- No change --</option>';
-            allMembers.forEach(member => {
-                const opt = document.createElement('option');
-                opt.value = member.key;
-                opt.textContent = member.name;
-                memberSelect.appendChild(opt);
+            const memberSelectDisplay = document.getElementById('memberSelectDisplay');
+            if (memberSelectDisplay) {
+                memberSelectDisplay.textContent = '-- No change --';
+                memberSelectDisplay.style.color = '#999';
+            }
+            updateMemberAutocomplete();
+        }
+
+        function updateMemberAutocomplete() {
+            const memberSearchInput = document.getElementById('memberSearchInput');
+            const autocompleteList = document.getElementById('memberAutocompleteList');
+            
+            if (!memberSearchInput || !autocompleteList) {
+                return;
+            }
+            
+            const filterText = memberSearchInput.value ? memberSearchInput.value.toLowerCase() : '';
+            
+            if (!allMembers || allMembers.length === 0) {
+                autocompleteList.innerHTML = '<div style="padding: 8px 12px; color: #999; font-style: italic;">Loading members...</div>';
+                return;
+            }
+            
+            const filteredMembers = allMembers.filter(m => m.name && m.name.toLowerCase().includes(filterText));
+            
+            autocompleteList.innerHTML = '';
+            
+            // Add "-- No change --" option at the top
+            const noChangeItem = document.createElement('div');
+            noChangeItem.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+            noChangeItem.textContent = '-- No change --';
+            noChangeItem.addEventListener('mouseenter', () => {
+                noChangeItem.style.backgroundColor = '#f0f0f0';
             });
-            memberSelect.disabled = false;
+            noChangeItem.addEventListener('mouseleave', () => {
+                noChangeItem.style.backgroundColor = 'white';
+            });
+            noChangeItem.addEventListener('click', () => {
+                selectMember(null, '-- No change --');
+            });
+            autocompleteList.appendChild(noChangeItem);
+            
+            const membersToShow = filterText ? filteredMembers : allMembers;
+            
+            if (membersToShow.length > 0) {
+                membersToShow.forEach(member => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                    item.textContent = member.name;
+                    item.addEventListener('mouseenter', () => {
+                        item.style.backgroundColor = '#f0f0f0';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', () => {
+                        selectMember(member.key, member.name);
+                    });
+                    autocompleteList.appendChild(item);
+                });
+            } else if (filterText) {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = 'No matching members found';
+                autocompleteList.appendChild(noResults);
+            }
+        }
+
+        function selectMember(memberKey, memberName) {
+            currentMemberKey = memberKey;
+            const memberSelectDisplay = document.getElementById('memberSelectDisplay');
+            const memberDropdownContainer = document.getElementById('memberDropdownContainer');
+            const memberSearchInput = document.getElementById('memberSearchInput');
+            
+            if (memberSelectDisplay) {
+                memberSelectDisplay.textContent = memberName;
+                memberSelectDisplay.style.color = '#333';
+            }
+            
+            if (memberDropdownContainer) {
+                memberDropdownContainer.style.display = 'none';
+            }
+            if (memberSearchInput) {
+                memberSearchInput.value = '';
+            }
         }
 
         async function loadQrCodes() {
@@ -418,6 +527,72 @@
             }
         }
 
+        function showFieldLoadingState() {
+            // Show loading state on all three fields
+            const memberSelectCombobox = document.getElementById('memberSelectCombobox');
+            const statusSelect = document.getElementById('status_select');
+            const emailInput = document.getElementById('email_input');
+            const memberHelpText = document.getElementById('memberHelpText');
+            const statusHelpText = document.getElementById('statusHelpText');
+            const emailHelpText = document.getElementById('emailHelpText');
+            
+            if (memberSelectCombobox) {
+                memberSelectCombobox.classList.add('loading-field');
+            }
+            if (statusSelect) {
+                statusSelect.classList.add('loading-field');
+            }
+            if (emailInput) {
+                emailInput.classList.add('loading-field');
+            }
+            
+            if (memberHelpText) {
+                memberHelpText.textContent = 'Loading QR code details...';
+                memberHelpText.className = 'field-loading-message';
+            }
+            if (statusHelpText) {
+                statusHelpText.textContent = 'Loading QR code details...';
+                statusHelpText.className = 'field-loading-message';
+            }
+            if (emailHelpText) {
+                emailHelpText.textContent = 'Loading QR code details...';
+                emailHelpText.className = 'field-loading-message';
+            }
+        }
+
+        function clearFieldLoadingState() {
+            // Clear loading state from all three fields
+            const memberSelectCombobox = document.getElementById('memberSelectCombobox');
+            const statusSelect = document.getElementById('status_select');
+            const emailInput = document.getElementById('email_input');
+            const memberHelpText = document.getElementById('memberHelpText');
+            const statusHelpText = document.getElementById('statusHelpText');
+            const emailHelpText = document.getElementById('emailHelpText');
+            
+            if (memberSelectCombobox) {
+                memberSelectCombobox.classList.remove('loading-field');
+            }
+            if (statusSelect) {
+                statusSelect.classList.remove('loading-field');
+            }
+            if (emailInput) {
+                emailInput.classList.remove('loading-field');
+            }
+            
+            if (memberHelpText) {
+                memberHelpText.textContent = 'Select a member to associate with this QR code (leave as "-- No change --" to keep current association)';
+                memberHelpText.className = 'help-text';
+            }
+            if (statusHelpText) {
+                statusHelpText.textContent = 'Update the QR code status (leave as "-- No change --" to keep current status)';
+                statusHelpText.className = 'help-text';
+            }
+            if (emailHelpText) {
+                emailHelpText.textContent = 'Update the owner\'s email address (leave empty to keep current email)';
+                emailHelpText.className = 'help-text';
+            }
+        }
+
         async function selectQRCode(qrKey, qrName) {
             lastQrParam = qrKey;
             const qrSelectDisplay = document.getElementById('qrSelectDisplay');
@@ -435,6 +610,9 @@
             if (qrSearchInput) {
                 qrSearchInput.value = '';
             }
+
+            // Show loading state immediately
+            showFieldLoadingState();
 
             try {
                 const lookupUrl = `${LOOKUP_ENDPOINT}?lookup=true&qr_code=${encodeURIComponent(qrKey)}`;
@@ -462,9 +640,10 @@
                             statusSelect.value = statusValue;
                         } else {
                             statusSelect.value = '';
-                            const helpText = statusSelect.nextElementSibling;
-                            if (helpText && helpText.classList.contains('help-text')) {
-                                helpText.textContent = `Update the QR code status (Current: ${qrStatus})`;
+                            const statusHelpText = document.getElementById('statusHelpText');
+                            if (statusHelpText) {
+                                statusHelpText.textContent = `Update the QR code status (Current: ${qrStatus})`;
+                                statusHelpText.className = 'help-text';
                             }
                         }
                     } else if (statusSelect && !qrStatus) {
@@ -481,32 +660,27 @@
                         }
                     }
                     
-                    if (memberSelect) {
-                        if (qrManagerName) {
-                            const memberOption = Array.from(memberSelect.options).find(opt => {
-                                const optText = opt.textContent.trim();
-                                const optValue = opt.value.trim();
-                                const managerNameLower = qrManagerName.trim().toLowerCase();
-                                return optText.toLowerCase() === managerNameLower || 
-                                       optValue.toLowerCase() === managerNameLower ||
-                                       optText.toLowerCase().includes(managerNameLower) ||
-                                       optValue.toLowerCase().includes(managerNameLower);
-                            });
-                            if (memberOption) {
-                                memberSelect.value = memberOption.value;
-                            } else {
-                                memberSelect.value = '';
-                                const managerOption = document.createElement('option');
-                                managerOption.value = qrManagerName;
-                                managerOption.textContent = `${qrManagerName} (current)`;
-                                managerOption.selected = true;
-                                memberSelect.insertBefore(managerOption, memberSelect.firstChild.nextSibling);
-                            }
+                    if (qrManagerName) {
+                        const matchingMember = allMembers.find(m => {
+                            const memberNameLower = m.name.trim().toLowerCase();
+                            const managerNameLower = qrManagerName.trim().toLowerCase();
+                            return memberNameLower === managerNameLower || 
+                                   memberNameLower.includes(managerNameLower) ||
+                                   managerNameLower.includes(memberNameLower);
+                        });
+                        if (matchingMember) {
+                            selectMember(matchingMember.key, matchingMember.name);
                         } else {
-                            memberSelect.value = '';
+                            // If manager doesn't exist in list, show it as selected
+                            selectMember(qrManagerName, `${qrManagerName} (current)`);
                         }
+                    } else {
+                        selectMember(null, '-- No change --');
                     }
                 }
+                
+                // Clear loading state after fields are populated
+                clearFieldLoadingState();
             } catch (err) {
                 console.error('Error fetching QR code details:', err);
                 currentQrCodeData = {
@@ -514,16 +688,30 @@
                     email: '',
                     manager_name: ''
                 };
+                
+                // Clear loading state even on error
+                clearFieldLoadingState();
+                
+                // Show error message
+                const memberHelpText = document.getElementById('memberHelpText');
+                if (memberHelpText) {
+                    memberHelpText.textContent = 'Error loading QR code details. Please try again.';
+                    memberHelpText.className = 'help-text';
+                    memberHelpText.style.color = '#dc3545';
+                }
             }
         }
 
         async function updateQrCode() {
             const qrCode = lastQrParam || '';
-            const memberSelectEl = document.getElementById('member_select');
+            const memberSelectDisplay = document.getElementById('memberSelectDisplay');
             const statusSelectEl = document.getElementById('status_select');
             const emailInputEl = document.getElementById('email_input');
             
-            const member = memberSelectEl && memberSelectEl.value ? memberSelectEl.value.trim() : '';
+            const memberDisplayText = memberSelectDisplay ? memberSelectDisplay.textContent.trim() : '';
+            const member = (memberDisplayText && memberDisplayText !== '-- No change --' && memberDisplayText !== 'Loading members...') 
+                ? (currentMemberKey || memberDisplayText.replace(' (current)', '')) 
+                : '';
             const status = statusSelectEl && statusSelectEl.value ? statusSelectEl.value.trim() : '';
             const email = emailInputEl && emailInputEl.value ? emailInputEl.value.trim() : '';
             const updateButton = document.getElementById('update_button');
@@ -653,7 +841,7 @@
                         document.getElementById('status_select').value = '';
                         document.getElementById('email_input').value = '';
                         document.getElementById('email_input').placeholder = 'owner@example.com';
-                        document.getElementById('member_select').value = '';
+                        selectMember(null, '-- No change --');
                     }, 2000);
                 } else {
                     const errorMsg = result.error || result.message || 'Failed to update QR code';
@@ -802,6 +990,45 @@
                     if (!qrSelectCombobox.contains(e.target) && !qrDropdownContainer.contains(e.target)) {
                         qrDropdownContainer.style.display = 'none';
                         qrSearchInput.value = '';
+                    }
+                });
+            }
+
+            // Setup member combobox
+            const memberSelectCombobox = document.getElementById('memberSelectCombobox');
+            const memberDropdownContainer = document.getElementById('memberDropdownContainer');
+            const memberSearchInput = document.getElementById('memberSearchInput');
+
+            if (memberSelectCombobox && memberDropdownContainer && memberSearchInput) {
+                memberSelectCombobox.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = memberDropdownContainer.style.display === 'block';
+                    memberDropdownContainer.style.display = isOpen ? 'none' : 'block';
+                    if (!isOpen) {
+                        setTimeout(() => memberSearchInput.focus(), 10);
+                        updateMemberAutocomplete();
+                    }
+                });
+                memberSearchInput.addEventListener('input', updateMemberAutocomplete);
+                memberSearchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const filterText = memberSearchInput.value ? memberSearchInput.value.toLowerCase() : '';
+                        const matches = allMembers && allMembers.length > 0
+                            ? allMembers.filter(m => m.name && m.name.toLowerCase().includes(filterText))
+                            : [];
+                        if (matches.length > 0) {
+                            selectMember(matches[0].key, matches[0].name);
+                        }
+                    } else if (e.key === 'Escape') {
+                        memberDropdownContainer.style.display = 'none';
+                        memberSearchInput.value = '';
+                    }
+                });
+                document.addEventListener('click', (e) => {
+                    if (!memberSelectCombobox.contains(e.target) && !memberDropdownContainer.contains(e.target)) {
+                        memberDropdownContainer.style.display = 'none';
+                        memberSearchInput.value = '';
                     }
                 });
             }
