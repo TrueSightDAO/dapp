@@ -120,13 +120,18 @@
             font-weight: bold;
             font-size: 1rem;
         }
-        select, input[type="number"], textarea {
+        select, input[type="number"], input[type="text"], textarea {
             width: 100%;
             padding: 0.8rem;
             font-size: 1rem;
             box-sizing: border-box;
             border-radius: 5px;
             border: 1px solid #ccc;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
         }
         select:disabled, input:disabled, textarea:disabled {
             background-color: #f0f0f0;
@@ -248,7 +253,7 @@
             label {
                 font-size: 0.95rem;
             }
-            select, input[type="number"], textarea {
+            select, input[type="number"], input[type="text"], textarea {
                 font-size: 0.95rem;
                 padding: 0.6rem;
             }
@@ -287,10 +292,9 @@
                 </select>
             </div>
             <div class="form-row">
-                <label for="resourceSelect">Inventory Resource:</label>
-                <select id="resourceSelect" disabled>
-                    <option value="">Select a member first</option>
-                </select>
+                <label for="resourceInput">Inventory Resource:</label>
+                <input type="text" id="resourceInput" list="resourceOptions" autocomplete="off" placeholder="Type to search and filter resources..." disabled>
+                <datalist id="resourceOptions"></datalist>
                 <div id="availableQuantity"></div>
             </div>
             <div class="form-row">
@@ -490,7 +494,8 @@
 
         function resetForm() {
             const memberSel = document.getElementById('memberSelect');
-            const resourceSel = document.getElementById('resourceSelect');
+            const resourceInput = document.getElementById('resourceInput');
+            const resourceOptions = document.getElementById('resourceOptions');
             const qtyInput = document.getElementById('quantityInput');
             const descriptionInput = document.getElementById('descriptionInput');
             const uploadedFilePreview = document.getElementById('uploaded-file-preview');
@@ -499,8 +504,9 @@
             const charCount = document.getElementById('charCount');
 
             memberSel.selectedIndex = 0;
-            resourceSel.innerHTML = '<option value="">Select a member first</option>';
-            resourceSel.disabled = true;
+            resourceInput.value = '';
+            resourceInput.disabled = true;
+            resourceOptions.innerHTML = '';
             qtyInput.value = '';
             qtyInput.disabled = true;
             descriptionInput.value = '';
@@ -561,14 +567,17 @@
 
         async function onMemberChange() {
             const memberKey = this.value;
-            const resourceSel = document.getElementById('resourceSelect');
+            const resourceInput = document.getElementById('resourceInput');
+            const resourceOptions = document.getElementById('resourceOptions');
             const qtyInput = document.getElementById('quantityInput');
             const availableQty = document.getElementById('availableQuantity');
             availableQty.textContent = '';
             qtyInput.value = '';
             if (!memberKey) {
-                resourceSel.innerHTML = '<option value="">Select a member first</option>';
-                resourceSel.disabled = true;
+                resourceInput.value = '';
+                resourceInput.disabled = true;
+                resourceInput.placeholder = 'Select a member first';
+                resourceOptions.innerHTML = '';
                 qtyInput.disabled = true;
             } else {
                 try {
@@ -577,23 +586,34 @@
                     console.log('Loaded member resources:', resources.length, resources);
                     console.log('All currencies available:', allCurrencies.length, allCurrencies);
                     
-                    resourceSel.innerHTML = '<option value="">Select a resource</option>';
+                    resourceOptions.innerHTML = '';
+                    resourceInput.value = '';
+                    resourceInput.placeholder = 'Type to search and filter resources...';
+                    
+                    // Store all options with metadata for lookup
+                    window.resourceOptionsData = [];
                     
                     // Add member-controlled resources with available quantity info
                     if (resources.length > 0) {
-                        const memberGroup = document.createElement('optgroup');
-                        memberGroup.label = 'Resources under member control';
                         // Sort resources alphabetically by currency name
                         const sortedResources = resources.sort((a, b) => a.currency.localeCompare(b.currency));
                         sortedResources.forEach(r => {
                             const opt = document.createElement('option');
+                            const displayText = `${r.currency} (Available: ${r.amount})`;
                             opt.value = r.currency;
-                            opt.textContent = `${r.currency} (Available: ${r.amount})`;
-                            opt.dataset.memberControlled = 'true';
-                            opt.dataset.availableAmount = r.amount;
-                            memberGroup.appendChild(opt);
+                            opt.textContent = displayText;
+                            resourceOptions.appendChild(opt);
+                            
+                            // Store metadata for lookup
+                            window.resourceOptionsData.push({
+                                value: r.currency,
+                                displayText: displayText,
+                                memberControlled: true,
+                                availableAmount: r.amount,
+                                quantity: r.amount,
+                                ledgerName: ''
+                            });
                         });
-                        resourceSel.appendChild(memberGroup);
                     }
                     
                     // Add all currencies that are not under member control
@@ -635,20 +655,22 @@
                         console.log('Member currencies:', memberCurrencies);
                         console.log('Other currencies (objects):', otherCurrencies);
                         
-                        if (otherCurrencies.length > 0) {
-                            const otherGroup = document.createElement('optgroup');
-                            otherGroup.label = 'Other resources (from all ledgers)';
-                            otherCurrencies.forEach(currencyOption => {
-                                const opt = document.createElement('option');
-                                opt.value = currencyOption.formattedName;
-                                opt.textContent = currencyOption.formattedName;
-                                opt.dataset.memberControlled = 'false';
-                                opt.dataset.quantity = currencyOption.quantity || 0;
-                                opt.dataset.ledgerName = currencyOption.ledgerName || '';
-                                otherGroup.appendChild(opt);
+                        otherCurrencies.forEach(currencyOption => {
+                            const opt = document.createElement('option');
+                            opt.value = currencyOption.formattedName;
+                            opt.textContent = currencyOption.formattedName;
+                            resourceOptions.appendChild(opt);
+                            
+                            // Store metadata for lookup
+                            window.resourceOptionsData.push({
+                                value: currencyOption.formattedName,
+                                displayText: currencyOption.formattedName,
+                                memberControlled: false,
+                                availableAmount: null,
+                                quantity: currencyOption.quantity || 0,
+                                ledgerName: currencyOption.ledgerName || ''
                             });
-                            resourceSel.appendChild(otherGroup);
-                        }
+                        });
                     } else {
                         // If allCurrencies is still empty, show a message
                         console.warn('All currencies not yet loaded, showing only member-controlled resources');
@@ -663,7 +685,7 @@
                         }
                     }
                     
-                    resourceSel.disabled = false;
+                    resourceInput.disabled = false;
                     qtyInput.disabled = true;
                 } catch (err) {
                     console.error('Error loading resources:', err);
@@ -676,17 +698,27 @@
 
         function onResourceChange() {
             const selected = this.value;
-            const selectedOption = this.options[this.selectedIndex];
             const availableQty = document.getElementById('availableQuantity');
             const qtyInput = document.getElementById('quantityInput');
             
-            // Check if this resource is under member control
-            const isMemberControlled = selectedOption.dataset.memberControlled === 'true';
-            const quantity = selectedOption.dataset.quantity || '0';
+            // Find the matching option data
+            const optionData = window.resourceOptionsData?.find(opt => 
+                opt.value === selected || opt.displayText === selected
+            );
             
-            if (isMemberControlled) {
+            if (!optionData) {
+                // No match found, clear fields
+                availableQty.textContent = '';
+                qtyInput.value = '';
+                qtyInput.disabled = true;
+                updateSubmitButtonState();
+                return;
+            }
+            
+            // Check if this resource is under member control
+            if (optionData.memberControlled) {
                 // Handle available quantity for member-controlled resources
-                const resource = resources.find(r => r.currency === selected);
+                const resource = resources.find(r => r.currency === optionData.value);
                 if (resource) {
                     availableQty.textContent = `Available Quantity: ${resource.amount}`;
                     qtyInput.max = resource.amount;
@@ -698,18 +730,18 @@
                 }
             } else {
                 // Resource is from listAllCurrencies (not member-controlled)
-                if (selectedOption.dataset.ledgerName === '') {
+                if (optionData.ledgerName === '') {
                     // Base currency option (no ledger prefix)
-                    if (parseInt(quantity) > 0) {
-                        availableQty.textContent = `Total quantity across all ledgers: ${quantity}`;
+                    if (parseInt(optionData.quantity) > 0) {
+                        availableQty.textContent = `Total quantity across all ledgers: ${optionData.quantity}`;
                     } else {
                         availableQty.textContent = 'Resource with no quantity tracking';
                     }
                 } else {
                     // Specific ledger option
-                    const ledgerName = selectedOption.dataset.ledgerName || 'Unknown';
-                    if (parseInt(quantity) > 0) {
-                        availableQty.textContent = `Quantity in ${ledgerName} ledger: ${quantity}`;
+                    const ledgerName = optionData.ledgerName || 'Unknown';
+                    if (parseInt(optionData.quantity) > 0) {
+                        availableQty.textContent = `Quantity in ${ledgerName} ledger: ${optionData.quantity}`;
                     } else {
                         availableQty.textContent = `${ledgerName} ledger (no quantity tracking)`;
                     }
@@ -724,11 +756,18 @@
 
         function updateSubmitButtonState() {
             const memberSel = document.getElementById('memberSelect');
-            const resourceSel = document.getElementById('resourceSelect');
+            const resourceInput = document.getElementById('resourceInput');
             const qtyInput = document.getElementById('quantityInput');
             const descriptionInput = document.getElementById('descriptionInput');
             const submitBtn = document.getElementById('submitButton');
-            submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0 && descriptionInput.value && uploadedFile);
+            
+            // Check if resource input has a valid value
+            const resourceValue = resourceInput.value.trim();
+            const hasValidResource = resourceValue && window.resourceOptionsData?.some(opt => 
+                opt.value === resourceValue || opt.displayText === resourceValue
+            );
+            
+            submitBtn.disabled = !(memberSel.value && hasValidResource && qtyInput.value && qtyInput.value > 0 && descriptionInput.value && uploadedFile);
         }
 
         async function onSubmit() {
@@ -746,8 +785,8 @@
 
             const memberSel = document.getElementById('memberSelect');
             const memberName = memberSel.options[memberSel.selectedIndex].text;
-            const resourceSel = document.getElementById('resourceSelect');
-            const resourceName = resourceSel.value;
+            const resourceInput = document.getElementById('resourceInput');
+            const resourceName = resourceInput.value.trim();
             const quantity = document.getElementById('quantityInput').value;
             const description = document.getElementById('descriptionInput').value;
             const publicKey = localStorage.getItem('publicKey');
@@ -932,7 +971,19 @@
                 loadMembers();
                 loadAllCurrencies();
                 document.getElementById('memberSelect').addEventListener('change', onMemberChange);
-                document.getElementById('resourceSelect').addEventListener('change', onResourceChange);
+                const resourceInput = document.getElementById('resourceInput');
+                resourceInput.addEventListener('input', onResourceChange);
+                resourceInput.addEventListener('change', onResourceChange);
+                resourceInput.addEventListener('blur', function() {
+                    // Validate on blur - if value doesn't match any option, clear it
+                    const value = this.value.trim();
+                    if (value && !window.resourceOptionsData?.some(opt => 
+                        opt.value === value || opt.displayText === value
+                    )) {
+                        this.value = '';
+                        onResourceChange.call(this);
+                    }
+                });
                 document.getElementById('quantityInput').addEventListener('input', updateSubmitButtonState);
                 const descriptionInput = document.getElementById('descriptionInput');
                 const charCount = document.getElementById('charCount');
