@@ -30,7 +30,7 @@
             background-color: #f5f5f5;
         }
         .container {
-            max-width: 600px;
+            max-width: 800px;
             width: 100%;
             background-color: white;
             padding: 1rem;
@@ -120,13 +120,42 @@
             font-weight: bold;
             font-size: 1rem;
         }
-        select, input[type="number"], textarea {
+        select, input[type="number"], input[type="text"], textarea {
             width: 100%;
             padding: 0.8rem;
             font-size: 1rem;
             box-sizing: border-box;
-            border-radius: 5px;
+            border-radius: 8px;
             border: 1px solid #ccc;
+        }
+        input[type="text"] {
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+            min-width: 0;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        /* Ensure input fields can display full text when selected */
+        input[type="text"][list] {
+            /* Allow browser to show full text in dropdown suggestions */
+            width: 100%;
+        }
+        /* Style for long text in inputs - show tooltip on hover */
+        input[type="text"][title]:hover::after {
+            content: attr(title);
+            position: absolute;
+            background: #333;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            z-index: 1000;
+            margin-top: 2rem;
+            white-space: normal;
+            max-width: 300px;
         }
         select:disabled, input:disabled, textarea:disabled {
             background-color: #f0f0f0;
@@ -248,7 +277,7 @@
             label {
                 font-size: 0.95rem;
             }
-            select, input[type="number"], textarea {
+            select, input[type="number"], input[type="text"], textarea {
                 font-size: 0.95rem;
                 padding: 0.6rem;
             }
@@ -281,16 +310,35 @@
         <p id="status" class="fade-in">Verifying your digital signature...</p>
         <div id="info" style="display: none;">
             <div class="form-row">
-                <label for="memberSelect">DAO Member:</label>
-                <select id="memberSelect">
+                <label for="memberInput">DAO Member:</label>
+                <input type="text" id="memberInput" list="memberOptions" autocomplete="off" placeholder="Loading members..." disabled>
+                <datalist id="memberOptions">
                     <option value="">Loading members...</option>
-                </select>
+                </datalist>
             </div>
             <div class="form-row">
-                <label for="resourceSelect">Inventory Resource:</label>
-                <select id="resourceSelect" disabled>
-                    <option value="">Select a member first</option>
-                </select>
+                <label for="ledgerInput">Target Ledger (Optional):</label>
+                <input type="text" id="ledgerInput" list="ledgerOptions" autocomplete="off" placeholder="Loading ledgers..." disabled>
+                <datalist id="ledgerOptions">
+                    <option value="">Loading ledgers...</option>
+                </datalist>
+                <div id="ledgerInfo" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666; display: none;">
+                    <span id="ledgerInfoText"></span>
+                    <a id="ledgerLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; margin-left: 0.5rem; display: none;">View Ledger →</a>
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="resourceInput">Inventory Resource:</label>
+                <div style="position: relative;">
+                    <div id="resourceSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; min-height: 2.6rem;">
+                        <span id="resourceSelectDisplay" style="color: #999;">Loading resources...</span>
+                        <span style="color: #666;">▼</span>
+                    </div>
+                    <div id="resourceDropdownContainer" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 0 0 8px 8px; max-height: 400px; overflow-y: auto;">
+                        <input type="text" id="resourceSearchInput" placeholder="Type to search resources..." autocomplete="off" style="width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box; border: none; border-bottom: 1px solid #eee; outline: none;">
+                        <div id="resourceAutocompleteList" style="max-height: 300px; overflow-y: auto;"></div>
+                    </div>
+                </div>
                 <div id="availableQuantity"></div>
             </div>
             <div class="form-row">
@@ -329,6 +377,8 @@
         const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
         let resources = [];
         let allCurrencies = [];
+        let allLedgers = [];
+        let allMembers = [];
         let latitude = null;
         let longitude = null;
         let contributorName = '';
@@ -489,8 +539,13 @@
         }
 
         function resetForm() {
-            const memberSel = document.getElementById('memberSelect');
-            const resourceSel = document.getElementById('resourceSelect');
+            const memberInput = document.getElementById('memberInput');
+            const ledgerInput = document.getElementById('ledgerInput');
+            const ledgerInfo = document.getElementById('ledgerInfo');
+            const ledgerLink = document.getElementById('ledgerLink');
+            const resourceSelectDisplay = document.getElementById('resourceSelectDisplay');
+            const resourceSelectCombobox = document.getElementById('resourceSelectCombobox');
+            const resourceDropdownContainer = document.getElementById('resourceDropdownContainer');
             const qtyInput = document.getElementById('quantityInput');
             const descriptionInput = document.getElementById('descriptionInput');
             const uploadedFilePreview = document.getElementById('uploaded-file-preview');
@@ -498,9 +553,20 @@
             const output = document.getElementById('outputMessage');
             const charCount = document.getElementById('charCount');
 
-            memberSel.selectedIndex = 0;
-            resourceSel.innerHTML = '<option value="">Select a member first</option>';
-            resourceSel.disabled = true;
+            memberInput.value = '';
+            ledgerInput.value = '';
+            ledgerInfo.style.display = 'none';
+            ledgerLink.style.display = 'none';
+            if (resourceSelectDisplay) {
+                resourceSelectDisplay.textContent = 'Select a member first';
+                resourceSelectDisplay.style.color = '#999';
+            }
+            if (resourceSelectCombobox) {
+                resourceSelectCombobox.style.pointerEvents = 'none';
+            }
+            if (resourceDropdownContainer) {
+                resourceDropdownContainer.style.display = 'none';
+            }
             qtyInput.value = '';
             qtyInput.disabled = true;
             descriptionInput.value = '';
@@ -513,6 +579,7 @@
             availableQtyElem.textContent = '';
             uploadedFile = null;
             updateSubmitButtonState();
+            updateLedgerInfo();
         }
 
         function updateButtonText() {
@@ -522,24 +589,571 @@
         }
 
         async function loadMembers() {
+            const memberInput = document.getElementById('memberInput');
             try {
                 const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?list=true');
                 const members = await res.json();
-                const sel = document.getElementById('memberSelect');
-                sel.innerHTML = '<option value="">Select a DAO member</option>';
+                allMembers = members || [];
+                const memberOptions = document.getElementById('memberOptions');
+                memberOptions.innerHTML = '';
+                
                 // Sort members alphabetically by name
-                const sortedMembers = members.sort((a, b) => a.name.localeCompare(b.name));
+                const sortedMembers = allMembers.sort((a, b) => a.name.localeCompare(b.name));
                 sortedMembers.forEach(m => {
                     const opt = document.createElement('option');
-                    opt.value = m.key;
+                    opt.value = m.name;
                     opt.textContent = m.name;
-                    sel.appendChild(opt);
+                    opt.setAttribute('title', m.name); // Show full text on hover
+                    opt.dataset.memberKey = m.key;
+                    memberOptions.appendChild(opt);
                 });
+                
+                // Update placeholder and enable input after loading
+                memberInput.placeholder = 'Type to search and filter members...';
+                memberInput.disabled = false;
+                console.log('Loaded members:', allMembers.length, allMembers);
             } catch (err) {
                 console.error('Error loading members:', err);
+                memberInput.placeholder = 'Error loading members. Please refresh.';
                 document.getElementById('outputMessage').textContent = 'Error loading members: ' + err.message;
                 document.getElementById('outputMessage').className = 'error';
             }
+        }
+
+        async function loadLedgers() {
+            const ledgerInput = document.getElementById('ledgerInput');
+            try {
+                const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?ledgers=true');
+                const ledgers = await res.json();
+                allLedgers = ledgers || [];
+                const ledgerOptions = document.getElementById('ledgerOptions');
+                ledgerOptions.innerHTML = '';
+                
+                // Add default offchain option
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = 'offchain';
+                defaultOpt.textContent = 'offchain (Main Ledger - Default)';
+                defaultOpt.setAttribute('title', 'offchain (Main Ledger - Default)'); // Show full text on hover
+                defaultOpt.dataset.ledgerName = 'offchain';
+                defaultOpt.dataset.ledgerUrl = '';
+                ledgerOptions.appendChild(defaultOpt);
+                
+                // Add other ledgers
+                allLedgers.forEach(ledger => {
+                    const opt = document.createElement('option');
+                    opt.value = ledger.ledger_name;
+                    opt.textContent = ledger.ledger_name;
+                    opt.setAttribute('title', ledger.ledger_name); // Show full text on hover
+                    opt.dataset.ledgerName = ledger.ledger_name;
+                    opt.dataset.ledgerUrl = ledger.ledger_url || '';
+                    ledgerOptions.appendChild(opt);
+                });
+                
+                // Update placeholder and enable input after loading
+                ledgerInput.placeholder = 'Type to search ledgers (default: offchain)...';
+                ledgerInput.disabled = false;
+                console.log('Loaded ledgers:', allLedgers.length, allLedgers);
+            } catch (err) {
+                console.error('Error loading ledgers:', err);
+                ledgerInput.placeholder = 'Error loading ledgers. Please refresh.';
+                const ledgerOptions = document.getElementById('ledgerOptions');
+                ledgerOptions.innerHTML = '<option value="">Error loading ledgers</option>';
+            }
+        }
+
+        function updateLedgerInfo() {
+            const ledgerInput = document.getElementById('ledgerInput');
+            const ledgerInfo = document.getElementById('ledgerInfo');
+            const ledgerInfoText = document.getElementById('ledgerInfoText');
+            const ledgerLink = document.getElementById('ledgerLink');
+            
+            const ledgerValue = ledgerInput.value.trim();
+            if (!ledgerValue) {
+                ledgerInfoText.textContent = 'Expense will be recorded to: Main Ledger (offchain)';
+                ledgerLink.style.display = 'none';
+                ledgerInfo.style.display = 'block';
+                return;
+            }
+            
+            // Find matching ledger
+            const matchingLedger = allLedgers.find(l => 
+                l.ledger_name.toLowerCase() === ledgerValue.toLowerCase()
+            ) || (ledgerValue.toLowerCase() === 'offchain' ? { ledger_name: 'offchain', ledger_url: '' } : null);
+            
+            if (matchingLedger) {
+                ledgerInfoText.textContent = `Expense will be recorded to: ${matchingLedger.ledger_name}`;
+                if (matchingLedger.ledger_url) {
+                    ledgerLink.href = matchingLedger.ledger_url;
+                    ledgerLink.textContent = 'View Ledger →';
+                    ledgerLink.style.display = 'inline';
+                } else {
+                    ledgerLink.style.display = 'none';
+                }
+                ledgerInfo.style.display = 'block';
+            } else {
+                // Invalid ledger, clear and show default
+                ledgerInput.value = '';
+                ledgerInfoText.textContent = 'Expense will be recorded to: Main Ledger (offchain)';
+                ledgerLink.style.display = 'none';
+                ledgerInfo.style.display = 'block';
+            }
+        }
+
+        function onMemberChange() {
+            const memberInput = document.getElementById('memberInput');
+            const memberValue = memberInput.value.trim();
+            const resourceSelectDisplay = document.getElementById('resourceSelectDisplay');
+            const resourceSelectCombobox = document.getElementById('resourceSelectCombobox');
+            const resourceDropdownContainer = document.getElementById('resourceDropdownContainer');
+            const qtyInput = document.getElementById('quantityInput');
+            const availableQty = document.getElementById('availableQuantity');
+            
+            availableQty.textContent = '';
+            qtyInput.value = '';
+            
+            // Find matching member
+            const matchingMember = allMembers.find(m => 
+                m.name.toLowerCase() === memberValue.toLowerCase()
+            );
+            
+            if (!matchingMember) {
+                // Invalid member, disable resource selection
+                if (resourceSelectDisplay) {
+                    resourceSelectDisplay.textContent = 'Select a valid member first';
+                    resourceSelectDisplay.style.color = '#999';
+                }
+                if (resourceSelectCombobox) {
+                    resourceSelectCombobox.style.pointerEvents = 'none';
+                }
+                if (resourceDropdownContainer) {
+                    resourceDropdownContainer.style.display = 'none';
+                }
+                qtyInput.disabled = true;
+                updateSubmitButtonState();
+                return;
+            }
+            
+            // Valid member selected, enable resource selection and load their resources
+            if (resourceSelectCombobox) {
+                resourceSelectCombobox.style.pointerEvents = 'auto';
+            }
+            loadMemberResources(matchingMember.key);
+        }
+
+        // Store all loaded resources (before filtering)
+        let allLoadedResources = [];
+        let allLoadedResourceOptionsData = [];
+
+        /**
+         * Normalizes ledger names for comparison (handles variations like "AGL10", "AGL 10", "agl10")
+         * @param {string} ledgerName - The ledger name to normalize
+         * @return {string} Normalized ledger name
+         */
+        function normalizeLedgerName(ledgerName) {
+            if (!ledgerName) return '';
+            // Remove spaces, dashes, underscores and convert to lowercase
+            return ledgerName.toLowerCase().replace(/[\s\-_]/g, '');
+        }
+        
+        /**
+         * Extracts ledger name from resource value/displayText (handles formats like "[AGL10] Resource Name")
+         * @param {string} resourceValue - The resource value or display text
+         * @return {string|null} Extracted ledger name or null if not found
+         */
+        function extractLedgerFromResource(resourceValue) {
+            if (!resourceValue) return null;
+            // Match pattern like [AGL10] or [AGL 10] at the start
+            const match = resourceValue.match(/^\[([^\]]+)\]\s*(.+)$/);
+            return match ? match[1] : null;
+        }
+        
+        /**
+         * Filters and returns resources based on selected ledger
+         * @return {Object} Object with memberControlledResources and otherResources arrays
+         */
+        function getFilteredResources() {
+            const ledgerInput = document.getElementById('ledgerInput');
+            const selectedLedgerRaw = ledgerInput.value.trim();
+            const selectedLedger = normalizeLedgerName(selectedLedgerRaw);
+            
+            // Separate resources by category
+            const memberControlledResources = [];
+            const otherResources = [];
+            
+            // If no ledger selected or "offchain", show all resources
+            const showAll = !selectedLedgerRaw || selectedLedgerRaw.toLowerCase() === 'offchain';
+            
+            // Filter and categorize resources
+            allLoadedResourceOptionsData.forEach(resourceData => {
+                let shouldShow = false;
+                
+                if (showAll) {
+                    // No ledger filter: show all resources
+                    shouldShow = true;
+                } else {
+                    // Filter by ledger: check if resource matches selected ledger
+                    // Strategy 1: Check ledgerName property (for resources loaded from allCurrencies)
+                    let resourceLedger = null;
+                    if (resourceData.ledgerName) {
+                        resourceLedger = normalizeLedgerName(resourceData.ledgerName);
+                    } else {
+                        // Strategy 2: Extract ledger from resource value/displayText (handles [AGL10] format)
+                        const extractedLedger = extractLedgerFromResource(resourceData.value || resourceData.displayText);
+                        if (extractedLedger) {
+                            resourceLedger = normalizeLedgerName(extractedLedger);
+                        }
+                    }
+                    
+                    // Match if ledger names match (normalized)
+                    shouldShow = resourceLedger && resourceLedger === selectedLedger;
+                    
+                    // Also show member-controlled resources if they match the ledger
+                    // (in case member resources have ledger prefixes in their names)
+                    if (!shouldShow && resourceData.memberControlled) {
+                        const memberResourceLedger = extractLedgerFromResource(resourceData.value || resourceData.displayText);
+                        if (memberResourceLedger) {
+                            shouldShow = normalizeLedgerName(memberResourceLedger) === selectedLedger;
+                        }
+                    }
+                }
+                
+                if (shouldShow) {
+                    // Categorize resources
+                    if (resourceData.memberControlled) {
+                        memberControlledResources.push(resourceData);
+                    } else {
+                        otherResources.push(resourceData);
+                    }
+                }
+            });
+            
+            return { memberControlledResources, otherResources };
+        }
+        
+        /**
+         * Populates the custom resource dropdown with filtered resources
+         */
+        function populateResourceDropdown() {
+            const resourceAutocompleteList = document.getElementById('resourceAutocompleteList');
+            const resourceSearchInput = document.getElementById('resourceSearchInput');
+            
+            if (!resourceAutocompleteList) return;
+            
+            const filterText = resourceSearchInput ? resourceSearchInput.value.toLowerCase() : '';
+            const { memberControlledResources, otherResources } = getFilteredResources();
+            
+            // Combine and filter resources
+            let allFilteredResources = [];
+            if (filterText) {
+                memberControlledResources.forEach(r => {
+                    if (r.displayText.toLowerCase().includes(filterText)) {
+                        allFilteredResources.push({ ...r, category: 'Assets under member control' });
+                    }
+                });
+                otherResources.forEach(r => {
+                    if (r.displayText.toLowerCase().includes(filterText)) {
+                        allFilteredResources.push({ ...r, category: 'Other currencies (from all ledgers)' });
+                    }
+                });
+            } else {
+                memberControlledResources.forEach(r => {
+                    allFilteredResources.push({ ...r, category: 'Assets under member control' });
+                });
+                otherResources.forEach(r => {
+                    allFilteredResources.push({ ...r, category: 'Other currencies (from all ledgers)' });
+                });
+            }
+            
+            // Clear previous list
+            resourceAutocompleteList.innerHTML = '';
+            
+            if (allFilteredResources.length > 0) {
+                // Group by category
+                const grouped = {};
+                allFilteredResources.forEach(resource => {
+                    const category = resource.category || 'Other';
+                    if (!grouped[category]) {
+                        grouped[category] = [];
+                    }
+                    grouped[category].push(resource);
+                });
+                
+                // Display grouped items with headers
+                Object.keys(grouped).sort().forEach(category => {
+                    if (Object.keys(grouped).length > 1) {
+                        const categoryHeader = document.createElement('div');
+                        categoryHeader.style.cssText = 'padding: 6px 12px; font-weight: bold; color: #666; background-color: #f5f5f5; font-size: 0.9rem;';
+                        categoryHeader.textContent = category;
+                        resourceAutocompleteList.appendChild(categoryHeader);
+                    }
+                    
+                    grouped[category].forEach(resourceData => {
+                        const listItem = document.createElement('div');
+                        listItem.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s; white-space: normal; word-wrap: break-word;';
+                        listItem.textContent = resourceData.displayText;
+                        listItem.setAttribute('title', resourceData.displayText);
+                        listItem.addEventListener('mouseenter', () => {
+                            listItem.style.backgroundColor = '#f0f0f0';
+                        });
+                        listItem.addEventListener('mouseleave', () => {
+                            listItem.style.backgroundColor = 'white';
+                        });
+                        listItem.addEventListener('click', () => {
+                            selectResource(resourceData.value, resourceData.displayText, resourceData);
+                        });
+                        resourceAutocompleteList.appendChild(listItem);
+                    });
+                });
+            } else {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = 'No matching resources found';
+                resourceAutocompleteList.appendChild(noResults);
+            }
+        }
+        
+        /**
+         * Handles resource selection from the custom dropdown
+         */
+        function selectResource(resourceValue, resourceDisplayText, resourceData) {
+            const resourceSelectDisplay = document.getElementById('resourceSelectDisplay');
+            const resourceDropdownContainer = document.getElementById('resourceDropdownContainer');
+            const resourceSearchInput = document.getElementById('resourceSearchInput');
+            const availableQuantity = document.getElementById('availableQuantity');
+            const qtyInput = document.getElementById('quantityInput');
+            const ledgerInput = document.getElementById('ledgerInput');
+            
+            // Update display
+            if (resourceSelectDisplay) {
+                resourceSelectDisplay.textContent = resourceDisplayText;
+                resourceSelectDisplay.style.color = '#333';
+            }
+            
+            // Close dropdown
+            if (resourceDropdownContainer) {
+                resourceDropdownContainer.style.display = 'none';
+            }
+            if (resourceSearchInput) {
+                resourceSearchInput.value = '';
+            }
+            
+            // Auto-update Target Ledger if resource has ledger prefix
+            if (ledgerInput && resourceValue) {
+                const extractedLedger = extractLedgerFromResource(resourceValue);
+                if (extractedLedger) {
+                    // Check if this ledger exists in the available ledgers
+                    const matchingLedger = allLedgers.find(l => {
+                        const ledgerName = l.ledger_name.toLowerCase().trim();
+                        const extractedName = extractedLedger.toLowerCase().trim();
+                        return ledgerName === extractedName || 
+                               ledgerName.replace(/[\s\-_]/g, '') === extractedName.replace(/[\s\-_]/g, '');
+                    });
+                    
+                    if (matchingLedger) {
+                        ledgerInput.value = matchingLedger.ledger_name;
+                        updateLedgerInfo();
+                        // Re-filter resources based on the updated ledger
+                        filterResourcesByLedger();
+                        console.log(`Auto-selected Target Ledger: ${matchingLedger.ledger_name} based on resource: ${resourceValue}`);
+                    } else {
+                        // Ledger not found in list, but still set it (might be a new ledger)
+                        ledgerInput.value = extractedLedger;
+                        updateLedgerInfo();
+                        console.log(`Auto-selected Target Ledger: ${extractedLedger} (not in ledger list, but extracted from resource)`);
+                    }
+                }
+            }
+            
+            // Enable quantity input and update available quantity display
+            if (qtyInput) {
+                qtyInput.disabled = false;
+            }
+            
+            // Update available quantity display based on resource data
+            if (availableQuantity && resourceData) {
+                if (resourceData.memberControlled && resourceData.availableAmount !== undefined) {
+                    availableQuantity.textContent = `Available Quantity: ${resourceData.availableAmount}`;
+                    if (qtyInput) {
+                        qtyInput.max = resourceData.availableAmount;
+                    }
+                } else if (resourceData.quantity !== undefined && resourceData.quantity > 0) {
+                    if (resourceData.ledgerName) {
+                        availableQuantity.textContent = `Quantity in ${resourceData.ledgerName} ledger: ${resourceData.quantity}`;
+                    } else {
+                        availableQuantity.textContent = `Total quantity across all ledgers: ${resourceData.quantity}`;
+                    }
+                    if (qtyInput) {
+                        qtyInput.max = '';
+                    }
+                } else {
+                    if (resourceData.ledgerName) {
+                        availableQuantity.textContent = `${resourceData.ledgerName} ledger (no quantity tracking)`;
+                    } else {
+                        availableQuantity.textContent = 'Resource with no quantity tracking';
+                    }
+                    if (qtyInput) {
+                        qtyInput.max = '';
+                    }
+                }
+            }
+            
+            // Note: onResourceChange() is not needed here since we've already handled
+            // the quantity input enabling and available quantity display above
+            // It was designed for the old input-based approach
+            updateSubmitButtonState();
+        }
+        
+        /**
+         * Gets the currently selected resource value
+         */
+        function getSelectedResourceValue() {
+            const resourceSelectDisplay = document.getElementById('resourceSelectDisplay');
+            if (resourceSelectDisplay && resourceSelectDisplay.style.color !== 'rgb(153, 153, 153)') {
+                return resourceSelectDisplay.textContent;
+            }
+            return '';
+        }
+        
+        function filterResourcesByLedger() {
+            // Repopulate the dropdown with filtered resources
+            populateResourceDropdown();
+            updateSubmitButtonState();
+        }
+
+        async function loadMemberResources(memberKey) {
+            const resourceSelectDisplay = document.getElementById('resourceSelectDisplay');
+            const resourceSelectCombobox = document.getElementById('resourceSelectCombobox');
+            const qtyInput = document.getElementById('quantityInput');
+            
+            // Show loading state
+            if (resourceSelectDisplay) {
+                resourceSelectDisplay.textContent = 'Loading resources...';
+                resourceSelectDisplay.style.color = '#999';
+            }
+            if (resourceSelectCombobox) {
+                resourceSelectCombobox.style.pointerEvents = 'none';
+            }
+            
+            try {
+                const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?manager=' + encodeURIComponent(memberKey));
+                resources = await res.json();
+                console.log('Loaded member resources:', resources.length, resources);
+                console.log('All currencies available:', allCurrencies.length, allCurrencies);
+                
+                // Store all options with metadata for lookup (before filtering)
+                allLoadedResourceOptionsData = [];
+                
+                // Add member-controlled resources with available quantity info
+                if (resources.length > 0) {
+                    // Sort resources alphabetically by currency name
+                    const sortedResources = resources.sort((a, b) => a.currency.localeCompare(b.currency));
+                    sortedResources.forEach(r => {
+                        const displayText = `${r.currency} (Available: ${r.amount})`;
+                        
+                        // Store metadata for lookup
+                        allLoadedResourceOptionsData.push({
+                            value: r.currency,
+                            displayText: displayText,
+                            memberControlled: true,
+                            availableAmount: r.amount,
+                            quantity: r.amount,
+                            ledgerName: ''
+                        });
+                    });
+                }
+                
+                // Add all currencies that are not under member control
+                if (allCurrencies.length > 0) {
+                    const memberCurrencies = resources.map(r => r.currency);
+                    // Show all currencies from the listAllCurrencies endpoint
+                    const otherCurrencies = allCurrencies.map(currencyObj => {
+                        const currencyName = currencyObj.product_name;
+                        const ledgerQuantities = currencyObj.ledger_quantities || {};
+                        const totalQuantity = currencyObj.total_quantity || 0;
+                        
+                        const currencyOptions = [];
+                        
+                        // Always include the base currency option (without ledger prefix)
+                        currencyOptions.push({
+                            ...currencyObj,
+                            formattedName: currencyName,
+                            ledgerName: '',
+                            quantity: totalQuantity
+                        });
+                        
+                        // Add individual ledger options for each ledger that has quantities
+                        for (const [ledgerName, quantity] of Object.entries(ledgerQuantities)) {
+                            if (quantity > 0) {
+                                currencyOptions.push({
+                                    ...currencyObj,
+                                    formattedName: `[${ledgerName}] ${currencyName}`,
+                                    ledgerName: ledgerName,
+                                    quantity: quantity
+                                });
+                            }
+                        }
+                        
+                        return currencyOptions;
+                    }).flat(); // Flatten the array of arrays
+                    
+                    // Sort all options alphabetically by formattedName
+                    otherCurrencies.sort((a, b) => a.formattedName.localeCompare(b.formattedName));
+                    console.log('Member currencies:', memberCurrencies);
+                    console.log('Other currencies (objects):', otherCurrencies);
+                    
+                    otherCurrencies.forEach(currencyOption => {
+                        // Store metadata for lookup
+                        allLoadedResourceOptionsData.push({
+                            value: currencyOption.formattedName,
+                            displayText: currencyOption.formattedName,
+                            memberControlled: false,
+                            availableAmount: null,
+                            quantity: currencyOption.quantity || 0,
+                            ledgerName: currencyOption.ledgerName || ''
+                        });
+                    });
+                } else {
+                    // If allCurrencies is still empty, show a message
+                    console.warn('All currencies not yet loaded, showing only member-controlled resources');
+                    console.log('Attempting to reload all currencies...');
+                    await loadAllCurrencies();
+                    
+                    // Try again after reloading
+                    if (allCurrencies.length > 0) {
+                        // Recursively call to populate with all currencies
+                        await loadMemberResources(memberKey);
+                        return;
+                    }
+                }
+                
+                // Apply ledger filter to show only relevant resources
+                filterResourcesByLedger();
+                
+                // Update display after resources are loaded and filtered
+                if (resourceSelectDisplay) {
+                    resourceSelectDisplay.textContent = 'Select a resource...';
+                    resourceSelectDisplay.style.color = '#999';
+                }
+                if (resourceSelectCombobox) {
+                    resourceSelectCombobox.style.pointerEvents = 'auto';
+                }
+                
+                qtyInput.disabled = true;
+            } catch (err) {
+                console.error('Error loading resources:', err);
+                document.getElementById('outputMessage').textContent = 'Error loading resources: ' + err.message;
+                document.getElementById('outputMessage').className = 'error';
+                
+                // Update display on error
+                if (resourceSelectDisplay) {
+                    resourceSelectDisplay.textContent = 'Error loading resources. Please try again.';
+                    resourceSelectDisplay.style.color = '#dc3545';
+                }
+                if (resourceSelectCombobox) {
+                    resourceSelectCombobox.style.pointerEvents = 'none';
+                }
+            }
+            updateSubmitButtonState();
         }
 
         async function loadAllCurrencies() {
@@ -559,41 +1173,44 @@
             }
         }
 
-        async function onMemberChange() {
-            const memberKey = this.value;
-            const resourceSel = document.getElementById('resourceSelect');
-            const qtyInput = document.getElementById('quantityInput');
-            const availableQty = document.getElementById('availableQuantity');
-            availableQty.textContent = '';
-            qtyInput.value = '';
-            if (!memberKey) {
-                resourceSel.innerHTML = '<option value="">Select a member first</option>';
-                resourceSel.disabled = true;
-                qtyInput.disabled = true;
-            } else {
+        // Legacy function - kept for compatibility but now uses onMemberChange above
+        async function onMemberChangeLegacy() {
+            // This function is no longer used but kept for reference
+            // The new onMemberChange() handles member selection
                 try {
                     const res = await fetch('https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec?manager=' + encodeURIComponent(memberKey));
                     resources = await res.json();
                     console.log('Loaded member resources:', resources.length, resources);
                     console.log('All currencies available:', allCurrencies.length, allCurrencies);
                     
-                    resourceSel.innerHTML = '<option value="">Select a resource</option>';
+                    resourceOptions.innerHTML = '';
+                    resourceInput.value = '';
+                    resourceInput.placeholder = 'Type to search and filter resources...';
+                    
+                    // Store all options with metadata for lookup
+                    window.resourceOptionsData = [];
                     
                     // Add member-controlled resources with available quantity info
                     if (resources.length > 0) {
-                        const memberGroup = document.createElement('optgroup');
-                        memberGroup.label = 'Resources under member control';
                         // Sort resources alphabetically by currency name
                         const sortedResources = resources.sort((a, b) => a.currency.localeCompare(b.currency));
                         sortedResources.forEach(r => {
                             const opt = document.createElement('option');
+                            const displayText = `${r.currency} (Available: ${r.amount})`;
                             opt.value = r.currency;
-                            opt.textContent = `${r.currency} (Available: ${r.amount})`;
-                            opt.dataset.memberControlled = 'true';
-                            opt.dataset.availableAmount = r.amount;
-                            memberGroup.appendChild(opt);
+                            opt.textContent = displayText;
+                            resourceOptions.appendChild(opt);
+                            
+                            // Store metadata for lookup
+                            window.resourceOptionsData.push({
+                                value: r.currency,
+                                displayText: displayText,
+                                memberControlled: true,
+                                availableAmount: r.amount,
+                                quantity: r.amount,
+                                ledgerName: ''
+                            });
                         });
-                        resourceSel.appendChild(memberGroup);
                     }
                     
                     // Add all currencies that are not under member control
@@ -635,24 +1252,31 @@
                         console.log('Member currencies:', memberCurrencies);
                         console.log('Other currencies (objects):', otherCurrencies);
                         
-                        if (otherCurrencies.length > 0) {
-                            const otherGroup = document.createElement('optgroup');
-                            otherGroup.label = 'Other resources (from all ledgers)';
-                            otherCurrencies.forEach(currencyOption => {
-                                const opt = document.createElement('option');
-                                opt.value = currencyOption.formattedName;
-                                opt.textContent = currencyOption.formattedName;
-                                opt.dataset.memberControlled = 'false';
-                                opt.dataset.quantity = currencyOption.quantity || 0;
-                                opt.dataset.ledgerName = currencyOption.ledgerName || '';
-                                otherGroup.appendChild(opt);
+                        otherCurrencies.forEach(currencyOption => {
+                            const opt = document.createElement('option');
+                            opt.value = currencyOption.formattedName;
+                            opt.textContent = currencyOption.formattedName;
+                            resourceOptions.appendChild(opt);
+                            
+                            // Store metadata for lookup
+                            window.resourceOptionsData.push({
+                                value: currencyOption.formattedName,
+                                displayText: currencyOption.formattedName,
+                                memberControlled: false,
+                                availableAmount: null,
+                                quantity: currencyOption.quantity || 0,
+                                ledgerName: currencyOption.ledgerName || ''
                             });
-                            resourceSel.appendChild(otherGroup);
-                        }
+                        });
                     } else {
                         // If allCurrencies is still empty, show a message
                         console.warn('All currencies not yet loaded, showing only member-controlled resources');
                         console.log('Attempting to reload all currencies...');
+                                const resourceSelectDisplayLoading = document.getElementById('resourceSelectDisplay');
+                        if (resourceSelectDisplayLoading) {
+                            resourceSelectDisplayLoading.textContent = 'Loading all resources...';
+                            resourceSelectDisplayLoading.style.color = '#999';
+                        }
                         await loadAllCurrencies();
                         
                         // Try again after reloading
@@ -663,30 +1287,66 @@
                         }
                     }
                     
-                    resourceSel.disabled = false;
+                    // Filter resources based on selected ledger (if any)
+                    filterResourcesByLedger();
+                    
+                    // Enable resource selection
+                    const resourceSelectDisplayFinal = document.getElementById('resourceSelectDisplay');
+                    const resourceSelectComboboxFinal = document.getElementById('resourceSelectCombobox');
+                    if (resourceSelectDisplayFinal) {
+                        resourceSelectDisplayFinal.textContent = 'Select a resource...';
+                        resourceSelectDisplayFinal.style.color = '#999';
+                    }
+                    if (resourceSelectComboboxFinal) {
+                        resourceSelectComboboxFinal.style.pointerEvents = 'auto';
+                    }
                     qtyInput.disabled = true;
                 } catch (err) {
                     console.error('Error loading resources:', err);
                     document.getElementById('outputMessage').textContent = 'Error loading resources: ' + err.message;
                     document.getElementById('outputMessage').className = 'error';
                 }
-            }
             updateSubmitButtonState();
         }
 
         function onResourceChange() {
-            const selected = this.value;
-            const selectedOption = this.options[this.selectedIndex];
+            // Get the selected resource value from the display element
+            const resourceSelectDisplay = document.getElementById('resourceSelectDisplay');
+            const selected = resourceSelectDisplay ? resourceSelectDisplay.textContent.trim() : '';
             const availableQty = document.getElementById('availableQuantity');
             const qtyInput = document.getElementById('quantityInput');
             
-            // Check if this resource is under member control
-            const isMemberControlled = selectedOption.dataset.memberControlled === 'true';
-            const quantity = selectedOption.dataset.quantity || '0';
+            // Check if a valid resource is selected (not placeholder text)
+            if (!selected || 
+                selected === 'Select a resource...' || 
+                selected === 'Select a member first' || 
+                selected === 'Select a valid member first' || 
+                selected === 'Loading resources...') {
+                availableQty.textContent = '';
+                qtyInput.value = '';
+                qtyInput.disabled = true;
+                updateSubmitButtonState();
+                return;
+            }
             
-            if (isMemberControlled) {
+            // Find the matching option data from allLoadedResourceOptionsData
+            const optionData = allLoadedResourceOptionsData.find(opt => 
+                opt.value === selected || opt.displayText === selected
+            );
+            
+            if (!optionData) {
+                // No match found, but still enable quantity input (user might have typed something)
+                availableQty.textContent = '';
+                qtyInput.disabled = false;
+                qtyInput.max = '';
+                updateSubmitButtonState();
+                return;
+            }
+            
+            // Check if this resource is under member control
+            if (optionData.memberControlled) {
                 // Handle available quantity for member-controlled resources
-                const resource = resources.find(r => r.currency === selected);
+                const resource = resources.find(r => r.currency === optionData.value);
                 if (resource) {
                     availableQty.textContent = `Available Quantity: ${resource.amount}`;
                     qtyInput.max = resource.amount;
@@ -698,18 +1358,18 @@
                 }
             } else {
                 // Resource is from listAllCurrencies (not member-controlled)
-                if (selectedOption.dataset.ledgerName === '') {
+                if (optionData.ledgerName === '') {
                     // Base currency option (no ledger prefix)
-                    if (parseInt(quantity) > 0) {
-                        availableQty.textContent = `Total quantity across all ledgers: ${quantity}`;
+                    if (parseInt(optionData.quantity) > 0) {
+                        availableQty.textContent = `Total quantity across all ledgers: ${optionData.quantity}`;
                     } else {
                         availableQty.textContent = 'Resource with no quantity tracking';
                     }
                 } else {
                     // Specific ledger option
-                    const ledgerName = selectedOption.dataset.ledgerName || 'Unknown';
-                    if (parseInt(quantity) > 0) {
-                        availableQty.textContent = `Quantity in ${ledgerName} ledger: ${quantity}`;
+                    const ledgerName = optionData.ledgerName || 'Unknown';
+                    if (parseInt(optionData.quantity) > 0) {
+                        availableQty.textContent = `Quantity in ${ledgerName} ledger: ${optionData.quantity}`;
                     } else {
                         availableQty.textContent = `${ledgerName} ledger (no quantity tracking)`;
                     }
@@ -723,12 +1383,25 @@
         }
 
         function updateSubmitButtonState() {
-            const memberSel = document.getElementById('memberSelect');
-            const resourceSel = document.getElementById('resourceSelect');
+            const memberInput = document.getElementById('memberInput');
             const qtyInput = document.getElementById('quantityInput');
             const descriptionInput = document.getElementById('descriptionInput');
             const submitBtn = document.getElementById('submitButton');
-            submitBtn.disabled = !(memberSel.value && resourceSel.value && qtyInput.value && qtyInput.value > 0 && descriptionInput.value && uploadedFile);
+            
+            // Check if member input has a valid value
+            const memberValue = memberInput.value.trim();
+            const hasValidMember = memberValue && allMembers.some(m => 
+                m.name.toLowerCase() === memberValue.toLowerCase()
+            );
+            
+            // Check if resource dropdown has a valid value
+            const resourceValue = getSelectedResourceValue();
+            const hasValidResource = resourceValue && resourceValue.trim() !== '' && 
+                resourceValue !== 'Select a resource...' && 
+                resourceValue !== 'Select a member first' && 
+                resourceValue !== 'Select a valid member first' && 
+                resourceValue !== 'Loading resources...';
+            submitBtn.disabled = !(hasValidMember && hasValidResource && qtyInput.value && qtyInput.value > 0 && descriptionInput.value && uploadedFile);
         }
 
         async function onSubmit() {
@@ -744,12 +1417,38 @@
                 return;
             }
 
-            const memberSel = document.getElementById('memberSelect');
-            const memberName = memberSel.options[memberSel.selectedIndex].text;
-            const resourceSel = document.getElementById('resourceSelect');
-            const resourceName = resourceSel.value;
+            const memberInput = document.getElementById('memberInput');
+            const memberValue = memberInput.value.trim();
+            const matchingMember = allMembers.find(m => 
+                m.name.toLowerCase() === memberValue.toLowerCase()
+            );
+            
+            if (!matchingMember) {
+                output.textContent = 'Please select a valid DAO member.';
+                output.className = 'error';
+                return;
+            }
+            
+            const memberName = matchingMember.name;
+            const ledgerInput = document.getElementById('ledgerInput');
+            const ledgerValue = ledgerInput.value.trim();
+            let resourceName = getSelectedResourceValue();
             const quantity = document.getElementById('quantityInput').value;
             const description = document.getElementById('descriptionInput').value;
+            
+            // If a ledger is selected and resource doesn't already have a ledger prefix, add it
+            if (ledgerValue && ledgerValue.toLowerCase() !== 'offchain') {
+                const selectedLedgerName = ledgerValue;
+                // Check if resource already has a ledger prefix
+                const ledgerPrefixMatch = resourceName.match(/^\[([^\]]+)\]\s*(.+)$/);
+                if (!ledgerPrefixMatch) {
+                    // No ledger prefix, add it
+                    resourceName = `[${selectedLedgerName}] ${resourceName}`;
+                } else {
+                    // Already has a prefix, replace it with the selected ledger
+                    resourceName = `[${selectedLedgerName}] ${ledgerPrefixMatch[2]}`;
+                }
+            }
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
 
@@ -781,10 +1480,13 @@
             output.textContent = 'Submitting...';
             output.className = 'loading';
 
-            await submitExpenseReport(file, fileName, memberName, resourceName, quantity, description);
+            // Determine target ledger
+            const targetLedger = ledgerValue && ledgerValue.toLowerCase() !== 'offchain' ? ledgerValue : 'offchain';
+            
+            await submitExpenseReport(file, fileName, memberName, resourceName, quantity, description, targetLedger);
         }
 
-        async function submitExpenseReport(file, fileName, memberName, resourceName, quantity, description) {
+        async function submitExpenseReport(file, fileName, memberName, resourceName, quantity, description, targetLedger = 'offchain') {
             const output = document.getElementById('outputMessage');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
@@ -794,7 +1496,8 @@
                 // Use cached expense filename to match what was shown in the info box
                 const expenseFileName = cachedExpenseFileName || generateExpenseFileName(fileName);
                 const expenseLocation = `${REPO_BASE_URL}${expenseFileName}`;
-                const requestText = `[DAO Inventory Expense Event]\n- DAO Member Name: ${memberName}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Inventory Type: ${resourceName}\n- Inventory Quantity: ${quantity}\n- Description: ${description}\n- Attached Filename: ${fileName}\n- Destination Expense File Location: ${expenseLocation}\n- Submission Source: ${window.location.href}\n--------`;
+                
+                const requestText = `[DAO Inventory Expense Event]\n- DAO Member Name: ${memberName}\n- Target Ledger: ${targetLedger}\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Inventory Type: ${resourceName}\n- Inventory Quantity: ${quantity}\n- Description: ${description}\n- Attached Filename: ${fileName}\n- Destination Expense File Location: ${expenseLocation}\n- Submission Source: ${window.location.href}\n--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
@@ -930,10 +1633,99 @@
                 }
 
                 loadMembers();
-                loadAllCurrencies();
-                document.getElementById('memberSelect').addEventListener('change', onMemberChange);
-                document.getElementById('resourceSelect').addEventListener('change', onResourceChange);
+                loadAllCurrencies().then(() => {
+                    // After currencies are loaded, update display if no member is selected
+                    const memberInput = document.getElementById('memberInput');
+                    const resourceSelectDisplay = document.getElementById('resourceSelectDisplay');
+                    if (!memberInput.value.trim() && resourceSelectDisplay) {
+                        resourceSelectDisplay.textContent = 'Select a member first';
+                        resourceSelectDisplay.style.color = '#999';
+                    }
+                });
+                loadLedgers();
+                
+                // Member input autocomplete
+                const memberInput = document.getElementById('memberInput');
+                memberInput.addEventListener('input', onMemberChange);
+                memberInput.addEventListener('change', onMemberChange);
+                memberInput.addEventListener('blur', function() {
+                    // Validate on blur - if value doesn't match any member, clear it
+                    const value = this.value.trim();
+                    if (value && !allMembers.some(m => 
+                        m.name.toLowerCase() === value.toLowerCase()
+                    )) {
+                        this.value = '';
+                        onMemberChange.call(this);
+                    }
+                });
+                
+                // Ledger input autocomplete
+                const ledgerInput = document.getElementById('ledgerInput');
+                ledgerInput.addEventListener('input', function() {
+                    updateLedgerInfo();
+                    filterResourcesByLedger(); // Filter resources when ledger changes
+                });
+                ledgerInput.addEventListener('change', function() {
+                    updateLedgerInfo();
+                    filterResourcesByLedger(); // Filter resources when ledger changes
+                });
+                ledgerInput.addEventListener('blur', function() {
+                    // Validate on blur - if value doesn't match any ledger, clear it
+                    const value = this.value.trim();
+                    if (value && value.toLowerCase() !== 'offchain' && !allLedgers.some(l => 
+                        l.ledger_name.toLowerCase() === value.toLowerCase()
+                    )) {
+                        this.value = '';
+                        updateLedgerInfo();
+                        filterResourcesByLedger();
+                    } else {
+                        updateLedgerInfo();
+                        filterResourcesByLedger();
+                    }
+                });
+                
+                // Resource dropdown (custom combobox)
+                const resourceSelectCombobox = document.getElementById('resourceSelectCombobox');
+                const resourceDropdownContainer = document.getElementById('resourceDropdownContainer');
+                const resourceSearchInput = document.getElementById('resourceSearchInput');
+                
+                if (resourceSelectCombobox) {
+                    resourceSelectCombobox.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (this.style.pointerEvents !== 'none') {
+                            const isOpen = resourceDropdownContainer.style.display === 'block';
+                            resourceDropdownContainer.style.display = isOpen ? 'none' : 'block';
+                            if (!isOpen && resourceSearchInput) {
+                                resourceSearchInput.focus();
+                            }
+                        }
+                    });
+                }
+                
+                if (resourceSearchInput) {
+                    resourceSearchInput.addEventListener('input', function() {
+                        populateResourceDropdown();
+                    });
+                    resourceSearchInput.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape') {
+                            resourceDropdownContainer.style.display = 'none';
+                        }
+                    });
+                }
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (resourceDropdownContainer && 
+                        !resourceSelectCombobox.contains(e.target) && 
+                        !resourceDropdownContainer.contains(e.target)) {
+                        resourceDropdownContainer.style.display = 'none';
+                    }
+                });
+                
                 document.getElementById('quantityInput').addEventListener('input', updateSubmitButtonState);
+                
+                // Initialize ledger info display
+                updateLedgerInfo();
                 const descriptionInput = document.getElementById('descriptionInput');
                 const charCount = document.getElementById('charCount');
 
