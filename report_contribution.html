@@ -827,8 +827,8 @@
             const output = document.getElementById('outputMessage');
 
             if (isPostSubmission) {
-                resetForm();
                 isPostSubmission = false;
+                resetForm();
                 updateButtonText();
                 return;
             }
@@ -1174,7 +1174,7 @@
 
             document.getElementById('tdgOutput').textContent = '';
 
-            filterContributors();
+            updateContributorAutocomplete();
 
             toggleInputMethod();
 
