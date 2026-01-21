@@ -199,6 +199,29 @@
       margin-top: -0.5rem;
       margin-bottom: 0.5rem;
     }
+    .paste-area {
+      border: 2px dashed #ccc;
+      padding: 1rem;
+      text-align: center;
+      margin-top: 0.5rem;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #f8f9fa;
+      font-size: 1rem;
+      color: #333;
+    }
+    .paste-area:hover {
+      background-color: #e9ecef;
+    }
+    #uploaded-file-preview {
+      border: 1px solid #ccc;
+      margin-bottom: 1rem;
+      max-width: 100%;
+      height: auto;
+      display: none;
+      margin-left: auto;
+      margin-right: auto;
+    }
     @media (max-width: 600px) {
       body {
         margin: 0.5rem;
@@ -234,6 +257,13 @@
       #cameraPreview {
         max-width: 100%;
       }
+      .paste-area {
+        padding: 0.6rem;
+        font-size: 0.95rem;
+      }
+      #uploaded-file-preview {
+        margin-bottom: 0.5rem;
+      }
     }
   </style>
 </head>
@@ -254,7 +284,9 @@
         <option value="file">Upload Document</option>
         <option value="camera">Capture Photo</option>
       </select>
-      <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx" style="display: block;">
+      <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx" style="display: none;">
+      <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
+      <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
       <video id="cameraPreview" autoplay playsinline style="display: none;"></video>
       <canvas id="captureCanvas" style="display: none;"></canvas>
       <div class="info-box">
@@ -275,6 +307,7 @@
           <option value="Manufacturer's invoice">Manufacturer's Invoice</option>
           <option value="Freighting document">Freighting Document</option>
           <option value="In person physical verification">In Person Physical Verification</option>
+          <option value="Contribution online submission">Contribution Online Submission</option>
         </select>
         <div class="info">Description:</div>
         <textarea id="descriptionField" maxlength="500" placeholder="Enter a brief description (alphanumeric characters, spaces, periods, and commas only)"></textarea>
@@ -421,23 +454,104 @@
     function toggleInputMethod() {
       const inputType = document.getElementById('inputType').value;
       const fileInput = document.getElementById('fileInput');
+      const pasteArea = document.getElementById('paste-area');
       const cameraPreview = document.getElementById('cameraPreview');
       const actionStatus = document.getElementById('action-status');
 
       if (inputType === 'file') {
         stopCamera();
-        fileInput.style.display = 'block';
+        fileInput.style.display = 'none';
+        pasteArea.style.display = 'block';
         cameraPreview.style.display = 'none';
-        actionStatus.textContent = 'Please select a file to upload.';
+        actionStatus.textContent = 'Please select or paste a file to upload.';
         actionStatus.className = 'status';
       } else {
         fileInput.style.display = 'none';
+        pasteArea.style.display = 'none';
+        document.getElementById('uploaded-file-preview').style.display = 'none';
+        document.getElementById('uploaded-file-preview').src = '';
         fileInput.value = '';
+        file = null;
         document.getElementById('originalFileName').textContent = 'No file selected';
         document.getElementById('notarizedFileName').textContent = 'Waiting for file selection...';
         document.getElementById('notarizationLocation').innerHTML = 'Waiting for file selection...';
         startCamera();
       }
+    }
+
+    function handlePaste(event) {
+      const inputType = document.getElementById('inputType').value;
+      if (inputType !== 'file') return;
+
+      event.preventDefault();
+
+      const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+      let pastedFile = null;
+      for (const item of items) {
+        if (item.kind === 'file') {
+          pastedFile = item.getAsFile();
+          break;
+        }
+      }
+
+      if (pastedFile) {
+        handleFile(pastedFile);
+      } else {
+        const actionStatus = document.getElementById('action-status');
+        actionStatus.textContent = 'No valid file found in clipboard. Please paste an image or document.';
+        actionStatus.className = 'error';
+      }
+    }
+
+    function triggerFileSelect() {
+      document.getElementById('fileInput').click();
+    }
+
+    function handleFile(selectedFile) {
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(selectedFile.type)) {
+        const actionStatus = document.getElementById('action-status');
+        actionStatus.textContent = 'Unsupported file type. Please select or paste an image or document.';
+        actionStatus.className = 'error';
+        return;
+      }
+
+      // Store the file globally
+      file = selectedFile;
+
+      const fileExtension = selectedFile.type === 'application/pdf' ? '.pdf' :
+                           selectedFile.type === 'application/msword' ? '.doc' :
+                           selectedFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ? '.docx' :
+                           '.' + selectedFile.type.split('/')[1];
+
+      const fileName = selectedFile.name || `pasted_file_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}${fileExtension}`;
+      updateFileInfo(fileName);
+
+      // Handle image preview
+      if (selectedFile.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          document.getElementById('uploaded-file-preview').src = e.target.result;
+          document.getElementById('uploaded-file-preview').style.display = 'block';
+        };
+        reader.onerror = () => {
+          const actionStatus = document.getElementById('action-status');
+          actionStatus.textContent = 'Error reading file. Please try again.';
+          actionStatus.className = 'error';
+          document.getElementById('uploaded-file-preview').style.display = 'none';
+          file = null;
+          updateFileInfo('');
+        };
+        reader.readAsDataURL(selectedFile);
+      } else {
+        document.getElementById('uploaded-file-preview').style.display = 'none';
+        document.getElementById('uploaded-file-preview').src = '';
+      }
+
+      // Show success message
+      const actionStatus = document.getElementById('action-status');
+      actionStatus.textContent = `File "${fileName}" ready for notarization.`;
+      actionStatus.className = 'status';
     }
 
     function updateFileInfo(fileName) {
@@ -536,13 +650,13 @@
       let fileName = '';
       try {
         if (inputType === 'file') {
-          if (!fileInput.files[0]) {
-            actionStatus.textContent = 'No file selected. Please upload a file.';
+          if (!file && !fileInput.files[0]) {
+            actionStatus.textContent = 'No file selected. Please upload or paste a file.';
             actionStatus.className = 'error';
             submitButton.disabled = false;
             return;
           }
-          file = fileInput.files[0];
+          file = file || fileInput.files[0];
           fileName = file.name;
         } else {
           if (!stream) {
@@ -715,6 +829,10 @@
         document.getElementById('fileInput').addEventListener('change', function() {
           updateFileInfo(this.files[0]?.name || '');
         });
+
+        const pasteArea = document.getElementById('paste-area');
+        pasteArea.addEventListener('paste', handlePaste);
+        pasteArea.addEventListener('click', triggerFileSelect);
 
         const descriptionField = document.getElementById('descriptionField');
         const charCount = document.getElementById('charCount');
