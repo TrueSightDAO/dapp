@@ -20,6 +20,7 @@
     { title: 'Update QR Code', url: './update_qr_code.html', section: 'Inventory & Sales' },
     { title: 'Stores Nearby', url: './stores_nearby.html', section: 'Inventory & Sales' },
     { title: 'Shipping Planner', url: './shipping_planner.html', section: 'Inventory & Sales' },
+    { title: 'Restock Recommender', url: './restock_recommender.html', section: 'Inventory & Sales' },
     { title: 'Register Your Farm', url: './register_farm.html', section: 'Sunmint Tree Planting Program' }
   ];
 

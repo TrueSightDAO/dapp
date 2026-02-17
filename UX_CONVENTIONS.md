@@ -6,8 +6,9 @@ This document outlines UX patterns and conventions used across the TrueSight DAO
 1. [Remote Data Loading Patterns](#remote-data-loading-patterns)
 2. [Form Field States](#form-field-states)
 3. [Digital Signature Verification](#digital-signature-verification)
-4. [Combobox/Searchable Dropdowns](#comboboxsearchable-dropdowns)
-5. [Error Handling](#error-handling)
+4. [TDG Balance Badge (Global)](#tdg-balance-badge-global)
+5. [Combobox/Searchable Dropdowns](#comboboxsearchable-dropdowns)
+6. [Error Handling](#error-handling)
 
 ---
 
@@ -157,6 +158,35 @@ async function loadRemoteData() {
 - `report_inventory_movement.html`
 - `update_qr_code.html`
 - All authenticated DApp modules
+
+---
+
+## TDG Balance Badge (Global)
+
+### Pattern: Always-Visible TDG Holdings After Verification
+
+**When to use:** On every DApp page. Users should see their TDG voting rights and estimated value as soon as their digital signature is verified, without visiting the cash-out page.
+
+**Implementation:**
+1. Include `<script src="./tdg_balance.js"></script>` in the head (after menu.js).
+2. Add `<div id="tdgBalanceBadge"></div>` in the body, after `navDropdown` and before `.container`.
+3. The script checks for `publicKey` in localStorage and fetches holdings from the TDG API.
+4. On success, renders a compact badge: "Your TDG: X voting rights · ~$Y" with a link to `withdraw_voting_rights.html`.
+5. On load, shows "Loading your TDG holdings…" until the API responds.
+6. On error or no signature, the badge container is left empty (and hidden via `display: none` when empty).
+
+**UI/UX:**
+- Badge appears below the nav dropdown, above main content.
+- Matches DApp info-box styling: `#f8f9fa` background, `#ddd` border, 5px radius, consistent with `.info-box` on other pages.
+- Format: `934,927 voting rights · ~$6,526 est. cash-out value` — formatted numbers (commas, sensible decimals) and clear labels for both rights and value.
+- Whole badge is clickable, links to cash-out page; hover darkens background slightly.
+
+**Rationale:**
+- Reduces onboarding friction (users like Garis struggled to find their balance).
+- Provides consistent context across all pages.
+- Standardized pattern for all current and future DApp pages.
+
+**See:** `dapp/tdg_balance.js`, `dapp/UX_CONVENTIONS.md`, `agentic_ai_context/DAPP_PAGE_CONVENTIONS.md`.
 
 ---
 

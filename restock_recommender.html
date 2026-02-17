@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Restock Recommender — Get the optimal number of bags to send a partner from Kirsten's (SF), using prior sales and shipping cost.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restock Recommender - TrueSight DAO</title>
+
+    <!-- Open Graph tags for WhatsApp, Facebook, LinkedIn, and social media previews -->
+    <meta property="og:title" content="Restock Recommender - TrueSight DAO">
+    <meta property="og:description" content="Get the optimal number of bags to send a partner from Kirsten's (SF), using prior sales and shipping cost.">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/restock_recommender.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TrueSight DAO">
+
+    <!-- Twitter Card tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Restock Recommender - TrueSight DAO">
+    <meta name="twitter:description" content="Get the optimal number of bags to send a partner from Kirsten's (SF), using prior sales and shipping cost.">
+    <meta name="twitter:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+
+    <script src="./menu.js"></script>
+    <script src="./tdg_balance.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1.5rem;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 1rem;
+            color: #555;
+            text-align: center;
+            margin-bottom: 1.25rem;
+            line-height: 1.5;
+        }
+        .form-row { margin-bottom: 1rem; }
+        .form-row label { display: block; font-weight: 600; margin-bottom: 0.35rem; font-size: 0.95rem; color: #333; }
+        .form-row select, .form-row input { width: 100%; padding: 0.65rem; font-size: 1rem; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; }
+        #getBtn { width: 100%; padding: 0.85rem; font-size: 1.05rem; font-weight: bold; background: #28a745; color: #fff; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.5rem; }
+        #getBtn:disabled { background: #ccc; cursor: not-allowed; }
+        #getBtn:not(:disabled):hover { background: #218838; }
+        #status { min-height: 1.5rem; margin: 1rem 0; font-size: 0.95rem; text-align: center; }
+        #result { display: none; margin-top: 1.25rem; padding: 1rem; background: #e8f5e9; border: 1px solid #2e7d32; border-radius: 6px; }
+        #result h2 { margin: 0 0 0.75rem; font-size: 1.1rem; color: #1b5e20; }
+        #result .big { font-size: 1.5rem; font-weight: bold; color: #1b5e20; margin: 0.5rem 0; }
+        #result .meta { font-size: 0.9rem; color: #555; margin: 0.35rem 0; }
+        #replyText { margin-top: 0.75rem; padding: 0.6rem; font-size: 0.9rem; background: #fff; border: 1px solid #c8e6c9; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        #copyReply { margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 0.9rem; background: #2e7d32; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        .error { color: #c62828; }
+        .setup-msg { padding: 1rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; font-size: 0.9rem; color: #856404; margin-top: 1rem; }
+        .setup-msg a { color: #0056b3; }
+        #navDropdown { margin: 1rem 0; text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div id="tdgBalanceBadge"></div>
+    <div class="container">
+        <h1>Restock Recommender</h1>
+        <p class="subtitle" id="description">Partner texted to restock? Get the optimal number of bags (shipping from Kirsten’s SF, using their prior sales).</p>
+
+        <div class="form-row">
+            <label for="partnerSelect">Partner</label>
+            <select id="partnerSelect">
+                <option value="">— Select partner —</option>
+                <option value="go-ask-alice">Go Ask Alice (Santa Cruz, CA)</option>
+                <option value="the-enchanted-forest-boutique">The Enchanted Forest Boutique (Chico, CA)</option>
+                <option value="kikis-cocoa">Kiki's Cocoa (San Francisco, CA)</option>
+                <option value="love-of-ganesha">Love of Ganesha (San Francisco, CA)</option>
+                <option value="queen-hippie-gypsy">Queen Hippie Gypsy (Oakland, CA)</option>
+                <option value="miss-tomato">Miss Tomato (Daly City, CA)</option>
+                <option value="green-gulch-farm-zen-center">Green Gulch Farm Zen Center (Marin, CA)</option>
+                <option value="lumin-earth-apothecary">Lumin Earth Apothecary (Morro Bay, CA)</option>
+                <option value="hacker-dojo">Hacker Dojo (Mountain View, CA)</option>
+                <option value="block71-silicon-valley">Block71 Silicon Valley (CA)</option>
+                <option value="love-wisdom-power">Love Wisdom Power (Williams, OR)</option>
+                <option value="sacred-earth-farms">Sacred Earth Farms (Merlin, OR)</option>
+                <option value="republic-cafe-and-ming-lounge">Republic Cafe and Ming Lounge (Portland, OR)</option>
+                <option value="prism-percussions">Prism Percussions (Corvallis, OR)</option>
+                <option value="embodied-blindfold-dance">Embodied Blindfold Dance (Eugene, OR)</option>
+                <option value="the-ponderosa-slab-city">The Ponderosa, Slab City (CA)</option>
+                <option value="soulfulness-breathe">Soulfulness Breathe (Denver, CO)</option>
+                <option value="peace-on-fifth">Peace on Fifth (Dayton, OH)</option>
+                <option value="edge-and-node-house-of-web3">Edge and Node, House of Web3 (San Francisco, CA)</option>
+            </select>
+        </div>
+
+        <div class="form-row">
+            <label for="productSelect">Product</label>
+            <select id="productSelect">
+                <option value="Ceremonial Cacao 200g">Ceremonial Cacao 200g</option>
+            </select>
+        </div>
+
+        <div class="form-row" id="addressRow" style="display: none;">
+            <label class="label">Shipping to</label>
+            <div id="addressBlock" class="address-block empty" aria-live="polite">
+                Select a partner to load address.
+            </div>
+        </div>
+
+        <button id="getBtn" type="button">Get recommendation</button>
+
+        <p id="status" aria-live="polite"></p>
+        <div id="result">
+            <h2>Recommendation</h2>
+            <p class="big" id="recSummary"></p>
+            <p class="meta" id="recMeta"></p>
+            <p class="meta" id="recWeeks"></p>
+            <textarea id="replyText" rows="3" readonly placeholder="Suggested reply to partner…"></textarea>
+            <button id="copyReply" type="button">Copy reply text</button>
+        </div>
+        <div id="setupMsg" class="setup-msg" style="display: none;"></div>
+    </div>
+
+    <script>
+        (function() {
+            const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz5Tt_vz1X26i82yqlGUSI_OtCUEO31jImZH2tXfNaxMbfmJ01dkwUIEZDjsnd10xMbcg/exec';
+            const partnerSelect = document.getElementById('partnerSelect');
+            const productSelect = document.getElementById('productSelect');
+            const getBtn = document.getElementById('getBtn');
+            const status = document.getElementById('status');
+            const result = document.getElementById('result');
+            const recSummary = document.getElementById('recSummary');
+            const recMeta = document.getElementById('recMeta');
+            const recWeeks = document.getElementById('recWeeks');
+            const replyText = document.getElementById('replyText');
+            const setupMsg = document.getElementById('setupMsg');
+            const addressRow = document.getElementById('addressRow');
+            const addressBlock = document.getElementById('addressBlock');
+
+            function formatAddress(addr) {
+                if (!addr || !addr.street1) return null;
+                var lines = [addr.street1];
+                var cityStateZip = [addr.city, addr.state].filter(Boolean).join(', ');
+                if (addr.zip) cityStateZip += ' ' + addr.zip;
+                if (cityStateZip) lines.push(cityStateZip);
+                if (addr.country && addr.country !== 'US') lines.push(addr.country);
+                return lines.join('\n');
+            }
+
+            function loadPartnerAddress(partnerId) {
+                if (!partnerId) {
+                    addressRow.style.display = 'none';
+                    return;
+                }
+                addressRow.style.display = 'block';
+                addressBlock.className = 'address-block loading';
+                addressBlock.innerHTML = 'Loading address…';
+                var url = API_BASE_URL + '?action=get_partner_address&partner_id=' + encodeURIComponent(partnerId);
+                fetch(url, { method: 'GET' }).then(function(res) { return res.ok ? res.json() : null; })
+                .then(function(json) {
+                    if (json && json.status === 'success' && json.data) {
+                        if (json.data.address) {
+                            var formatted = formatAddress(json.data.address);
+                            addressBlock.className = 'address-block';
+                            addressBlock.innerHTML = formatted ? formatted.replace(/\n/g, '<br>') : 'Invalid address on file.';
+                        } else {
+                            addressBlock.className = 'address-block empty';
+                            addressBlock.textContent = json.data.message || 'Address not on file. Add this partner to the Partner addresses sheet.';
+                        }
+                    } else {
+                        addressBlock.className = 'address-block empty';
+                        addressBlock.textContent = 'Could not load address. Add partner to the Partner addresses sheet.';
+                    }
+                }).catch(function() {
+                    addressBlock.className = 'address-block empty';
+                    addressBlock.textContent = 'Could not load address. Check connection or add partner to the Partner addresses sheet.';
+                });
+            }
+
+            partnerSelect.addEventListener('change', function() {
+                loadPartnerAddress((partnerSelect.value || '').trim());
+            });
+
+            function setStatus(msg, isError) {
+                status.textContent = msg || '';
+                status.className = isError ? 'error' : '';
+            }
+
+            function showResult(data) {
+                result.style.display = 'block';
+                recSummary.textContent = 'Send ' + (data.recommended_N || data.recommended_n) + ' bags.';
+                recMeta.textContent = 'Shipping: ~$' + (data.shipping_cost_usd != null ? Number(data.shipping_cost_usd).toFixed(2) : '—');
+                recWeeks.textContent = (data.weeks_of_stock != null) ? 'That\'s ~' + Number(data.weeks_of_stock).toFixed(1) + ' weeks of stock at their rate.' : '';
+                var partnerName = partnerSelect.options[partnerSelect.selectedIndex] ? partnerSelect.options[partnerSelect.selectedIndex].text : 'Partner';
+                replyText.value = 'I\'ll send ' + (data.recommended_N || data.recommended_n) + ' bags; I\'ll get them out from SF and send tracking.';
+            }
+
+            function showSetupMessage() {
+                result.style.display = 'none';
+                setupMsg.style.display = 'block';
+                setupMsg.innerHTML = 'The <strong>restock_recommend</strong> API action is not deployed yet. Use the Shipping Planner for now: select the partner as manager, add Ceremonial Cacao, enter their address, and try quantities 12, 24, 48 to compare shipping. See <a href="https://github.com/TrueSightDAO/tokenomics/blob/main/google_app_scripts/tdg_shipping_planner/README.md" target="_blank" rel="noopener">Shipping Planner README</a> and <em>agentic_ai_context/RESTOCK_RECOMMENDER_ON_THE_FLY.md</em> for backend setup.';
+            }
+
+            getBtn.addEventListener('click', function() {
+                var partnerId = (partnerSelect.value || '').trim();
+                if (!partnerId) {
+                    setStatus('Select a partner.', true);
+                    return;
+                }
+                var product = (productSelect.value || 'Ceremonial Cacao 200g').trim();
+                setStatus('Getting recommendation…');
+                result.style.display = 'none';
+                setupMsg.style.display = 'none';
+                getBtn.disabled = true;
+
+                var url = API_BASE_URL + '?action=restock_recommend&partner_id=' + encodeURIComponent(partnerId) + '&product=' + encodeURIComponent(product);
+                fetch(url, { method: 'GET' }).then(function(res) { return res.ok ? res.json() : null; })
+                .then(function(json) {
+                    getBtn.disabled = false;
+                    if (json && json.status === 'success' && json.data) {
+                        setStatus('');
+                        showResult(json.data);
+                    } else if (json && json.status === 'error') {
+                        setStatus(json.message || 'API error', true);
+                        if ((json.message || '').toLowerCase().indexOf('action') >= 0 || (json.message || '').indexOf('restock_recommend') >= 0) {
+                            showSetupMessage();
+                        }
+                    } else {
+                        setStatus('Could not get recommendation. Backend may not be set up yet.', true);
+                        showSetupMessage();
+                    }
+                }).catch(function(err) {
+                    getBtn.disabled = false;
+                    setStatus('Network error. Try again or use Shipping Planner.', true);
+                    showSetupMessage();
+                });
+            });
+
+            document.getElementById('copyReply').addEventListener('click', function() {
+                replyText.select();
+                document.execCommand('copy');
+                this.textContent = 'Copied!';
+                var t = this;
+                setTimeout(function() { t.textContent = 'Copy reply text'; }, 2000);
+            });
+        })();
+    </script>
+</body>
+</html>
