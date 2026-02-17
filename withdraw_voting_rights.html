@@ -15,6 +15,7 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">    
   <script src="./menu.js"></script>
+  <script src="./tdg_balance.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -231,6 +232,7 @@
 </head>
 <body>
   <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+  <div id="tdgBalanceBadge"></div>
   <div class="container">
     <div style="text-align: center;">
       <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
@@ -246,10 +248,11 @@
         <div class="info"><strong>Your Total Voting Rights:</strong> <span id="votingRights"></span></div>
         <div class="info"><strong>Value per Voting Right:</strong> <span id="valuePerRight"></span></div>
         <div class="info"><strong>Total Assets on Ledger:</strong> <span id="totalAssets"></span></div>
+        <div class="info" id="provisionsInfo" style="display:none;"><strong>USD Reserves for Cash-Out:</strong> <span id="usdProvisions"></span> — Cash-out is limited by this amount. <a href="#" id="provisionsLink" target="_blank" rel="noopener">Learn more</a> · <a href="#" id="ledgerLink" target="_blank" rel="noopener">View in ledger</a></div>
       </div>
       <div class="input-group">
         <label for="amount">Voting Rights to Cash Out</label>
-        <input type="number" id="amount" placeholder="Enter number of voting rights" min="0">
+        <input type="number" id="amount" placeholder="Enter number of voting rights" min="0" max="">
         <div class="info"><strong>Expected Total Amount (USD):</strong> <span id="expectedTotal"></span></div>
       </div>
       <div class="input-group">
@@ -257,6 +260,7 @@
         <select id="withdrawalMethod">
           <option value="" disabled selected>Select a withdrawal method</option>
           <option value="PIX">PIX - Brazil</option>
+          <option value="PayLah">PayLah - Singapore</option>
           <option value="Venmo">Venmo - USA</option>
           <option value="Zelle">Zelle - USA</option>          
           <option value="PayPal">PayPal - International</option>
@@ -267,6 +271,11 @@
       <div class="input-group withdrawal-details" id="pixDetails">
         <label for="pixNumber">PIX Number (CPF, Phone, or Email)</label>
         <input type="text" id="pixNumber" placeholder="Enter PIX key">
+      </div>
+      <div class="input-group withdrawal-details" id="paylahDetails">
+        <label for="paylahMobile">PayLah Mobile Number</label>
+        <input type="text" id="paylahMobile" placeholder="e.g. +65 8123 4567 or 81234567">
+        <div class="help-text" style="font-size:0.85rem;color:#666;margin-top:0.25rem;">Singapore mobile number (8 digits starting with 8 or 9, or +65 followed by 8 digits)</div>
       </div>
       <div class="input-group withdrawal-details" id="venmoDetails">
         <label for="venmoNumber">Venmo Username or Phone Number</label>
@@ -457,8 +466,13 @@
 
   <script>
     const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+    const LEDGER_OFFCHAIN_BALANCE_URL = 'https://docs.google.com/spreadsheets/d/1GE7PUq-UT6x2rBN-Q2ksogbWpgyuh2SaxJyG_uEK6PU/edit?gid=2083442561';
+    const BLOG_AUM_URL = 'https://truesight.me/blog/posts/understanding-assets-under-management-aum-truesight-dao-comprehensive-asset-tracking.html';
     let maxVotingRights = 0;
+    let maxVotingRightsCashable = 0;  // limited by USD provisions
     let valuePerRight = 0;
+    let totalAssets = 0;
+    let usdProvisionsForCashOut = 0;
     let contributorName = '';
     let isPostSubmission = false;
 
@@ -481,6 +495,7 @@
       document.getElementById('amount').value = '';
       document.getElementById('withdrawalMethod').value = '';
       document.getElementById('pixNumber').value = '';
+      document.getElementById('paylahMobile').value = '';
       document.getElementById('venmoNumber').value = '';
       document.getElementById('paypalId').value = '';
       document.getElementById('wiseEmail').value = '';
@@ -515,6 +530,7 @@
     function updateWithdrawalDetails() {
       const method = document.getElementById('withdrawalMethod').value;
       const pixDetails = document.getElementById('pixDetails');
+      const paylahDetails = document.getElementById('paylahDetails');
       const venmoDetails = document.getElementById('venmoDetails');
       const paypalDetails = document.getElementById('paypalDetails');
       const wiseDetails = document.getElementById('wiseDetails');
@@ -522,6 +538,7 @@
       const westernUnionDetails = document.getElementById('westernUnionDetails');
 
       pixDetails.style.display = 'none';
+      paylahDetails.style.display = 'none';
       venmoDetails.style.display = 'none';
       paypalDetails.style.display = 'none';
       wiseDetails.style.display = 'none';
@@ -530,6 +547,8 @@
 
       if (method === 'PIX') {
         pixDetails.style.display = 'block';
+      } else if (method === 'PayLah') {
+        paylahDetails.style.display = 'block';
       } else if (method === 'Venmo') {
         venmoDetails.style.display = 'block';
       } else if (method === 'PayPal') {
@@ -559,6 +578,7 @@
       const amountInput = document.getElementById('amount');
       const withdrawalMethod = document.getElementById('withdrawalMethod');
       const pixNumber = document.getElementById('pixNumber');
+      const paylahMobile = document.getElementById('paylahMobile');
       const venmoNumber = document.getElementById('venmoNumber');
       const paypalId = document.getElementById('paypalId');
       const wiseEmail = document.getElementById('wiseEmail');
@@ -587,6 +607,7 @@
       amountInput.classList.remove('invalid');
       withdrawalMethod.classList.remove('invalid');
       pixNumber.classList.remove('invalid');
+      paylahMobile.classList.remove('invalid');
       venmoNumber.classList.remove('invalid');
       paypalId.classList.remove('invalid');
       wiseEmail.classList.remove('invalid');
@@ -627,11 +648,14 @@
         hasError = true;
       }
 
-      if (amount > maxVotingRights) {
-        amount = maxVotingRights;
-        amountInput.value = maxVotingRights;
+      var effectiveMax = maxVotingRightsCashable > 0 ? maxVotingRightsCashable : maxVotingRights;
+      if (amount > effectiveMax) {
+        amount = effectiveMax;
+        amountInput.value = effectiveMax;
         amountInput.classList.add('invalid');
-        actionStatus.textContent = `You only have ${maxVotingRights} voting rights. Adjusted to maximum available.`;
+        actionStatus.textContent = maxVotingRightsCashable > 0 && maxVotingRightsCashable < maxVotingRights
+          ? `Cash-out is limited by USD reserves. Maximum: ${effectiveMax.toFixed(2)} voting rights (~$${(effectiveMax * valuePerRight).toFixed(2)}).`
+          : `You only have ${maxVotingRights} voting rights. Adjusted to maximum available.`;
         actionStatus.className = 'warning';
         hasError = true;
       }
@@ -656,6 +680,21 @@
           actionStatus.textContent += ' Also, please enter a valid PIX number.';
         }
         return false;
+      }
+
+      if (withdrawalMethod.value === 'PayLah') {
+        var pl = paylahMobile.value.trim().replace(/\s/g, '');
+        var validPayLah = /^(\+?65)?[89]\d{7}$/.test(pl);
+        if (!pl || !validPayLah) {
+          paylahMobile.classList.add('invalid');
+          if (!hasError) {
+            actionStatus.textContent = 'Please enter a valid Singapore mobile number (8 digits starting with 8 or 9, e.g. 81234567 or +65 8123 4567).';
+            actionStatus.className = 'error';
+          } else {
+            actionStatus.textContent += ' Also, please enter a valid PayLah mobile number.';
+          }
+          return false;
+        }
       }
 
       if (withdrawalMethod.value === 'Venmo' && (!venmoNumber.value.trim() || venmoNumber.value.trim() === '')) {
@@ -876,10 +915,26 @@
         contributorName = data.contributor_name;
         maxVotingRights = parseFloat(data.voting_rights);
         valuePerRight = parseFloat(data.asset_per_circulated_voting_right);
+        totalAssets = parseFloat(data.total_assets);
+        usdProvisionsForCashOut = parseFloat(data.usd_provisions_for_cash_out || 0);
+        maxVotingRightsCashable = totalAssets > 0 && usdProvisionsForCashOut > 0
+          ? Math.min(maxVotingRights, (maxVotingRights * usdProvisionsForCashOut) / totalAssets)
+          : maxVotingRights;
         document.getElementById('votingRights').textContent = maxVotingRights;
         document.getElementById('valuePerRight').textContent = `$${valuePerRight.toFixed(5)}`;
         document.getElementById('expectedTotal').textContent = '$0.00';
         document.getElementById('totalAssets').textContent = Number(data.total_assets).toFixed(5);
+        var provisionsInfo = document.getElementById('provisionsInfo');
+        if (usdProvisionsForCashOut > 0) {
+          document.getElementById('usdProvisions').textContent = '$' + usdProvisionsForCashOut.toFixed(2);
+          document.getElementById('provisionsLink').href = BLOG_AUM_URL;
+          document.getElementById('provisionsLink').textContent = 'Learn more about asset tracking and cash-out limits';
+          document.getElementById('ledgerLink').href = LEDGER_OFFCHAIN_BALANCE_URL;
+          document.getElementById('ledgerLink').textContent = 'View in ledger';
+          provisionsInfo.style.display = 'block';
+        }
+        document.getElementById('amount').max = maxVotingRightsCashable;
+        document.getElementById('amount').placeholder = 'Max ' + Math.floor(maxVotingRightsCashable * 100) / 100 + ' (limited by reserves)';
         document.getElementById('info').style.display = 'block';
         document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
         document.getElementById('welcome').style.display = 'block';
@@ -901,6 +956,8 @@
         });
         document.getElementById('pixNumber').addEventListener('change', validateInputs);
         document.getElementById('pixNumber').addEventListener('input', validateInputs);
+        document.getElementById('paylahMobile').addEventListener('change', validateInputs);
+        document.getElementById('paylahMobile').addEventListener('input', validateInputs);
         document.getElementById('venmoNumber').addEventListener('change', validateInputs);
         document.getElementById('venmoNumber').addEventListener('input', validateInputs);
         document.getElementById('paypalId').addEventListener('change', validateInputs);
@@ -961,6 +1018,7 @@
       const amount = document.getElementById('amount').value;
       const withdrawalMethod = document.getElementById('withdrawalMethod').value;
       const pixNumber = document.getElementById('pixNumber').value;
+      const paylahMobile = document.getElementById('paylahMobile').value;
       const venmoNumber = document.getElementById('venmoNumber').value;
       const paypalId = document.getElementById('paypalId').value;
       const wiseEmail = document.getElementById('wiseEmail').value;
@@ -1007,6 +1065,8 @@
         let requestText = `[VOTING RIGHTS WITHDRAWAL REQUEST]\nContributor: ${contributorName}\nAmount to withdraw: ${amount}\nValue per voting right: $${valuePerRight.toFixed(5)}\nExpected total amount (USD): $${expectedTotal}\nWithdrawal method: ${withdrawalMethod}\n`;
         if (withdrawalMethod === 'PIX') {
           requestText += `PIX number: ${pixNumber}\n`;
+        } else if (withdrawalMethod === 'PayLah') {
+          requestText += `PayLah mobile: ${paylahMobile}\n`;
         } else if (withdrawalMethod === 'Venmo') {
           requestText += `Venmo number: ${venmoNumber}\n`;
         } else if (withdrawalMethod === 'PayPal') {
