@@ -6,6 +6,12 @@ alwaysApply: false
 
 # DApp CI and Testing
 
+## CI (GitHub Actions)
+
+- **Workflow**: `.github/workflows/ci.yml`
+- **Triggers**: Push/PR to main; `workflow_dispatch` (manual)
+- **Steps**: Unit tests → Playwright integration (mocked APIs)
+
 ## When to run tests
 
 - Before committing changes to `report_dao_expenses.html`, `expense-form-utils.js`, or anything under `tests/`

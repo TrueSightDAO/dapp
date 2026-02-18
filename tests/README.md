@@ -25,6 +25,12 @@ npm run test:integration  # Run Playwright integration tests (~30-60s)
 - **Network mocking** – all external requests are intercepted and return mock data
 - **Runs in Chromium** – uses a local static server (`npx serve`)
 
+## CI (GitHub Actions)
+
+- **Workflow**: `.github/workflows/ci.yml`
+- **Triggers**: Push/PR to `main` or `master`; also `workflow_dispatch` (manual)
+- **Runs**: Unit tests + Playwright integration (all APIs mocked — no external calls)
+
 ## Adding tests
 
 1. **Unit:** Add cases to `expense-form-utils.test.js` for new utils.
