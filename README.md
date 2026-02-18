@@ -14,6 +14,19 @@ For comprehensive API documentation covering all endpoints used by this DApp, in
 
 For UX patterns and conventions used across the DApp, including remote data loading, form field states, and error handling, see [UX_CONVENTIONS.md](./UX_CONVENTIONS.md). This document ensures consistency across all DApp modules and provides implementation guidelines for common UX patterns.
 
+## Testing
+
+The DApp has unit and integration tests to prevent regressions. See [tests/README.md](./tests/README.md) for details.
+
+```bash
+npm test              # Run unit + integration tests (~15s)
+npm run test:unit     # Unit tests only (~1s)
+npm run test:integration  # Playwright integration tests
+```
+
+- **Unit tests**: Pure logic in `expense-form-utils.js` (extractCleanCurrency, extractLedgerFromResource, etc.).
+- **Integration tests**: Playwright tests with **mocked APIs** (no real Google Apps Script or Edgar calls). Verifies scripts load and form flow works.
+
 ## Modules
 
 This repository contains tools for TrueSight DAO members, each accessible via the live DApp at [https://dapp.truesight.me](https://dapp.truesight.me):
