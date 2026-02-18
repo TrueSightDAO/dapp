@@ -319,17 +319,6 @@
                 </datalist>
             </div>
             <div class="form-row">
-                <label for="ledgerInput">Target Ledger (Optional):</label>
-                <input type="text" id="ledgerInput" list="ledgerOptions" autocomplete="off" placeholder="Loading ledgers..." disabled>
-                <datalist id="ledgerOptions">
-                    <option value="">Loading ledgers...</option>
-                </datalist>
-                <div id="ledgerInfo" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666; display: none;">
-                    <span id="ledgerInfoText"></span>
-                    <a id="ledgerLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; margin-left: 0.5rem; display: none;">View Ledger →</a>
-                </div>
-            </div>
-            <div class="form-row">
                 <label for="resourceInput">Inventory Resource:</label>
                 <div style="position: relative;">
                     <div id="resourceSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; min-height: 2.6rem;">
@@ -342,6 +331,18 @@
                     </div>
                 </div>
                 <div id="availableQuantity"></div>
+            </div>
+            <div class="form-row">
+                <label for="ledgerInput">Target Ledger:</label>
+                <input type="text" id="ledgerInput" list="ledgerOptions" autocomplete="off" placeholder="Loading ledgers..." disabled>
+                <datalist id="ledgerOptions">
+                    <option value="">Loading ledgers...</option>
+                </datalist>
+                <div id="ledgerHelperText" style="margin-top: 0.25rem; font-size: 0.85rem; color: #666;">Auto-filled when you select a ledger-specific resource</div>
+                <div id="ledgerInfo" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666; display: none;">
+                    <span id="ledgerInfoText"></span>
+                    <a id="ledgerLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; margin-left: 0.5rem; display: none;">View Ledger →</a>
+                </div>
             </div>
             <div class="form-row">
                 <label for="quantityInput">Quantity Expensed:</label>
@@ -557,6 +558,7 @@
 
             memberInput.value = '';
             ledgerInput.value = '';
+            selectedResourceCurrencyValue = '';
             ledgerInfo.style.display = 'none';
             ledgerLink.style.display = 'none';
             if (resourceSelectDisplay) {
@@ -712,6 +714,7 @@
             
             availableQty.textContent = '';
             qtyInput.value = '';
+            selectedResourceCurrencyValue = '';
             
             // Find matching member
             const matchingMember = allMembers.find(m => 
@@ -745,6 +748,8 @@
         // Store all loaded resources (before filtering)
         let allLoadedResources = [];
         let allLoadedResourceOptionsData = [];
+        /** Currencies-matching value for the selected resource (e.g. "[AGL15] USD"). Used for submission. */
+        let selectedResourceCurrencyValue = '';
 
         /**
          * Normalizes ledger names for comparison (handles variations like "AGL10", "AGL 10", "agl10")
@@ -764,9 +769,19 @@
          */
         function extractLedgerFromResource(resourceValue) {
             if (!resourceValue) return null;
-            // Match pattern like [AGL10] or [AGL 10] at the start
             const match = resourceValue.match(/^\[([^\]]+)\]\s*(.+)$/);
             return match ? match[1] : null;
+        }
+        
+        /**
+         * Returns clean currency (strips ledger prefix). Inventory Type in submissions should never have [ledger] embedded.
+         * @param {string} resourceValue - The resource value (e.g. "[AGL15] USD" or "USD")
+         * @return {string} Clean currency/inventory type (e.g. "USD")
+         */
+        function extractCleanCurrency(resourceValue) {
+            if (!resourceValue) return '';
+            const match = resourceValue.match(/^\[([^\]]+)\]\s*(.+)$/);
+            return match ? match[2].trim() : resourceValue.trim();
         }
         
         /**
@@ -925,6 +940,9 @@
             const qtyInput = document.getElementById('quantityInput');
             const ledgerInput = document.getElementById('ledgerInput');
             
+            // Store Currencies-matching value for submission (e.g. "[AGL15] USD" not "[AGL15] USD (Available: 7907.97)")
+            selectedResourceCurrencyValue = resourceValue || '';
+            
             // Update display
             if (resourceSelectDisplay) {
                 resourceSelectDisplay.textContent = resourceDisplayText;
@@ -940,10 +958,10 @@
             }
             
             // Auto-update Target Ledger if resource has ledger prefix
+            // Do NOT call filterResourcesByLedger() - avoids race conditions and unnecessary dropdown refresh
             if (ledgerInput && resourceValue) {
                 const extractedLedger = extractLedgerFromResource(resourceValue);
                 if (extractedLedger) {
-                    // Check if this ledger exists in the available ledgers
                     const matchingLedger = allLedgers.find(l => {
                         const ledgerName = l.ledger_name.toLowerCase().trim();
                         const extractedName = extractedLedger.toLowerCase().trim();
@@ -954,11 +972,8 @@
                     if (matchingLedger) {
                         ledgerInput.value = matchingLedger.ledger_name;
                         updateLedgerInfo();
-                        // Re-filter resources based on the updated ledger
-                        filterResourcesByLedger();
                         console.log(`Auto-selected Target Ledger: ${matchingLedger.ledger_name} based on resource: ${resourceValue}`);
                     } else {
-                        // Ledger not found in list, but still set it (might be a new ledger)
                         ledgerInput.value = extractedLedger;
                         updateLedgerInfo();
                         console.log(`Auto-selected Target Ledger: ${extractedLedger} (not in ledger list, but extracted from resource)`);
@@ -1006,12 +1021,12 @@
         }
         
         /**
-         * Gets the currently selected resource value
+         * Gets the currently selected resource value (Currencies-matching identifier for submission).
+         * Returns the currency value (e.g. "[AGL15] USD") not the display text (e.g. "[AGL15] USD (Available: 7907.97)").
          */
         function getSelectedResourceValue() {
-            const resourceSelectDisplay = document.getElementById('resourceSelectDisplay');
-            if (resourceSelectDisplay && resourceSelectDisplay.style.color !== 'rgb(153, 153, 153)') {
-                return resourceSelectDisplay.textContent;
+            if (selectedResourceCurrencyValue && selectedResourceCurrencyValue.trim()) {
+                return selectedResourceCurrencyValue;
             }
             return '';
         }
@@ -1028,6 +1043,7 @@
             const qtyInput = document.getElementById('quantityInput');
             
             // Show loading state
+            selectedResourceCurrencyValue = '';
             if (resourceSelectDisplay) {
                 resourceSelectDisplay.textContent = 'Loading resources...';
                 resourceSelectDisplay.style.color = '#999';
@@ -1132,6 +1148,7 @@
                 filterResourcesByLedger();
                 
                 // Update display after resources are loaded and filtered
+                selectedResourceCurrencyValue = '';
                 if (resourceSelectDisplay) {
                     resourceSelectDisplay.textContent = 'Select a resource...';
                     resourceSelectDisplay.style.color = '#999';
@@ -1434,23 +1451,17 @@
             const memberName = matchingMember.name;
             const ledgerInput = document.getElementById('ledgerInput');
             const ledgerValue = ledgerInput.value.trim();
-            let resourceName = getSelectedResourceValue();
+            const rawResourceValue = getSelectedResourceValue();
+            // Inventory Type in submissions must be clean currency (never embedded [ledger])
+            // Ledger is provided via Target Ledger
+            const resourceName = extractCleanCurrency(rawResourceValue);
             const quantity = document.getElementById('quantityInput').value;
             const description = document.getElementById('descriptionInput').value;
             
-            // If a ledger is selected and resource doesn't already have a ledger prefix, add it
-            if (ledgerValue && ledgerValue.toLowerCase() !== 'offchain') {
-                const selectedLedgerName = ledgerValue;
-                // Check if resource already has a ledger prefix
-                const ledgerPrefixMatch = resourceName.match(/^\[([^\]]+)\]\s*(.+)$/);
-                if (!ledgerPrefixMatch) {
-                    // No ledger prefix, add it
-                    resourceName = `[${selectedLedgerName}] ${resourceName}`;
-                } else {
-                    // Already has a prefix, replace it with the selected ledger
-                    resourceName = `[${selectedLedgerName}] ${ledgerPrefixMatch[2]}`;
-                }
-            }
+            // Target ledger: use explicit selection, or extract from resource (e.g. [AGL15] USD)
+            const targetLedgerValue = ledgerValue && ledgerValue.toLowerCase() !== 'offchain'
+                ? ledgerValue
+                : (extractLedgerFromResource(rawResourceValue) || 'offchain');
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
 
@@ -1482,10 +1493,7 @@
             output.textContent = 'Submitting...';
             output.className = 'loading';
 
-            // Determine target ledger
-            const targetLedger = ledgerValue && ledgerValue.toLowerCase() !== 'offchain' ? ledgerValue : 'offchain';
-            
-            await submitExpenseReport(file, fileName, memberName, resourceName, quantity, description, targetLedger);
+            await submitExpenseReport(file, fileName, memberName, resourceName, quantity, description, targetLedgerValue);
         }
 
         async function submitExpenseReport(file, fileName, memberName, resourceName, quantity, description, targetLedger = 'offchain') {
