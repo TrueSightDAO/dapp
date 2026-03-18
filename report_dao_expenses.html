@@ -17,6 +17,7 @@
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
+    <script src="./expense-form-utils.js"></script>
 
     <style>
         body {
@@ -405,10 +406,7 @@
         }
 
         function generateExpenseFileName(originalFileName) {
-            const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
-            const cleanContributorName = contributorName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-            const cleanFileName = originalFileName.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
-            return `expense_${timestamp}_${cleanContributorName}_${cleanFileName}`;
+            return window.expenseFormUtils.generateExpenseFileName(originalFileName, contributorName);
         }
 
         function updateFileInfo(fileName) {
@@ -454,7 +452,7 @@
         }
 
         function validateDescription(description) {
-            return !/[\n\r]/.test(description);
+            return window.expenseFormUtils.validateDescription(description);
         }
 
         async function isOnline() {
@@ -751,39 +749,10 @@
         /** Currencies-matching value for the selected resource (e.g. "[AGL15] USD"). Used for submission. */
         let selectedResourceCurrencyValue = '';
 
-        /**
-         * Normalizes ledger names for comparison (handles variations like "AGL10", "AGL 10", "agl10")
-         * @param {string} ledgerName - The ledger name to normalize
-         * @return {string} Normalized ledger name
-         */
-        function normalizeLedgerName(ledgerName) {
-            if (!ledgerName) return '';
-            // Remove spaces, dashes, underscores and convert to lowercase
-            return ledgerName.toLowerCase().replace(/[\s\-_]/g, '');
-        }
-        
-        /**
-         * Extracts ledger name from resource value/displayText (handles formats like "[AGL10] Resource Name")
-         * @param {string} resourceValue - The resource value or display text
-         * @return {string|null} Extracted ledger name or null if not found
-         */
-        function extractLedgerFromResource(resourceValue) {
-            if (!resourceValue) return null;
-            const match = resourceValue.match(/^\[([^\]]+)\]\s*(.+)$/);
-            return match ? match[1] : null;
-        }
-        
-        /**
-         * Returns clean currency (strips ledger prefix). Inventory Type in submissions should never have [ledger] embedded.
-         * @param {string} resourceValue - The resource value (e.g. "[AGL15] USD" or "USD")
-         * @return {string} Clean currency/inventory type (e.g. "USD")
-         */
-        function extractCleanCurrency(resourceValue) {
-            if (!resourceValue) return '';
-            const match = resourceValue.match(/^\[([^\]]+)\]\s*(.+)$/);
-            return match ? match[2].trim() : resourceValue.trim();
-        }
-        
+        const normalizeLedgerName = window.expenseFormUtils.normalizeLedgerName;
+        const extractLedgerFromResource = window.expenseFormUtils.extractLedgerFromResource;
+        const extractCleanCurrency = window.expenseFormUtils.extractCleanCurrency;
+
         /**
          * Filters and returns resources based on selected ledger
          * @return {Object} Object with memberControlledResources and otherResources arrays

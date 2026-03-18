@@ -1,0 +1,38 @@
+---
+description: DApp CI and testing conventions - run tests when changing expense form or utils
+globs: report_dao_expenses.html, expense-form-utils.js, tests/**/*
+alwaysApply: false
+---
+
+# DApp CI and Testing
+
+## CI (GitHub Actions)
+
+- **Workflow**: `.github/workflows/ci.yml`
+- **Triggers**: Push/PR to main; `workflow_dispatch` (manual)
+- **Steps**: Unit tests → Playwright integration (mocked APIs)
+
+## When to run tests
+
+- Before committing changes to `report_dao_expenses.html`, `expense-form-utils.js`, or anything under `tests/`
+- When asked to run CI or verify no regressions
+
+## Commands
+
+```bash
+npm test              # Unit + integration (~15s)
+npm run test:unit     # Unit only (~1s)
+npm run test:integration  # Playwright only
+```
+
+## Architecture
+
+- **expense-form-utils.js**: Pure logic (extractCleanCurrency, extractLedgerFromResource, buildSubmitPayload, etc.). Isomorphic (browser + Node).
+- **Unit tests**: `tests/expense-form-utils.test.js` — no network, runs in Node.
+- **Integration tests**: `tests/expense-form.spec.ts` — Playwright with **mocked** Google Apps Script and Edgar APIs. No real external calls.
+- **Regression**: Column I (Currency) must be clean (e.g. `USD`), never `[AGL15] USD`; ledger goes in Column M (Target Ledger).
+
+## Adding tests
+
+1. **Utils**: Add cases to `expense-form-utils.test.js`
+2. **Integration**: Add `test()` in `expense-form.spec.ts`; use `page.route()` to mock new endpoints

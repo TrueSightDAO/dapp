@@ -1,0 +1,15 @@
+{
+  "name": "truesight-dapp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node tests/expense-form-utils.test.js",
+    "test:integration": "playwright test",
+    "test:integration:ui": "playwright test --ui",
+    "test:integration:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}

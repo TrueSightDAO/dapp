@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Playwright
+playwright-report/
+test-results/
+/blob-report/
+playwright/.cache/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# Editor / IDE (keep .cursor/rules/ for AI/agent context)
+.cursor/*
+!.cursor/rules/
+*.swp
+*.swo
