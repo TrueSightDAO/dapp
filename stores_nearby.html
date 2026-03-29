@@ -3407,6 +3407,27 @@
             }
         }
         
+        // Apply status and shop_type from URL directly to expanded checkboxes (used when restoring map from URL)
+        function applyURLFiltersToExpandedCheckboxes() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const urlStatusFilters = params.getAll('status');
+                const urlShopTypeFilters = params.getAll('shop_type');
+                if (urlStatusFilters.length > 0) {
+                    document.querySelectorAll('.expanded-status-filter-checkbox').forEach(cb => {
+                        cb.checked = urlStatusFilters.includes(cb.value);
+                    });
+                }
+                if (urlShopTypeFilters.length > 0) {
+                    document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => {
+                        cb.checked = urlShopTypeFilters.includes(cb.value);
+                    });
+                }
+            } catch (e) {
+                console.warn('applyURLFiltersToExpandedCheckboxes:', e);
+            }
+        }
+
         // Load filter and location state from URL
         function loadStateFromURL() {
             try {
@@ -3628,12 +3649,22 @@
                         const urlSwLng = params.get('sw_lng');
                         
                         if (urlNeLat && urlNeLng && urlSwLat && urlSwLng) {
-                            const neLat = parseFloat(urlNeLat);
-                            const neLng = parseFloat(urlNeLng);
-                            const swLat = parseFloat(urlSwLat);
-                            const swLng = parseFloat(urlSwLng);
+                            let neLat = parseFloat(urlNeLat);
+                            let neLng = parseFloat(urlNeLng);
+                            let swLat = parseFloat(urlSwLat);
+                            let swLng = parseFloat(urlSwLng);
                             
                             if (!isNaN(neLat) && !isNaN(neLng) && !isNaN(swLat) && !isNaN(swLng)) {
+                                // If user location is outside bounds, expand bounds to include it (fixes 0 results when shared link has mismatched bounds)
+                                if (currentLat != null && currentLng != null) {
+                                    const pad = 0.5; // degrees padding
+                                    if (currentLat < swLat || currentLat > neLat || currentLng < Math.min(swLng, neLng) || currentLng > Math.max(swLng, neLng)) {
+                                        swLat = Math.min(swLat, currentLat - pad);
+                                        neLat = Math.max(neLat, currentLat + pad);
+                                        swLng = Math.min(swLng, currentLng - pad);
+                                        neLng = Math.max(neLng, currentLng + pad);
+                                    }
+                                }
                                 // Create bounds and set map view
                                 const ne = L.latLng(neLat, neLng);
                                 const sw = L.latLng(swLat, swLng);
@@ -3660,7 +3691,11 @@
                                                 // Remove this one-time listener
                                                 map.off('moveend', onBoundsSet);
                                                 
-                                                // Ensure checkboxes are synced before loading stores
+                                                // Apply URL filters directly to expanded checkboxes (ensures Manager Follow-up etc. are set)
+                                                applyURLFiltersToExpandedCheckboxes();
+                                                // Sync both directions so normal and expanded stay in sync
+                                                syncCheckboxes('.expanded-status-filter-checkbox', '.status-filter-checkbox');
+                                                syncCheckboxes('.expanded-shop-type-filter-checkbox', '.shop-type-filter-checkbox');
                                                 syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
                                                 syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
                                                 
@@ -3676,7 +3711,9 @@
                                         setTimeout(() => {
                                             if (map && isMapExpanded) {
                                                 map.off('moveend', onBoundsSet);
-                                                // Ensure checkboxes are synced before loading stores
+                                                applyURLFiltersToExpandedCheckboxes();
+                                                syncCheckboxes('.expanded-status-filter-checkbox', '.status-filter-checkbox');
+                                                syncCheckboxes('.expanded-shop-type-filter-checkbox', '.shop-type-filter-checkbox');
                                                 syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
                                                 syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
                                                 loadStoresForBounds();

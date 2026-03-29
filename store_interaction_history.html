@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Look up a store from the holistic wellness hit list and review DApp remarks, follow-up log, and email agent suggestions before sending.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Interaction History - TrueSight DAO</title>
+
+    <meta property="og:title" content="Store Interaction History - TrueSight DAO">
+    <meta property="og:description" content="Review full hit-list context and email interaction history for partner outreach (human-in-the-loop).">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/store_interaction_history.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TrueSight DAO">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Store Interaction History - TrueSight DAO">
+    <meta name="twitter:description" content="Review full hit-list context and email interaction history for partner outreach (human-in-the-loop).">
+    <meta name="twitter:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./menu.js"></script>
+    <script src="./tdg_balance.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333; }
+        input[type="text"], input[type="email"], input[type="url"], input[type="tel"], input[type="date"], select, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        textarea { min-height: 72px; resize: vertical; }
+        .combobox-wrap { position: relative; margin: 1rem 0; text-align: left; }
+        .suggest-panel {
+            display: none;
+            position: absolute;
+            left: 0; right: 0;
+            top: 100%;
+            z-index: 20;
+            max-height: 220px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-top: 2px;
+        }
+        .suggest-panel.open { display: block; }
+        .suggest-item {
+            padding: 0.6rem 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            font-size: 0.95rem;
+        }
+        .suggest-item:hover { background: #f0f7ff; }
+        .suggest-item small { color: #666; display: block; font-size: 0.8rem; }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+        .btn:hover { background-color: #0056b3; }
+        .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .status { color: #28a745; }
+        .error { color: #dc3545; }
+        .help-text { font-size: 0.85rem; color: #666; margin-top: 0.25rem; }
+        .field-loading-message {
+            font-size: 0.85rem;
+            color: #007bff;
+            font-style: italic;
+            margin-top: 0.25rem;
+        }
+        .loading-field { opacity: 0.65; pointer-events: none; }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 1.25rem 0 0.5rem;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.35rem;
+        }
+        .kv-list { margin: 0.5rem 0; font-size: 0.9rem; }
+        .kv-list dt {
+            font-weight: 600;
+            color: #444;
+            margin-top: 0.4rem;
+            clear: left;
+        }
+        .kv-list dd { margin: 0.15rem 0 0.35rem 0; color: #222; white-space: pre-wrap; word-break: break-word; }
+        .history-card {
+            margin: 0.65rem 0;
+            background-color: #f8f9fa;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .history-card-index { font-size: 0.75rem; color: #666; margin-bottom: 0.35rem; }
+
+        /* Hit List master row (not part of timeline) */
+        .hit-list-record-card {
+            margin: 0.65rem 0;
+            padding: 0.85rem;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            border-left: 5px solid #495057;
+            background: linear-gradient(to right, #f1f3f5 0%, #fff 12%);
+        }
+        .hit-list-record-card .hit-list-record-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+
+        .store-map-wrap {
+            margin: 0.5rem 0 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #ced4da;
+            background: #e9ecef;
+        }
+        .store-map-wrap iframe {
+            display: block;
+            width: 100%;
+            height: 280px;
+            border: 0;
+        }
+        .store-map-fallback {
+            margin: 0.5rem 0 1rem;
+            padding: 1rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #6c757d;
+            border: 1px dashed #ced4da;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        .store-quick-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1.25rem;
+            justify-content: center;
+            align-items: center;
+            margin: 0 0 1rem;
+            font-size: 0.95rem;
+        }
+        .store-quick-links a {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .history-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+            align-items: center;
+            justify-content: center;
+            margin: 0.75rem 0 1rem;
+            font-size: 0.82rem;
+        }
+        .history-legend .legend-item {
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .history-legend .legend-remarks { background: #0d6efd; }
+        .history-legend .legend-followup { background: #198754; }
+        .history-legend .legend-suggestions { background: #6f42c1; }
+
+        .timeline-entry {
+            margin: 0.65rem 0;
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            border-left-width: 5px;
+            background: #fff;
+        }
+        .timeline-entry.cat-dapp-remarks { border-left-color: #0d6efd; background: #f7f9ff; }
+        .timeline-entry.cat-email-followup { border-left-color: #198754; background: #f4fbf6; }
+        .timeline-entry.cat-email-suggestions { border-left-color: #6f42c1; background: #f9f6fc; }
+
+        .timeline-entry-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .timeline-entry-header .timeline-badge {
+            display: inline-block;
+            padding: 0.2rem 0.55rem;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .timeline-entry.cat-dapp-remarks .timeline-badge { background: #0d6efd; }
+        .timeline-entry.cat-email-followup .timeline-badge { background: #198754; }
+        .timeline-entry.cat-email-suggestions .timeline-badge { background: #6f42c1; }
+        .timeline-entry-header .timeline-date {
+            font-size: 0.85rem;
+            color: #495057;
+            font-weight: 600;
+        }
+        .timeline-entry-header .timeline-date.missing {
+            color: #868e96;
+            font-weight: 500;
+            font-style: italic;
+        }
+        .loading .spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 0.5rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading { text-align: center; color: #6c757d; padding: 1rem; }
+        .config-warn {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        #signaturePromptBanner {
+            display: none;
+            background: #e7f1ff;
+            border: 1px solid #b8d4fe;
+            color: #004085;
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin: 0.75rem 0;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        #signaturePromptBanner a { color: #004085; font-weight: 600; }
+        .signature-verify-status {
+            margin: 1rem 0;
+            min-height: 1.5rem;
+            font-size: 1rem;
+            text-align: center;
+            font-weight: bold;
+        }
+        .update-section {
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 2px solid #e9ecef;
+            text-align: left;
+        }
+        .update-collapsible {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .update-collapsible > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 0.85rem 1rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+            background: #f8f9fa;
+            border-bottom: 1px solid transparent;
+            user-select: none;
+        }
+        .update-collapsible > summary::-webkit-details-marker { display: none; }
+        .update-collapsible[open] > summary {
+            border-bottom-color: #dee2e6;
+        }
+        .update-collapsible > summary:hover {
+            background: #e9ecef;
+        }
+        .update-collapsible-hint {
+            font-weight: normal;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .update-collapsible-body {
+            padding: 1rem;
+        }
+        .requires-signature-soft-disabled { opacity: 0.65; }
+        /* Match stores_nearby.html link styling for Hit List sheet */
+        .store-details-link {
+            color: #007bff;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .store-details-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div id="tdgBalanceBadge"></div>
+    <div class="container">
+        <h1>Store Interaction History</h1>
+        <p id="description">Search the holistic wellness hit list. History loads automatically when you pick a store. The address bar updates with <code>?store=…</code> (and <code>shop=…</code>) so refresh restores the same store. Update Hit List fields using the same flow as Stores Nearby (signature required).</p>
+        <p style="text-align: center; font-size: 0.95rem; margin: 0.5rem 0;">
+            <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer" class="store-details-link">View or edit the full Hit List in Google Sheets ↗</a>
+        </p>
+
+        <div id="signaturePromptBanner" class="signature-readonly-banner">
+            You are viewing in <strong>read-only</strong> mode. <a href="./create_signature.html">Generate your digital signature</a> to update Hit List status and contact fields from this page (same verification as Stores Nearby).
+        </div>
+
+        <div id="configWarn" class="config-warn" style="display:none;">
+            Set <strong>API_BASE_URL</strong> in this page to your deployed Apps Script web app URL (see <code>tokenomics/google_app_scripts/holistic_hit_list_store_history/README.md</code>).
+        </div>
+
+        <div class="combobox-wrap">
+            <label for="storeSearch">Store name or key</label>
+            <input type="text" id="storeSearch" placeholder="Type at least 2 characters…" autocomplete="off" />
+            <div id="suggestPanel" class="suggest-panel" role="listbox"></div>
+            <p id="searchHelp" class="help-text">Suggestions load from Hit List. Click a row or press Enter to select — history loads automatically.</p>
+        </div>
+
+        <button type="button" class="btn btn-secondary" id="refreshBtn" style="display:none;">Refresh history</button>
+        <p id="status" class="signature-verify-status" role="status" aria-live="polite">Verifying your digital signature…</p>
+
+        <div id="readOnlyUpdateHint" class="config-warn" style="display:none;">
+            <strong>Read-only:</strong> history below is view-only. <a href="./create_signature.html" class="store-details-link">Connect a verified digital signature</a> to enable &ldquo;Update Status &amp; Shop Type&rdquo; on this page.
+        </div>
+
+        <div id="updateSection" class="update-section" style="display:none;">
+            <details id="updateSectionDetails" class="update-collapsible">
+                <summary>Update Status &amp; Shop Type <span class="update-collapsible-hint">— click to expand</span></summary>
+                <div class="update-collapsible-body">
+            <p class="help-text">Same endpoint as <strong>Stores Nearby</strong> (<code>action=update_status</code>). Requires verified signature.</p>
+
+            <label for="editStatus">Status</label>
+            <select id="editStatus" data-requires-signature="true">
+                <option value="Research">Research</option>
+                <option value="Shortlisted">Shortlisted</option>
+                <option value="Instagram Followed">Instagram Followed</option>
+                <option value="Contacted">Contacted</option>
+                <option value="Manager Follow-up">Manager Follow-up</option>
+                <option value="Meeting Scheduled">Meeting Scheduled</option>
+                <option value="Followed Up">Followed Up</option>
+                <option value="Partnered">Partnered</option>
+                <option value="On Hold">On Hold</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Not Appropriate">Not Appropriate</option>
+            </select>
+
+            <label for="editShopType" style="margin-top:0.75rem;">Shop Type</label>
+            <select id="editShopType" data-requires-signature="true">
+                <option value="">-- Select Shop Type --</option>
+                <option value="Metaphysical/Spiritual">Metaphysical / Spiritual</option>
+                <option value="Wellness Center">Wellness Center</option>
+                <option value="Health Food Store">Health Food Store</option>
+                <option value="Natural Goods">Natural Goods</option>
+                <option value="Conscious Cafe">Conscious Cafe</option>
+                <option value="Boutique Chocolate">Boutique Chocolate</option>
+                <option value="Antique Store">Antique Store</option>
+                <option value="Gift Shop">Gift Shop</option>
+                <option value="Candy Store">Candy Store</option>
+                <option value="Yoga Studio">Yoga Studio</option>
+                <option value="Apothecary">Apothecary</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label for="editInstagram" style="margin-top:0.75rem;">Instagram Profile URL (optional)</label>
+            <input type="url" id="editInstagram" data-requires-signature="true" placeholder="https://instagram.com/handle" />
+
+            <label for="editOwnerName" style="margin-top:0.75rem;">Owner Name (optional)</label>
+            <input type="text" id="editOwnerName" data-requires-signature="true" placeholder="Owner Name" />
+
+            <label for="editContactPerson" style="margin-top:0.75rem;">Contact Person (optional)</label>
+            <input type="text" id="editContactPerson" data-requires-signature="true" placeholder="Contact Person" />
+
+            <label for="editEmail" style="margin-top:0.75rem;">Email (optional)</label>
+            <input type="email" id="editEmail" data-requires-signature="true" placeholder="email@example.com" />
+
+            <label for="editCellPhone" style="margin-top:0.75rem;">Cell Phone (optional)</label>
+            <input type="tel" id="editCellPhone" data-requires-signature="true" placeholder="(555) 123-4567" />
+
+            <label for="editPhone" style="margin-top:0.75rem;">Phone (optional)</label>
+            <input type="tel" id="editPhone" data-requires-signature="true" placeholder="(555) 123-4567" />
+
+            <label for="editWebsite" style="margin-top:0.75rem;">Website (optional)</label>
+            <input type="url" id="editWebsite" data-requires-signature="true" placeholder="https://example.com" />
+
+            <label for="editFollowUpDate" style="margin-top:0.75rem;">Follow Up Date (optional)</label>
+            <input type="date" id="editFollowUpDate" data-requires-signature="true" />
+
+            <label for="editVisitDate" style="margin-top:0.75rem;">Visit Date (optional)</label>
+            <input type="date" id="editVisitDate" data-requires-signature="true" />
+
+            <label for="editContactDate" style="margin-top:0.75rem;">Contact Date (optional)</label>
+            <input type="date" id="editContactDate" data-requires-signature="true" />
+
+            <label for="editContactMethod" style="margin-top:0.75rem;">Contact Method (optional)</label>
+            <select id="editContactMethod" data-requires-signature="true">
+                <option value="">-- Select Contact Method --</option>
+                <option value="Email">Email</option>
+                <option value="Phone">Phone</option>
+                <option value="In Person">In Person</option>
+                <option value="Social Media">Social Media</option>
+                <option value="Text">Text</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label for="editRemarks" style="margin-top:0.75rem;">Remarks (optional)</label>
+            <textarea id="editRemarks" data-requires-signature="true" placeholder="Add context, next steps, or notes captured in the field..."></textarea>
+
+            <button type="button" class="btn" id="updateStoreBtn" data-requires-signature="true">Update Store Information</button>
+            <div id="updateStoreMessage" style="margin-top:0.5rem;font-size:0.9rem;"></div>
+                </div>
+            </details>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+(function () {
+    /** Read-only history API (holistic_hit_list_store_history). */
+    var API_BASE_URL = 'https://script.google.com/macros/s/AKfycbwoBqZnDS4JRRdFkxSXdlGt-qIn-RauMcORuDHeWs29oQ2CpJ3L4A10uM8se9anL108/exec';
+    var API_TOKEN = '';
+
+    /**
+     * Hit List read/write API — must match stores_nearby.html API_URL
+     * (action=update_status, shop_name, new_status, …).
+     */
+    var STORES_NEARBY_API_URL = 'https://script.google.com/macros/s/AKfycbwB2zqNV9nMCMWs2hSa8FecjA36Oh-mSVuz3pk8TpXrXcy9dvqOqgbWIirNka2LmacgPw/exec';
+
+    /** Same as stores_nearby.html SIGNATURE_VERIFY_API */
+    var SIGNATURE_VERIFY_API = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+
+    var searchInput = document.getElementById('storeSearch');
+    var suggestPanel = document.getElementById('suggestPanel');
+    var searchHelp = document.getElementById('searchHelp');
+    var refreshBtn = document.getElementById('refreshBtn');
+    var statusEl = document.getElementById('status');
+    var resultsEl = document.getElementById('results');
+    var configWarn = document.getElementById('configWarn');
+    var updateSection = document.getElementById('updateSection');
+    var updateSectionDetails = document.getElementById('updateSectionDetails');
+    var readOnlyUpdateHint = document.getElementById('readOnlyUpdateHint');
+    var updateStoreMessage = document.getElementById('updateStoreMessage');
+    var signatureBanner = document.getElementById('signaturePromptBanner');
+
+    var suggestTimer = null;
+    var suggestions = [];
+    var selected = null;
+    var interactionMode = 'view-only';
+    var loadInFlight = false;
+    var lastHistoryContext = null;
+
+    /** Deep link query keys — store matches stores_nearby.html ?store= (store_key). */
+    var URL_PARAM_STORE = 'store';
+    var URL_PARAM_SHOP = 'shop';
+
+    function applyStoreToUrl(storeKey, shopName) {
+        try {
+            var url = new URL(window.location.href);
+            var sk = (storeKey || '').trim();
+            var shop = (shopName || '').trim();
+            if (sk) {
+                url.searchParams.set(URL_PARAM_STORE, sk);
+                if (shop) {
+                    url.searchParams.set(URL_PARAM_SHOP, shop);
+                } else {
+                    url.searchParams.delete(URL_PARAM_SHOP);
+                }
+            } else if (shop) {
+                url.searchParams.delete(URL_PARAM_STORE);
+                url.searchParams.set(URL_PARAM_SHOP, shop);
+            } else {
+                url.searchParams.delete(URL_PARAM_STORE);
+                url.searchParams.delete(URL_PARAM_SHOP);
+            }
+            history.replaceState(null, '', url.pathname + url.search + url.hash);
+        } catch (e) {
+            console.warn('applyStoreToUrl', e);
+        }
+    }
+
+    function clearStoreFromUrl() {
+        applyStoreToUrl('', '');
+    }
+
+    /** If <code>?store=</code> or <code>?shop=</code> is present, load that store (refresh-safe). */
+    function restoreStoreFromUrl() {
+        if (!apiConfigured()) {
+            return;
+        }
+        var params = new URLSearchParams(window.location.search);
+        var sk = (params.get(URL_PARAM_STORE) || params.get('store_key') || '').trim();
+        var shop = (params.get(URL_PARAM_SHOP) || '').trim();
+        if (!sk && !shop) {
+            return;
+        }
+        if (sk) {
+            selected = {
+                store_key: sk,
+                shop_name: shop,
+                email: '',
+                hit_list_row: 0
+            };
+            searchInput.value = shop || '';
+        } else {
+            selected = null;
+            searchInput.value = shop;
+        }
+        loadHistory();
+    }
+
+    function tokenQs() {
+        return API_TOKEN ? '&token=' + encodeURIComponent(API_TOKEN) : '';
+    }
+
+    function apiConfigured() {
+        return API_BASE_URL && API_BASE_URL.indexOf('REPLACE') === -1 && API_BASE_URL.length > 10;
+    }
+
+    if (!apiConfigured()) {
+        configWarn.style.display = 'block';
+    }
+
+    function setStatus(msg, cls) {
+        statusEl.textContent = msg || '';
+        statusEl.className = 'signature-verify-status' + (cls ? ' ' + cls : '');
+    }
+
+    function setStatusHtml(html, cls) {
+        statusEl.innerHTML = html;
+        statusEl.className = 'signature-verify-status' + (cls ? ' ' + cls : '');
+    }
+
+    /** Show update form only with verified signature; otherwise read-only hint. */
+    function applyUpdateSectionVisibility() {
+        if (!lastHistoryContext || !lastHistoryContext.hit_list) {
+            updateSection.style.display = 'none';
+            readOnlyUpdateHint.style.display = 'none';
+            return;
+        }
+        if (interactionMode === 'interactive') {
+            readOnlyUpdateHint.style.display = 'none';
+            updateSection.style.display = 'block';
+            if (updateSectionDetails) {
+                updateSectionDetails.open = false;
+            }
+            populateUpdateFormFromHitList(lastHistoryContext.hit_list);
+        } else {
+            updateSection.style.display = 'none';
+            readOnlyUpdateHint.style.display = 'block';
+        }
+    }
+
+    function showSearchLoading(on) {
+        if (on) {
+            searchInput.classList.add('loading-field');
+            searchHelp.textContent = 'Loading matches…';
+            searchHelp.className = 'field-loading-message';
+        } else {
+            searchInput.classList.remove('loading-field');
+            searchHelp.textContent = 'Suggestions load from Hit List. Click a row or press Enter to select — history loads automatically.';
+            searchHelp.className = 'help-text';
+        }
+    }
+
+    function setInteractionMode(mode) {
+        interactionMode = mode;
+        signatureBanner.style.display = mode === 'interactive' ? 'none' : 'block';
+        var enabled = mode === 'interactive';
+        document.querySelectorAll('[data-requires-signature="true"]').forEach(function (el) {
+            var tag = el.tagName;
+            if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].indexOf(tag) !== -1) {
+                el.disabled = !enabled;
+            }
+            el.classList.toggle('requires-signature-soft-disabled', !enabled);
+        });
+    }
+
+    function renderSuggestions(list) {
+        suggestPanel.innerHTML = '';
+        suggestions = list || [];
+        if (!suggestions.length) {
+            suggestPanel.classList.remove('open');
+            return;
+        }
+        suggestions.forEach(function (item, idx) {
+            var div = document.createElement('div');
+            div.className = 'suggest-item';
+            div.setAttribute('role', 'option');
+            div.innerHTML = '<strong>' + escapeHtml(item.shop_name || '') + '</strong><small>' +
+                escapeHtml(item.store_key || '') + (item.email ? ' · ' + escapeHtml(item.email) : '') + '</small>';
+            div.addEventListener('click', function () {
+                pickSuggestion(idx);
+            });
+            suggestPanel.appendChild(div);
+        });
+        suggestPanel.classList.add('open');
+    }
+
+    function escapeHtml(s) {
+        if (s === undefined || s === null) return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /** First non-empty value for given keys (Hit List uses title-case headers). */
+    function field(obj, keys) {
+        if (!obj) return '';
+        for (var i = 0; i < keys.length; i++) {
+            var k = keys[i];
+            if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== '') {
+                return String(obj[k]).trim();
+            }
+        }
+        return '';
+    }
+
+    function normalizeInstagramUrl(raw) {
+        if (raw === undefined || raw === null) return '';
+        var s = String(raw).trim();
+        if (!s) return '';
+        if (/^https?:\/\//i.test(s)) return s;
+        var h = s.replace(/^@/, '').replace(/^\//, '').split('/')[0].trim();
+        if (!h) return '';
+        return 'https://www.instagram.com/' + h + '/';
+    }
+
+    function parseLatLng(hit) {
+        if (!hit) return null;
+        var latStr = field(hit, ['Latitude', 'latitude']);
+        var lngStr = field(hit, ['Longitude', 'longitude']);
+        var lat = parseFloat(latStr);
+        var lng = parseFloat(lngStr);
+        if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+        return { lat: lat, lng: lng };
+    }
+
+    function buildAddressQuery(hit) {
+        if (!hit) return '';
+        var parts = [
+            field(hit, ['Address', 'address']),
+            field(hit, ['City', 'city']),
+            field(hit, ['State', 'state']),
+            field(hit, ['Shop Name', 'shop_name'])
+        ].filter(function (p) { return p; });
+        return parts.join(', ');
+    }
+
+    function buildGoogleMapsSearchUrl(hit) {
+        if (!hit) return '';
+        var ll = parseLatLng(hit);
+        if (ll) {
+            return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(ll.lat + ',' + ll.lng);
+        }
+        var q = buildAddressQuery(hit);
+        if (!q) return '';
+        return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+    }
+
+    /** iframe src (no Maps JS API key; Google may show consent in some regions). */
+    function buildGoogleMapsEmbedSrc(hit) {
+        if (!hit) return '';
+        var ll = parseLatLng(hit);
+        if (ll) {
+            return 'https://www.google.com/maps?q=' + encodeURIComponent(ll.lat + ',' + ll.lng) + '&z=15&output=embed';
+        }
+        var q = buildAddressQuery(hit);
+        if (!q) return '';
+        return 'https://www.google.com/maps?q=' + encodeURIComponent(q) + '&z=14&output=embed';
+    }
+
+    function renderStoreMapAndLinksBlock(hit) {
+        var embed = buildGoogleMapsEmbedSrc(hit);
+        var mapsUrl = buildGoogleMapsSearchUrl(hit);
+        var igUrl = normalizeInstagramUrl(field(hit, ['Instagram', 'instagram']));
+        var webRaw = field(hit, ['Website', 'website']);
+        var webUrl = '';
+        if (webRaw) {
+            webUrl = /^https?:\/\//i.test(webRaw) ? webRaw : 'https://' + webRaw;
+        }
+
+        var html = '';
+        html += '<div class="section-title">Location</div>';
+
+        if (embed) {
+            html += '<div class="store-map-wrap">';
+            html += '<iframe title="Store location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="' + escapeHtml(embed) + '"></iframe>';
+            html += '</div>';
+        } else {
+            html += '<div class="store-map-fallback">No map preview: add <strong>Latitude</strong> and <strong>Longitude</strong> or a full <strong>Address</strong> (plus city/state) on the Hit List row.</div>';
+        }
+
+        if (mapsUrl || igUrl || webUrl) {
+            html += '<div class="store-quick-links">';
+            if (mapsUrl) {
+                html += '<a href="' + escapeHtml(mapsUrl) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">Open in Google Maps ↗</a>';
+            }
+            if (igUrl) {
+                html += '<a href="' + escapeHtml(igUrl) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">Instagram profile ↗</a>';
+            }
+            if (webUrl) {
+                html += '<a href="' + escapeHtml(webUrl) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">Website ↗</a>';
+            }
+            html += '</div>';
+        }
+
+        return html;
+    }
+
+    function normalizeDateForInput(val) {
+        if (!val) return '';
+        var s = String(val).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+        var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) {
+            var mm = ('0' + m[1]).slice(-2);
+            var dd = ('0' + m[2]).slice(-2);
+            return m[3] + '-' + mm + '-' + dd;
+        }
+        return '';
+    }
+
+    function renderKeyValueDl(obj) {
+        if (!obj || typeof obj !== 'object') {
+            return '<p class="help-text">—</p>';
+        }
+        var keys = Object.keys(obj).filter(function (k) { return obj[k] !== '' && obj[k] !== undefined && obj[k] !== null; });
+        keys.sort(function (a, b) { return a.localeCompare(b); });
+        if (!keys.length) return '<p class="help-text">(empty)</p>';
+        var html = '<dl class="kv-list">';
+        keys.forEach(function (k) {
+            html += '<dt>' + escapeHtml(k) + '</dt><dd>' + escapeHtml(String(obj[k])) + '</dd>';
+        });
+        html += '</dl>';
+        return html;
+    }
+
+    /** Instagram, Website, Email, Phone as clickable (column names like Hit List). */
+    function renderKeyValueDlLinked(obj) {
+        if (!obj || typeof obj !== 'object') {
+            return '<p class="help-text">—</p>';
+        }
+        var keys = Object.keys(obj).filter(function (k) { return obj[k] !== '' && obj[k] !== undefined && obj[k] !== null; });
+        keys.sort(function (a, b) { return a.localeCompare(b); });
+        if (!keys.length) return '<p class="help-text">(empty)</p>';
+        var html = '<dl class="kv-list">';
+        keys.forEach(function (k) {
+            var val = String(obj[k]);
+            var displayVal = escapeHtml(val);
+            var lk = k.toLowerCase().replace(/\s+/g, ' ');
+            var inner = displayVal;
+
+            if (lk === 'instagram') {
+                var iu = normalizeInstagramUrl(val);
+                if (iu) {
+                    inner = '<a href="' + escapeHtml(iu) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + '</a>';
+                }
+            } else if (lk === 'website') {
+                var wu = /^https?:\/\//i.test(val) ? val : 'https://' + val;
+                inner = '<a href="' + escapeHtml(wu) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + '</a>';
+            } else if (lk === 'email') {
+                inner = '<a href="mailto:' + escapeHtml(val) + '" class="store-details-link">' + displayVal + '</a>';
+            } else if (lk === 'phone' || lk === 'cell phone') {
+                var tel = val.replace(/[^\d+]/g, '');
+                if (tel) {
+                    inner = '<a href="tel:' + escapeHtml(tel) + '" class="store-details-link">' + displayVal + '</a>';
+                }
+            }
+
+            html += '<dt>' + escapeHtml(k) + '</dt><dd>' + inner + '</dd>';
+        });
+        html += '</dl>';
+        return html;
+    }
+
+    /** Same fields as store_interaction_history_api.gs — global newest-first in merged timeline. */
+    var HISTORY_TIME_KEYS_PRIORITY = [
+        'created_at_utc', 'Created At', 'created_at', 'Created',
+        'Submitted At', 'submitted_at',
+        'date_sent', 'Date Sent', 'sent_at', 'Sent At',
+        'updated_at', 'Updated At', 'timestamp', 'Timestamp',
+        'contact_date', 'Contact Date', 'follow_up_date', 'Follow Up Date',
+        'visit_date', 'Visit Date'
+    ];
+
+    function parseDateStringMs(s) {
+        if (s === undefined || s === null || s === '') return 0;
+        var t = Date.parse(String(s).trim());
+        return isNaN(t) ? 0 : t;
+    }
+
+    function parseRowTimeMs(row) {
+        if (!row || typeof row !== 'object') return 0;
+        var i;
+        var k;
+        var t;
+        for (i = 0; i < HISTORY_TIME_KEYS_PRIORITY.length; i++) {
+            k = HISTORY_TIME_KEYS_PRIORITY[i];
+            if (Object.prototype.hasOwnProperty.call(row, k) && row[k]) {
+                t = parseDateStringMs(String(row[k]));
+                if (t > 0) return t;
+            }
+        }
+        for (k in row) {
+            if (!Object.prototype.hasOwnProperty.call(row, k)) continue;
+            var lk = k.toLowerCase();
+            var looksTemporal =
+                lk.indexOf('date') !== -1 ||
+                lk.indexOf('time') !== -1 ||
+                lk.indexOf('_at') !== -1 ||
+                lk.indexOf('at_') !== -1 ||
+                / at$/.test(lk);
+            if (!looksTemporal) continue;
+            t = parseDateStringMs(String(row[k]));
+            if (t > 0) return t;
+        }
+        return 0;
+    }
+
+    function formatTimelineDate(ms) {
+        if (!ms) return '';
+        try {
+            return new Date(ms).toLocaleString(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+        } catch (e) {
+            return String(ms);
+        }
+    }
+
+    function buildMergedTimelineEntries(data) {
+        var merged = [];
+        var seq = 0;
+
+        function pushRows(rows, label, cssClass) {
+            if (!rows || !rows.length) return;
+            rows.forEach(function (row) {
+                merged.push({
+                    label: label,
+                    cssClass: cssClass,
+                    row: row,
+                    sortTime: parseRowTimeMs(row),
+                    seq: seq++
+                });
+            });
+        }
+
+        pushRows(data.dapp_remarks, 'DApp Remarks', 'cat-dapp-remarks');
+        pushRows(data.email_agent_follow_up, 'Email Follow-up', 'cat-email-followup');
+        pushRows(data.email_agent_suggestions, 'Email Agent Suggestions', 'cat-email-suggestions');
+
+        merged.sort(function (a, b) {
+            if (b.sortTime !== a.sortTime) {
+                if (a.sortTime === 0 && b.sortTime > 0) return 1;
+                if (b.sortTime === 0 && a.sortTime > 0) return -1;
+                return b.sortTime - a.sortTime;
+            }
+            return a.seq - b.seq;
+        });
+
+        return merged;
+    }
+
+    function renderHistory(data) {
+        if (!data.hit_list) {
+            lastHistoryContext = null;
+            clearStoreFromUrl();
+            updateSection.style.display = 'none';
+            readOnlyUpdateHint.style.display = 'none';
+            refreshBtn.style.display = 'none';
+            resultsEl.innerHTML = '<p class="error">' + escapeHtml(data.message || 'Store not found.') + '</p>';
+            return;
+        }
+        lastHistoryContext = data;
+        var html = '';
+        var hit = data.hit_list;
+
+        html += renderStoreMapAndLinksBlock(hit);
+
+        html += '<div class="section-title">Store record (Hit List)</div>';
+        html += '<div class="hit-list-record-card">';
+        html += '<div class="hit-list-record-label">Row ' + escapeHtml(String(data.hit_list_row)) + ' · master fields</div>';
+        html += renderKeyValueDlLinked(hit);
+        html += '</div>';
+
+        var timeline = buildMergedTimelineEntries(data);
+        html += '<div class="section-title">Interaction history';
+        html += ' <span style="font-weight:600;color:#666;font-size:0.95rem;">(' + timeline.length + ')</span></div>';
+        html += '<p class="help-text" style="text-align:center;margin-bottom:0.25rem;">Newest first across all sources. Colors match the legend below.</p>';
+        html += '<div class="history-legend" aria-label="History source colors">';
+        html += '<span class="legend-item legend-remarks">DApp Remarks</span>';
+        html += '<span class="legend-item legend-followup">Email Follow-up</span>';
+        html += '<span class="legend-item legend-suggestions">Email Agent Suggestions</span>';
+        html += '</div>';
+
+        if (!timeline.length) {
+            html += '<p class="help-text">No remarks, follow-up, or suggestion rows matched this store.</p>';
+        } else {
+            timeline.forEach(function (entry, idx) {
+                var dateStr = entry.sortTime ? formatTimelineDate(entry.sortTime) : '';
+                html += '<div class="timeline-entry ' + entry.cssClass + '" role="article">';
+                html += '<div class="timeline-entry-header">';
+                html += '<span class="timeline-badge">' + escapeHtml(entry.label) + '</span>';
+                if (dateStr) {
+                    html += '<span class="timeline-date">' + escapeHtml(dateStr) + '</span>';
+                } else {
+                    html += '<span class="timeline-date missing">No date on row — order may be approximate</span>';
+                }
+                html += '<span style="margin-left:auto;font-size:0.75rem;color:#868e96;">#' + (idx + 1) + '</span>';
+                html += '</div>';
+                html += renderKeyValueDlLinked(entry.row);
+                html += '</div>';
+            });
+        }
+
+        resultsEl.innerHTML = html;
+        refreshBtn.style.display = 'block';
+
+        var hl = data.hit_list;
+        var skCanon = (field(hl, ['Store Key', 'store_key']) || (data.store_key || '') || '').trim();
+        var shopCanon = (field(hl, ['Shop Name', 'shop_name']) || (data.shop_name || '') || '').trim();
+        applyStoreToUrl(skCanon, shopCanon);
+        if (shopCanon) {
+            searchInput.value = shopCanon;
+        }
+        selected = {
+            store_key: skCanon,
+            shop_name: shopCanon,
+            email: field(hl, ['Email', 'email']) || '',
+            hit_list_row: data.hit_list_row || 0
+        };
+
+        applyUpdateSectionVisibility();
+    }
+
+    function populateUpdateFormFromHitList(hit) {
+        var shopName = field(hit, ['Shop Name', 'shop_name']);
+        document.getElementById('editStatus').value = field(hit, ['Status', 'status']) || 'Research';
+        var st = field(hit, ['Shop Type', 'shop_type']);
+        var shopSelect = document.getElementById('editShopType');
+        shopSelect.value = '';
+        if (st) {
+            var opts = shopSelect.options;
+            for (var o = 0; o < opts.length; o++) {
+                if (opts[o].value === st || opts[o].text.replace(/\s+/g, ' ') === st.replace(/\s+/g, ' ')) {
+                    shopSelect.selectedIndex = o;
+                    break;
+                }
+            }
+            if (!shopSelect.value && st) {
+                var opt = document.createElement('option');
+                opt.value = st;
+                opt.textContent = st + ' (from sheet)';
+                shopSelect.appendChild(opt);
+                shopSelect.value = st;
+            }
+        }
+        document.getElementById('editInstagram').value = field(hit, ['Instagram', 'instagram']);
+        document.getElementById('editOwnerName').value = field(hit, ['Owner Name', 'owner_name']);
+        document.getElementById('editContactPerson').value = field(hit, ['Contact Person', 'contact_person']);
+        document.getElementById('editEmail').value = field(hit, ['Email', 'email']);
+        document.getElementById('editCellPhone').value = field(hit, ['Cell Phone', 'cell_phone']);
+        document.getElementById('editPhone').value = field(hit, ['Phone', 'phone']);
+        document.getElementById('editWebsite').value = field(hit, ['Website', 'website']);
+        document.getElementById('editFollowUpDate').value = normalizeDateForInput(field(hit, ['Follow Up Date', 'follow_up_date']));
+        document.getElementById('editVisitDate').value = normalizeDateForInput(field(hit, ['Visit Date', 'visit_date']));
+        document.getElementById('editContactDate').value = normalizeDateForInput(field(hit, ['Contact Date', 'contact_date']));
+        document.getElementById('editContactMethod').value = field(hit, ['Contact Method', 'contact_method']);
+        document.getElementById('editRemarks').value = '';
+        updateStoreMessage.innerHTML = shopName ? '' : '<span class="error">Missing Shop Name on row — updates may fail.</span>';
+        setInteractionMode(interactionMode);
+    }
+
+    async function fetchSuggestions(q) {
+        if (!apiConfigured()) return;
+        var url = API_BASE_URL + '?action=suggestStores&q=' + encodeURIComponent(q) + tokenQs();
+        var r = await fetch(url);
+        var j = await r.json();
+        if (j.status !== 'success') throw new Error(j.message || 'Suggest failed');
+        return j.data.suggestions || [];
+    }
+
+    async function fetchHistory(storeKey, shop) {
+        if (!apiConfigured()) throw new Error('API URL not configured.');
+        var url = API_BASE_URL + '?action=getStoreHistory&store_key=' + encodeURIComponent(storeKey || '') +
+            '&shop=' + encodeURIComponent(shop || '') + tokenQs();
+        var r = await fetch(url);
+        var j = await r.json();
+        if (j.status !== 'success') throw new Error(j.message || 'History failed');
+        return j.data;
+    }
+
+    async function loadHistory() {
+        if (!apiConfigured()) {
+            setStatus('Configure API_BASE_URL in the page script.', 'error');
+            return;
+        }
+        if (loadInFlight) return;
+        var sk = selected && selected.store_key ? selected.store_key : '';
+        var shop = searchInput.value.trim();
+        if (selected && selected.shop_name && !sk) {
+            shop = selected.shop_name;
+        }
+        if (!sk && !shop) {
+            setStatus('Select a store from suggestions.', 'error');
+            return;
+        }
+        loadInFlight = true;
+        refreshBtn.disabled = true;
+        setStatus('');
+        resultsEl.innerHTML = '<div class="loading"><div class="spinner"></div>Loading history…</div>';
+        try {
+            var data = await fetchHistory(sk, sk ? '' : shop);
+            setStatus('Loaded context for ' + (data.shop_name || field(data.hit_list, ['Shop Name', 'shop_name']) || shop), 'status');
+            renderHistory(data);
+        } catch (err) {
+            setStatus(err.message || String(err), 'error');
+            resultsEl.innerHTML = '';
+            lastHistoryContext = null;
+            clearStoreFromUrl();
+            updateSection.style.display = 'none';
+            readOnlyUpdateHint.style.display = 'none';
+            refreshBtn.style.display = 'none';
+        } finally {
+            loadInFlight = false;
+            refreshBtn.disabled = false;
+        }
+    }
+
+    function pickSuggestion(idx) {
+        var item = suggestions[idx];
+        if (!item) return;
+        selected = item;
+        searchInput.value = item.shop_name || item.store_key || '';
+        suggestPanel.classList.remove('open');
+        setStatus('Selected: ' + (item.shop_name || item.store_key), 'status');
+        loadHistory();
+    }
+
+    searchInput.addEventListener('input', function () {
+        selected = null;
+        lastHistoryContext = null;
+        clearStoreFromUrl();
+        updateSection.style.display = 'none';
+        readOnlyUpdateHint.style.display = 'none';
+        refreshBtn.style.display = 'none';
+        var q = searchInput.value.trim();
+        if (suggestTimer) clearTimeout(suggestTimer);
+        if (q.length < 2) {
+            suggestPanel.classList.remove('open');
+            return;
+        }
+        suggestTimer = setTimeout(function () {
+            if (!apiConfigured()) return;
+            showSearchLoading(true);
+            fetchSuggestions(q)
+                .then(function (list) {
+                    showSearchLoading(false);
+                    renderSuggestions(list);
+                })
+                .catch(function (err) {
+                    showSearchLoading(false);
+                    setStatus(err.message || String(err), 'error');
+                });
+        }, 280);
+    });
+
+    searchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            suggestPanel.classList.remove('open');
+        }
+        if (e.key === 'Enter' && suggestions.length) {
+            e.preventDefault();
+            pickSuggestion(0);
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!suggestPanel.contains(e.target) && e.target !== searchInput) {
+            suggestPanel.classList.remove('open');
+        }
+    });
+
+    refreshBtn.addEventListener('click', function () {
+        loadHistory();
+    });
+
+    document.getElementById('updateStoreBtn').addEventListener('click', function () {
+        if (interactionMode !== 'interactive') {
+            updateStoreMessage.innerHTML = '<span class="error">Connect your digital signature to update the Hit List.</span>';
+            return;
+        }
+        if (!lastHistoryContext || !lastHistoryContext.hit_list) {
+            updateStoreMessage.innerHTML = '<span class="error">Load a store first.</span>';
+            return;
+        }
+        var hit = lastHistoryContext.hit_list;
+        var shopName = field(hit, ['Shop Name', 'shop_name']);
+        if (!shopName) {
+            updateStoreMessage.innerHTML = '<span class="error">Shop Name is missing from this row.</span>';
+            return;
+        }
+
+        var newStatus = document.getElementById('editStatus').value;
+        var newShopType = document.getElementById('editShopType').value.trim();
+        var newInstagram = document.getElementById('editInstagram').value.trim();
+        var newOwnerName = document.getElementById('editOwnerName').value.trim();
+        var newContactPerson = document.getElementById('editContactPerson').value.trim();
+        var newEmail = document.getElementById('editEmail').value.trim();
+        var newCellPhone = document.getElementById('editCellPhone').value.trim();
+        var newPhone = document.getElementById('editPhone').value.trim();
+        var newWebsite = document.getElementById('editWebsite').value.trim();
+        var newFollowUpDate = document.getElementById('editFollowUpDate').value.trim();
+        var newVisitDate = document.getElementById('editVisitDate').value.trim();
+        var newContactDate = document.getElementById('editContactDate').value.trim();
+        var newContactMethod = document.getElementById('editContactMethod').value.trim();
+        var remarks = document.getElementById('editRemarks').value.trim();
+
+        var curStatus = field(hit, ['Status', 'status']);
+        var curShopType = field(hit, ['Shop Type', 'shop_type']);
+        var curIg = field(hit, ['Instagram', 'instagram']);
+        var curOwn = field(hit, ['Owner Name', 'owner_name']);
+        var curCp = field(hit, ['Contact Person', 'contact_person']);
+        var curEm = field(hit, ['Email', 'email']);
+        var curCell = field(hit, ['Cell Phone', 'cell_phone']);
+        var curPh = field(hit, ['Phone', 'phone']);
+        var curWeb = field(hit, ['Website', 'website']);
+        var curFu = normalizeDateForInput(field(hit, ['Follow Up Date', 'follow_up_date']));
+        var curVis = normalizeDateForInput(field(hit, ['Visit Date', 'visit_date']));
+        var curCd = normalizeDateForInput(field(hit, ['Contact Date', 'contact_date']));
+        var curCm = field(hit, ['Contact Method', 'contact_method']);
+
+        if (newStatus === curStatus && newShopType === curShopType && newInstagram === curIg &&
+            newOwnerName === curOwn && newContactPerson === curCp && newEmail === curEm &&
+            newCellPhone === curCell && newPhone === curPh && newWebsite === curWeb &&
+            newFollowUpDate === curFu && newVisitDate === curVis && newContactDate === curCd &&
+            newContactMethod === curCm && !remarks) {
+            updateStoreMessage.innerHTML = '<span style="color:#6c757d;">No changes detected</span>';
+            return;
+        }
+
+        var inputs = [
+            document.getElementById('editStatus'),
+            document.getElementById('editShopType'),
+            document.getElementById('editInstagram'),
+            document.getElementById('editOwnerName'),
+            document.getElementById('editContactPerson'),
+            document.getElementById('editEmail'),
+            document.getElementById('editCellPhone'),
+            document.getElementById('editPhone'),
+            document.getElementById('editWebsite'),
+            document.getElementById('editFollowUpDate'),
+            document.getElementById('editVisitDate'),
+            document.getElementById('editContactDate'),
+            document.getElementById('editContactMethod'),
+            document.getElementById('editRemarks'),
+            document.getElementById('updateStoreBtn')
+        ];
+        inputs.forEach(function (i) { if (i) i.disabled = true; });
+        updateStoreMessage.innerHTML = '<span style="color:#007bff;">Updating store information…</span>';
+
+        var publicKey = localStorage.getItem('publicKey');
+        var params = new URLSearchParams({
+            action: 'update_status',
+            shop_name: shopName,
+            new_status: newStatus
+        });
+        if (newShopType) params.append('shop_type', newShopType);
+        if (newInstagram) params.append('instagram', newInstagram);
+        if (newOwnerName) params.append('owner_name', newOwnerName);
+        if (newContactPerson) params.append('contact_person', newContactPerson);
+        if (newEmail) params.append('email', newEmail);
+        if (newCellPhone) params.append('cell_phone', newCellPhone);
+        if (newPhone) params.append('phone', newPhone);
+        if (newWebsite) params.append('website', newWebsite);
+        if (newFollowUpDate) params.append('follow_up_date', newFollowUpDate);
+        if (newVisitDate) params.append('visit_date', newVisitDate);
+        if (newContactDate) params.append('contact_date', newContactDate);
+        if (newContactMethod) params.append('contact_method', newContactMethod);
+        if (remarks) params.append('remarks', remarks);
+        if (publicKey) {
+            params.append('digital_signature', publicKey);
+            params.append('submitted_by', publicKey);
+        }
+
+        fetch(STORES_NEARBY_API_URL + '?' + params.toString())
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    updateStoreMessage.innerHTML = '<span class="status">✅ ' + escapeHtml(data.message || 'Updated') + '</span>';
+                    loadHistory();
+                } else {
+                    updateStoreMessage.innerHTML = '<span class="error">❌ ' + escapeHtml(data.error || data.message || 'Unknown error') + '</span>';
+                }
+            })
+            .catch(function (err) {
+                updateStoreMessage.innerHTML = '<span class="error">❌ ' + escapeHtml(err.message || String(err)) + '</span>';
+            })
+            .finally(function () {
+                inputs.forEach(function (i) { if (i) i.disabled = false; });
+                setInteractionMode(interactionMode);
+            });
+    });
+
+    async function verifySignatureOnLoad() {
+        setInteractionMode('view-only');
+        signatureBanner.style.display = 'none';
+        statusEl.textContent = 'Verifying your digital signature…';
+        statusEl.className = 'signature-verify-status';
+
+        try {
+            var publicKey = localStorage.getItem('publicKey');
+            if (!publicKey) {
+                setStatusHtml(
+                    'Read-only mode: no digital signature in this browser. <a href="./create_signature.html" class="store-details-link">Create or connect your signature</a> to update Hit List rows from this page.',
+                    'error'
+                );
+                setInteractionMode('view-only');
+                return;
+            }
+
+            var controller = new AbortController();
+            var to = setTimeout(function () { controller.abort(); }, 10000);
+            var response = await fetch(SIGNATURE_VERIFY_API + '?signature=' + encodeURIComponent(publicKey), { signal: controller.signal });
+            clearTimeout(to);
+
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            var data = await response.json();
+
+            if (data.error) {
+                var err = String(data.error || '');
+                if (err.indexOf('No matching') !== -1) {
+                    setStatusHtml(
+                        'Read-only mode: your signature is not registered. <a href="./create_signature.html" class="store-details-link">Register your digital signature first</a>.',
+                        'error'
+                    );
+                } else {
+                    setStatus('Read-only mode: ' + err, 'error');
+                }
+                setInteractionMode('view-only');
+                return;
+            }
+
+            setInteractionMode('interactive');
+            setStatus('Signature verified — updates enabled.', 'status');
+            window.setTimeout(function () {
+                if (statusEl.textContent === 'Signature verified — updates enabled.') {
+                    statusEl.textContent = '';
+                    statusEl.className = 'signature-verify-status';
+                }
+            }, 3500);
+        } catch (e) {
+            console.error('Signature verification failed:', e);
+            setStatus(
+                'Read-only mode: could not verify signature (network or timeout). You can still browse history.',
+                'error'
+            );
+            setInteractionMode('view-only');
+        } finally {
+            if (interactionMode === 'interactive') {
+                signatureBanner.style.display = 'none';
+            } else {
+                signatureBanner.style.display = 'block';
+            }
+            applyUpdateSectionVisibility();
+        }
+    }
+
+    verifySignatureOnLoad();
+    restoreStoreFromUrl();
+})();
+    </script>
+</body>
+</html>
