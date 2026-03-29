@@ -386,11 +386,15 @@
                 <div class="char-count"><span id="charCount">0</span>/5000 characters</div>                                                                      
             </div>
             <div class="form-row">
-                <label for="inputMethod">Input Method:</label>
+                <label for="inputMethod">Proof of contribution:</label>
                 <select id="inputMethod">
-                    <option value="upload" selected>Upload File or Image</option>                    
+                    <option value="description_links" selected>Links in description</option>
+                    <option value="upload">Upload File or Image</option>                    
                     <option value="camera">Use Camera</option>
                 </select>
+            </div>
+            <div class="form-row" id="proof-links-hint" style="display: none;">
+                <p style="margin: 0; font-size: 0.95rem; color: #555; line-height: 1.45;">Put proof in the <strong>Contribution Description</strong> above (e.g. pull request, doc, screenshot URL). Include at least one <code>http://</code> or <code>https://</code> link. No file upload for this option.</p>
             </div>
             <div class="form-row" id="upload-section" style="display: none;">
                 <label>Upload File or Image:</label>
@@ -401,7 +405,7 @@
             </div>
             <canvas id="canvas" style="display: none;"></canvas>
             <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
-            <div class="form-row">
+            <div class="form-row" id="contribution-file-info">
                 <div class="info-box">
                     <div class="info">Original File Name:</div>
                     <div class="info-location" id="originalFileName">No file selected</div>
@@ -644,11 +648,15 @@
             const minutesInput = document.getElementById('minutesInput');
             const usdInput = document.getElementById('usdInput');
             const descriptionInput = document.getElementById('descriptionInput');
+            const inputMethodEl = document.getElementById('inputMethod');
+            const inputMethod = inputMethodEl ? inputMethodEl.value : 'description_links';
             const submitBtn = document.getElementById('submitButton');
             const hasSelectedContributors = selectedContributors.length > 0;
             const isTimeValid = typeSel.value === 'Time' && (hoursInput.value > 0 || minutesInput.value > 0);
             const isUSDValid = typeSel.value === 'USD' && usdInput.value > 0;
-            submitBtn.disabled = !(hasSelectedContributors && typeSel.value && (isTimeValid || isUSDValid) && descriptionInput.value.trim());
+            const descTrim = descriptionInput.value.trim();
+            const proofOk = inputMethod !== 'description_links' || /https?:\/\//i.test(descTrim);
+            submitBtn.disabled = !(hasSelectedContributors && typeSel.value && (isTimeValid || isUSDValid) && descTrim && proofOk);
             updateTDGOutput();
         }
 
@@ -705,27 +713,45 @@
             const videoHolder = document.getElementById('video-holder');
             const uploadedFilePreview = document.getElementById('uploaded-file-preview');
             const pasteArea = document.getElementById('paste-area');
+            const proofLinksHint = document.getElementById('proof-links-hint');
+            const fileInfoRow = document.getElementById('contribution-file-info');
 
-            if (inputMethod === 'camera') {
+            if (inputMethod === 'description_links') {
+                stopCamera();
+                if (proofLinksHint) proofLinksHint.style.display = 'block';
+                if (fileInfoRow) fileInfoRow.style.display = 'none';
                 uploadSection.style.display = 'none';
-                videoHolder.style.display = 'block';
+                videoHolder.style.display = 'none';
                 uploadedFilePreview.style.display = 'none';
                 uploadedFile = null;
                 uploadedFilePreview.src = '';
                 updateFileInfo('');
                 pasteArea.removeEventListener('paste', handlePaste);
                 pasteArea.removeEventListener('click', triggerFileSelect);
-                startCamera();
             } else {
-                stopCamera();
-                uploadSection.style.display = 'block';
-                videoHolder.style.display = 'none';
-                uploadedFilePreview.style.display = 'none';
-                uploadedFile = null;
-                uploadedFilePreview.src = '';
-                updateFileInfo('');
-                pasteArea.addEventListener('paste', handlePaste);
-                pasteArea.addEventListener('click', triggerFileSelect);
+                if (proofLinksHint) proofLinksHint.style.display = 'none';
+                if (fileInfoRow) fileInfoRow.style.display = '';
+                if (inputMethod === 'camera') {
+                    uploadSection.style.display = 'none';
+                    videoHolder.style.display = 'block';
+                    uploadedFilePreview.style.display = 'none';
+                    uploadedFile = null;
+                    uploadedFilePreview.src = '';
+                    updateFileInfo('');
+                    pasteArea.removeEventListener('paste', handlePaste);
+                    pasteArea.removeEventListener('click', triggerFileSelect);
+                    startCamera();
+                } else {
+                    stopCamera();
+                    uploadSection.style.display = 'block';
+                    videoHolder.style.display = 'none';
+                    uploadedFilePreview.style.display = 'none';
+                    uploadedFile = null;
+                    uploadedFilePreview.src = '';
+                    updateFileInfo('');
+                    pasteArea.addEventListener('paste', handlePaste);
+                    pasteArea.addEventListener('click', triggerFileSelect);
+                }
             }
             updateSubmitButtonState();
         }
@@ -865,6 +891,12 @@
                 return;
             }
 
+            if (inputMethod === 'description_links' && !/https?:\/\//i.test(description)) {
+                output.textContent = 'When using “Links in description”, include at least one http(s) URL in the contribution description.';
+                output.className = 'error';
+                return;
+            }
+
             let fileName = '';
             let file = null;
             if (inputMethod === 'upload' && uploadedFile) {
@@ -882,6 +914,7 @@
                 return;
             }
 
+            /* description_links: no attachment; same Edgar / offline flow as upload without file */
             submitBtn.disabled = true;
             output.textContent = 'Submitting...';
             output.className = 'loading';
@@ -899,9 +932,15 @@
             const submitBtn = document.getElementById('submitButton');
 
             try {
+                const inputMethod = document.getElementById('inputMethod').value;
                 // Use cached contribution filename to match what was shown in the info box
                 const contributionFileName = cachedContributionFileName || (fileName ? generateContributionFileName(fileName) : '');
-                const contributionLocation = fileName ? `${REPO_BASE_URL}${contributionFileName}` : 'No file attached';
+                let contributionLocation = fileName ? `${REPO_BASE_URL}${contributionFileName}` : 'No file attached';
+                let attachedFilenameForText = fileName || 'None';
+                if (inputMethod === 'description_links') {
+                    contributionLocation = 'See description (URL(s))';
+                    attachedFilenameForText = 'None (proof: links in description)';
+                }
                 const contributorsCount = contributorNames.length;
                 const tdgValues = calculateTDG(typeName, hoursInput.value, minutesInput.value, amount, contributorsCount);
                 const tdgText = tdgValues[0];
@@ -909,7 +948,7 @@
                     ? `${(parseFloat(hoursInput.value || 0) * 60 + parseFloat(minutesInput.value || 0))}`
                     : amount;
                 const formattedDescription = description.replace(/\r?\n/g, '\n  ');
-                const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName === 'Time' ? 'Time (Minutes)' : typeName}\n- Amount: ${amountText}\n- Description: ${formattedDescription}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${fileName || 'None'}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;                          
+                const requestText = `[CONTRIBUTION EVENT]\n- Type: ${typeName === 'Time' ? 'Time (Minutes)' : typeName}\n- Amount: ${amountText}\n- Description: ${formattedDescription}\n- Contributor(s): ${contributorNames.join(', ')}\n- TDG Issued: ${tdgText}\n- Attached Filename: ${attachedFilenameForText}\n- Destination Contribution File Location: ${contributionLocation}\n--------`;                          
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     'pkcs8',
@@ -947,7 +986,7 @@
                     const result = await resp.json();
                     
                     // Make contribution location clickable after successful upload
-                    if (result.fileUploadedToGithub && fileName) {
+                    if (result.fileUploadedToGithub && fileName && document.getElementById('inputMethod').value !== 'description_links') {
                         const contributionLocationElement = document.getElementById('contributionLocation');
                         const locationUrl = contributionLocationElement.textContent.trim();
                         contributionLocationElement.innerHTML = `<a href="${locationUrl}" target="_blank" style="color: #4CAF50; text-decoration: underline;">${locationUrl}</a>`;
@@ -1147,6 +1186,7 @@
             const contributorSearchInput = document.getElementById('contributorSearchInput');
             const contributorDropdownContainer = document.getElementById('contributorDropdownContainer');
             const inputMethod = document.getElementById('inputMethod');
+            inputMethod.value = 'description_links';
 
             selectedContributors = [];
             renderSelectedContributors();
