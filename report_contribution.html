@@ -349,22 +349,6 @@
         <p id="status" class="fade-in">Verifying your digital signature...</p>
         <div id="info" style="display: none;">
             <div class="form-row">
-                <label for="inputMethod">Input Method:</label>
-                <select id="inputMethod">
-                    <option value="upload" selected>Upload File or Image</option>                    
-                    <option value="camera">Use Camera</option>
-                </select>
-            </div>
-            <div class="form-row" id="upload-section" style="display: none;">
-                <label>Upload File or Image:</label>
-                <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
-            </div>
-            <div id="video-holder">
-                <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
-            </div>
-            <canvas id="canvas" style="display: none;"></canvas>
-            <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
-            <div class="form-row">
                 <label for="contributorSelectCombobox">Contributor(s):</label>
                 <div id="selectedContributors" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; min-height: 2rem;"></div>
                 <div style="position: relative;">
@@ -401,6 +385,22 @@
                 <textarea id="descriptionInput" maxlength="5000" placeholder="Enter contribution description"></textarea>                                        
                 <div class="char-count"><span id="charCount">0</span>/5000 characters</div>                                                                      
             </div>
+            <div class="form-row">
+                <label for="inputMethod">Input Method:</label>
+                <select id="inputMethod">
+                    <option value="upload" selected>Upload File or Image</option>                    
+                    <option value="camera">Use Camera</option>
+                </select>
+            </div>
+            <div class="form-row" id="upload-section" style="display: none;">
+                <label>Upload File or Image:</label>
+                <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
+            </div>
+            <div id="video-holder">
+                <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
+            </div>
+            <canvas id="canvas" style="display: none;"></canvas>
+            <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
             <div class="form-row">
                 <div class="info-box">
                     <div class="info">Original File Name:</div>
