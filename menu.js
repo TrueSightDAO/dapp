@@ -1,40 +1,40 @@
 // navigation menu shared across all individual pages
+// Section order in dropdown follows first occurrence: Home, Community, Inventory, Retail (field), Sunmint, Identity
 (function() {
-  // List of pages for navigation, grouped by section matching index.html
   window.menuItems = [
     { title: 'Home', url: './index.html', section: '' },
     { title: 'DAO Contribution Reporter', url: './report_contribution.html', section: 'Community Contributions' },
-    { title: 'Capital Injection Reporter', url: './report_capital_injection.html', section: 'Community Contributions' },
     { title: 'Content Feedback Submission', url: './submit_feedback.html', section: 'Community Contributions' },
-    { title: 'Inventory Expense Reporter', url: './report_dao_expenses.html', section: 'Inventory & Sales' },
-    { title: 'Inventory Movement Reporter', url: './report_inventory_movement.html', section: 'Inventory & Sales' },
+    { title: 'Capital Injection Reporter', url: './report_capital_injection.html', section: 'Inventory & ledger' },
+    { title: 'Inventory Expense Reporter', url: './report_dao_expenses.html', section: 'Inventory & ledger' },
+    { title: 'Inventory Movement Reporter', url: './report_inventory_movement.html', section: 'Inventory & ledger' },
+    { title: 'Batch QR Code Generator', url: './batch_qr_generator.html', section: 'Inventory & ledger' },
+    { title: 'Update QR Code', url: './update_qr_code.html', section: 'Inventory & ledger' },
+    { title: 'Repackaging Planner', url: './repackaging_planner.html', section: 'Inventory & ledger' },
+    { title: 'Shipping Planner', url: './shipping_planner.html', section: 'Inventory & ledger' },
+    { title: 'Restock Recommender', url: './restock_recommender.html', section: 'Inventory & ledger' },
+    { title: 'Cacao Bag Scanner', url: './scanner.html', section: 'Retail & field activity' },
+    { title: 'Sales Reporter', url: './report_sales.html', section: 'Retail & field activity' },
+    { title: 'Stores Nearby', url: './stores_nearby.html', section: 'Retail & field activity' },
+    { title: 'Store Interaction History', url: './store_interaction_history.html', section: 'Retail & field activity' },
+    { title: 'Register Your Farm', url: './register_farm.html', section: 'Sunmint Tree Planting Program' },
     { title: 'Report Tree Planting', url: './report_tree_planting.html', section: 'Sunmint Tree Planting Program' },
     { title: 'Digital Signature Creator', url: './create_signature.html', section: 'Identity & Governance' },
     { title: 'Voting Rights Cash Out', url: './withdraw_voting_rights.html', section: 'Identity & Governance' },
     { title: 'Notarize Official Document', url: './notarize.html', section: 'Identity & Governance' },
     { title: 'Verify Signed Request', url: './verify_request.html', section: 'Identity & Governance' },
     { title: 'DAO Proposal Management', url: './view_open_proposals.html', section: 'Identity & Governance' },
-    { title: 'Cacao Bag Scanner', url: './scanner.html', section: 'Inventory & Sales' },
-    { title: 'Sales Reporter', url: './report_sales.html', section: 'Inventory & Sales' },
-    { title: 'Batch QR Code Generator', url: './batch_qr_generator.html', section: 'Inventory & Sales' },
-    { title: 'Update QR Code', url: './update_qr_code.html', section: 'Inventory & Sales' },
-    { title: 'Stores Nearby', url: './stores_nearby.html', section: 'Inventory & Sales' },
-    { title: 'Store Interaction History', url: './store_interaction_history.html', section: 'Inventory & Sales' },
-    { title: 'Shipping Planner', url: './shipping_planner.html', section: 'Inventory & Sales' },
-    { title: 'Restock Recommender', url: './restock_recommender.html', section: 'Inventory & Sales' },
-    { title: 'Register Your Farm', url: './register_farm.html', section: 'Sunmint Tree Planting Program' }
+    { title: 'Create Proposal', url: './create_proposal.html', section: 'Identity & Governance' },
+    { title: 'Review & Vote on Proposal', url: './review_proposal.html', section: 'Identity & Governance' }
   ];
 
-  // Render dropdown menu if placeholder is present
   document.addEventListener('DOMContentLoaded', function() {
     var container = document.getElementById('navDropdown');
     if (!container) return;
     var select = document.createElement('select');
-    // Basic styling
     select.style.padding = '0.5rem';
     select.style.fontSize = '1rem';
     select.style.marginBottom = '1rem';
-    // Populate options grouped by section
     var currentPage = location.pathname.split('/').pop();
     var sectionsMap = {};
     var sectionOrder = [];
@@ -59,18 +59,14 @@
         option.value = item.url;
         option.textContent = item.title;
         var itemPage = item.url.split('/').pop();
-        
-        // Special handling for proposal pages
         var isProposalPage = currentPage === 'review_proposal.html' || currentPage === 'create_proposal.html';
         var isDAOProposalManagement = item.title === 'DAO Proposal Management';
-        
         if (currentPage === itemPage || (isProposalPage && isDAOProposalManagement)) {
           option.selected = true;
         }
         parent.appendChild(option);
       });
     });
-    // Navigate on change
     select.addEventListener('change', function() {
       location.href = this.value;
     });

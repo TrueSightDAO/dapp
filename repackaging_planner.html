@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="Repackaging planner — load inventory by holder, add input lines with quantities and costs, optional conversion fee and producer suffix, preview suggested Currency name and cost per output unit (Main Ledger + playbook-aligned naming).">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta property="og:title" content="Repackaging Planner - TrueSight DAO">
+  <meta property="og:description" content="Plan ledger repackaging: input inventory, conversion fee, producer suffix, suggested Currency name and unit cost.">
+  <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+  <meta property="og:url" content="https://truesightdao.github.io/dapp/repackaging_planner.html">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/TrueSightDAO/.github/main/assets/20240612_truesight_dao_logo_square.png">
+  <script src="./menu.js"></script>
+  <script src="./tdg_balance.js"></script>
+  <title>Repackaging Planner - TrueSight DAO</title>
+  <style>
+    body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 1rem; padding: 1rem; min-height: 100vh; box-sizing: border-box; background: #f5f5f5; }
+    .container { max-width: 820px; width: 100%; background: #fff; padding: 1rem 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { font-size: 1.65rem; color: #333; margin: 0.5rem 0 0.75rem; text-align: center; }
+    .sub { color: #555; font-size: 0.95rem; line-height: 1.45; margin-bottom: 1rem; }
+    label { font-weight: bold; display: block; margin: 0.5rem 0 0.25rem; font-size: 0.95rem; }
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%; padding: 0.55rem; font-size: 1rem; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;
+    }
+    textarea { min-height: 5rem; font-family: monospace; font-size: 0.85rem; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    @media (max-width: 640px) { .row2 { grid-template-columns: 1fr; } }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0; }
+    button.primary { background: #007bff; color: #fff; border: none; padding: 0.55rem 1rem; border-radius: 6px; cursor: pointer; font-size: 1rem; }
+    button.secondary { background: #6c757d; color: #fff; border: none; padding: 0.45rem 0.85rem; border-radius: 6px; cursor: pointer; font-size: 0.95rem; }
+    button.danger { background: #dc3545; }
+    .input-card { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem; margin: 0.5rem 0; background: #fafafa; }
+    .input-card h4 { margin: 0 0 0.5rem; font-size: 1rem; color: #333; }
+    .status { margin: 0.75rem 0; min-height: 1.25rem; font-size: 0.95rem; }
+    .status.loading { color: #6c757d; }
+    .status.err { color: #c82333; }
+    .status.ok { color: #1e7e34; }
+    .breakdown { font-size: 0.9rem; color: #444; margin: 0.5rem 0; }
+    .breakdown table { width: 100%; border-collapse: collapse; margin-top: 0.35rem; }
+    .breakdown th, .breakdown td { border: 1px solid #ddd; padding: 0.35rem 0.45rem; text-align: left; }
+    .hint { font-size: 0.85rem; color: #666; margin-top: 0.2rem; }
+    .err { color: #c82333; }
+    hr.sep { border: 0; border-top: 1px solid #eee; margin: 1rem 0; }
+    #logo { max-width: min(200px, 100%); height: auto; display: inline-block; vertical-align: middle; }
+  </style>
+</head>
+<body>
+  <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+  <div id="tdgBalanceBadge"></div>
+  <div class="container">
+    <div style="text-align: center; margin-bottom: 0.5rem;">
+      <img id="logo" src="https://raw.githubusercontent.com/TrueSightDAO/.github/main/assets/20240612_truesight_dao_logo_square.png" alt="TrueSight DAO Logo"/>
+    </div>
+    <h1>Repackaging planner</h1>
+    <p class="sub">
+      Load <strong>offchain asset location</strong> lines for an inventory <strong>holder</strong>, add <strong>input</strong> lines (like Shipping Planner),
+      then preview a suggested <strong>Currency</strong> name and <strong>cost per output unit</strong>.
+      Use <strong>retail kraft pouch</strong> when bulk is packed into pouches (Alibaba ref + grams). Use <strong>bulk / processing</strong> when there is no pouch — e.g. almonds → nibs + tea at Santos: run the tool once per <em>output stock line</em> (77&nbsp;kg nibs and 23&nbsp;kg tea are two Currency strings / two calculations).
+      The holder is whoever holds stock on the Main Ledger. <strong>Producer / facility</strong> is the last segment of the suggested Currency string (preset or custom — use custom if you need a date or other tag there).
+      It uses the same inventory API as <a href="./report_inventory_movement.html">Inventory Movement</a>. When you <strong>choose a holder</strong>, inventory loads automatically: <strong>Main Ledger</strong> <code>offchain asset location</code> rows <strong>plus</strong> managed AGL <strong>Balance</strong> lines. Changing holder reloads the list.
+    </p>
+
+    <label for="holderSelect">Inventory holder (Main Ledger location name)</label>
+    <select id="holderSelect"></select>
+    <div class="status" id="loadStatus"></div>
+
+    <hr class="sep" />
+    <h2 style="font-size:1.15rem;margin:0 0 0.5rem;">Inputs (repeatable)</h2>
+    <div id="inputRows"></div>
+    <div class="btn-row">
+      <button type="button" class="secondary" id="btnAddFromList">+ Add row (pick from loaded list)</button>
+      <button type="button" class="secondary" id="btnAddCustom">+ Add custom line (manual currency &amp; cost)</button>
+    </div>
+
+    <hr class="sep" />
+    <label for="templateKind">Currency string style</label>
+    <select id="templateKind">
+      <option value="retail_pouch">Retail — Kraft pouch (Alibaba ref + net grams per unit)</option>
+      <option value="bulk_custom">Bulk / processing — no pouch (you write the opening segment)</option>
+    </select>
+    <p class="hint" id="templateKindHint">Kraft pouch template matches DTC retail SKUs. Switch to bulk when the output is still bulk (nibs, tea, etc.).</p>
+
+    <div class="row2">
+      <div>
+        <label for="outCount">Number of output units (M)</label>
+        <input type="number" id="outCount" min="1" step="1" value="1" />
+      </div>
+      <div id="gramsFieldWrap">
+        <label for="outGrams">Net weight per output (grams)</label>
+        <input type="number" id="outGrams" min="1" step="1" value="200" />
+      </div>
+    </div>
+    <p class="hint">M is always the divisor for total cost (fee + inputs). Net grams appear in the retail pouch line only.</p>
+
+    <div id="retailPouchBlock">
+      <label for="pouchRef">Pouch supplier ref (Alibaba id after colon)</label>
+      <input type="text" id="pouchRef" value="269035810001023771" />
+    </div>
+
+    <div id="bulkLeadBlock" style="display:none;">
+      <label for="bulkOutputLead">Opening segment (before source | suffix)</label>
+      <input type="text" id="bulkOutputLead" placeholder="e.g. Bulk cacao nibs | 77 kg" />
+      <p class="hint">Describe product form and mass for this ledger line. For almonds → nibs + tea, use one run per output (nibs line vs tea line) and split inputs or reuse costs as you prefer.</p>
+    </div>
+    <label for="sourceDesc">Source descriptor (e.g. 8 Ounce Nibs CP340992735BR)</label>
+    <input type="text" id="sourceDesc" placeholder="Auto-filled from first input currency if empty" />
+    <label for="producerPreset">Producer / facility suffix (end of Currency name)</label>
+    <select id="producerPreset">
+      <option value="Kirsten">Kirsten</option>
+      <option value="Santos">Santos</option>
+      <option value="Martinus">Martinus</option>
+      <option value="CIC">CIC</option>
+      <option value="custom">Custom…</option>
+    </select>
+    <input type="text" id="producerCustom" placeholder="e.g. Kirsten 20260330 — anything after the source segment" style="margin-top:0.5rem;display:none;" />
+
+    <label for="convFee">Conversion service fee (USD, total — optional)</label>
+    <input type="number" id="convFee" min="0" step="0.01" value="0" />
+    <p class="hint">Added to input costs before dividing by M (e.g. Kirsten, Santos, Martinus, or CIC charges).</p>
+
+    <div class="btn-row">
+      <button type="button" class="primary" id="btnCalc">Calculate name &amp; cost</button>
+    </div>
+
+    <hr class="sep" />
+    <label>Suggested Currency (pipe template)</label>
+    <textarea id="outCurrency" readonly></textarea>
+    <div class="btn-row">
+      <button type="button" class="secondary" id="btnCopy">Copy Currency</button>
+    </div>
+
+    <label>Cost summary</label>
+    <div class="breakdown" id="costBreakdown"></div>
+
+    <p class="hint" style="margin-top:1rem;">
+      <strong>API:</strong> unit costs come from the inventory endpoint when present; AGL Balance lines often return <code>null</code> — use custom lines or enter a manual unit cost override in each row.
+    </p>
+    <p class="hint">
+      Playbook: <code>agentic_ai_context/LEDGER_CONVERSION_AND_REPACKAGING.md</code>
+    </p>
+  </div>
+
+  <script>
+(function () {
+  var INVENTORY_API = 'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec';
+  var holderSelect = document.getElementById('holderSelect');
+  var loadStatus = document.getElementById('loadStatus');
+  var inputRowsEl = document.getElementById('inputRows');
+  var inventoryByCurrency = {};
+  var inventoryList = [];
+
+  function setStatus(el, cls, msg) {
+    el.className = 'status ' + (cls || '');
+    el.textContent = msg || '';
+  }
+
+  function fetchManagers() {
+    return fetch(INVENTORY_API + '?list=true').then(function (r) { return r.json(); });
+  }
+
+  function populateHolders() {
+    setStatus(loadStatus, 'loading', 'Loading manager list…');
+    return fetchManagers().then(function (list) {
+      holderSelect.innerHTML = '';
+      var ph = document.createElement('option');
+      ph.value = '';
+      ph.textContent = '— Select holder —';
+      holderSelect.appendChild(ph);
+      (list || []).forEach(function (m) {
+        var o = document.createElement('option');
+        o.value = m.key;
+        o.textContent = m.name;
+        holderSelect.appendChild(o);
+      });
+      setStatus(loadStatus, 'ok', '');
+    }).catch(function (e) {
+      setStatus(loadStatus, 'err', 'Could not load managers: ' + e.message);
+    });
+  }
+
+  function loadInventory() {
+    var key = holderSelect.value;
+    if (!key) {
+      setStatus(loadStatus, 'err', 'Select an inventory holder first.');
+      return;
+    }
+    var q = '?manager=' + encodeURIComponent(key);
+    setStatus(loadStatus, 'loading', 'Loading inventory…');
+    fetch(INVENTORY_API + q)
+      .then(function (r) { return r.json(); })
+      .then(function (rows) {
+        inventoryList = Array.isArray(rows) ? rows : [];
+        inventoryByCurrency = {};
+        inventoryList.forEach(function (row) {
+          if (row.currency) inventoryByCurrency[row.currency] = row;
+        });
+        setStatus(loadStatus, 'ok', 'Loaded ' + inventoryList.length + ' lines for holder.');
+      })
+      .catch(function (e) {
+        setStatus(loadStatus, 'err', 'Load failed: ' + e.message);
+      });
+  }
+
+  function nextId() {
+    return 'r' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  }
+
+  /** When picker matches a loaded inventory line, copy API unit_cost into override so it’s visible; clear when unknown or null. */
+  function syncOverrideFromCurrencyPicker(comboEl, overrideEl) {
+    var cur = comboEl.value.trim();
+    if (!cur) {
+      overrideEl.value = '';
+      return;
+    }
+    var meta = inventoryByCurrency[cur];
+    if (!meta) {
+      overrideEl.value = '';
+      return;
+    }
+    if (meta.unit_cost != null && meta.unit_cost !== '') {
+      var n = parseFloat(meta.unit_cost);
+      if (!isNaN(n)) {
+        overrideEl.value = String(n);
+        return;
+      }
+    }
+    overrideEl.value = '';
+  }
+
+  function makeRow(opts) {
+    opts = opts || {};
+    var id = nextId();
+    var card = document.createElement('div');
+    card.className = 'input-card';
+    card.dataset.rowId = id;
+
+    var h = document.createElement('h4');
+    h.textContent = opts.custom ? 'Custom input line' : 'From ledger list';
+    card.appendChild(h);
+
+    if (opts.custom) {
+      var l1 = document.createElement('label');
+      l1.textContent = 'Currency string';
+      var t1 = document.createElement('input');
+      t1.type = 'text';
+      t1.className = 'fld-currency';
+      t1.placeholder = 'e.g. [AGL13] Bulk nibs';
+      card.appendChild(l1);
+      card.appendChild(t1);
+
+      var l2 = document.createElement('label');
+      l2.textContent = 'Quantity';
+      var q1 = document.createElement('input');
+      q1.type = 'number';
+      q1.className = 'fld-qty';
+      q1.min = '0';
+      q1.step = 'any';
+      q1.value = '1';
+      card.appendChild(l2);
+      card.appendChild(q1);
+
+      var l3 = document.createElement('label');
+      l3.textContent = 'Unit cost (USD)';
+      var uc = document.createElement('input');
+      uc.type = 'number';
+      uc.className = 'fld-unitcost';
+      uc.min = '0';
+      uc.step = 'any';
+      uc.placeholder = 'Required for custom';
+      card.appendChild(l3);
+      card.appendChild(uc);
+    } else {
+      var ls = document.createElement('label');
+      ls.textContent = 'Currency (type to filter, then pick)';
+      var listId = 'invpick_' + id.replace(/[^a-zA-Z0-9_-]/g, '_');
+      var dl = document.createElement('datalist');
+      dl.id = listId;
+      inventoryList.forEach(function (it) {
+        var opt = document.createElement('option');
+        opt.value = it.currency;
+        var hint = '';
+        if (it.amount != null) hint += 'on hand: ' + it.amount;
+        if (it.unit_cost != null) hint += (hint ? ' · ' : '') + '$' + it.unit_cost;
+        if (hint) opt.label = hint;
+        dl.appendChild(opt);
+      });
+      var combo = document.createElement('input');
+      combo.type = 'text';
+      combo.className = 'fld-select';
+      combo.setAttribute('list', listId);
+      combo.placeholder = 'Type to filter — pick from list';
+      combo.setAttribute('autocomplete', 'off');
+      card.appendChild(ls);
+      card.appendChild(combo);
+      card.appendChild(dl);
+
+      var lq = document.createElement('label');
+      lq.textContent = 'Quantity used';
+      var iq = document.createElement('input');
+      iq.type = 'number';
+      iq.className = 'fld-qty';
+      iq.min = '0';
+      iq.step = 'any';
+      iq.value = '1';
+      card.appendChild(lq);
+      card.appendChild(iq);
+
+      var lo = document.createElement('label');
+      lo.textContent = 'Unit cost override (USD, optional)';
+      var iu = document.createElement('input');
+      iu.type = 'number';
+      iu.className = 'fld-override';
+      iu.min = '0';
+      iu.step = 'any';
+      iu.placeholder = 'Filled from API when present; edit to override';
+      var syncCost = function () { syncOverrideFromCurrencyPicker(combo, iu); };
+      combo.addEventListener('change', syncCost);
+      combo.addEventListener('input', syncCost);
+      card.appendChild(lo);
+      card.appendChild(iu);
+    }
+
+    var btnRm = document.createElement('button');
+    btnRm.type = 'button';
+    btnRm.className = 'secondary danger';
+    btnRm.textContent = 'Remove';
+    btnRm.style.marginTop = '0.5rem';
+    btnRm.addEventListener('click', function () { card.remove(); });
+    card.appendChild(btnRm);
+
+    inputRowsEl.appendChild(card);
+  }
+
+  function producerSuffix() {
+    var pr = document.getElementById('producerPreset').value;
+    if (pr === 'custom') return document.getElementById('producerCustom').value.trim() || 'Custom';
+    return pr;
+  }
+
+  function syncTemplateUi() {
+    var kind = document.getElementById('templateKind').value;
+    var retail = kind === 'retail_pouch';
+    document.getElementById('retailPouchBlock').style.display = retail ? 'block' : 'none';
+    document.getElementById('bulkLeadBlock').style.display = retail ? 'none' : 'block';
+    document.getElementById('gramsFieldWrap').style.opacity = retail ? '1' : '0.65';
+    var hint = document.getElementById('templateKindHint');
+    hint.textContent = retail
+      ? 'Includes Ceremonial Cacao Kraft Pouch, Alibaba ref, Cacao Mass, and net grams in the suggested Currency line.'
+      : 'No pouch line. Enter product form and mass (or any agreed prefix) for this output; suggested Currency is opening segment | source | producer suffix.';
+  }
+
+  function calc() {
+    var M = parseInt(document.getElementById('outCount').value, 10);
+    if (!M || M < 1) {
+      document.getElementById('costBreakdown').innerHTML = '<span class="err">Set output count M ≥ 1.</span>';
+      return;
+    }
+    var grams = parseInt(document.getElementById('outGrams').value, 10) || 200;
+    var pouchRef = document.getElementById('pouchRef').value.trim() || '269035810001023771';
+    var templateKind = document.getElementById('templateKind').value;
+
+    var cards = inputRowsEl.querySelectorAll('.input-card');
+    var lines = [];
+    var html = '<table><thead><tr><th>Currency</th><th>Qty</th><th>Unit cost</th><th>Extended</th></tr></thead><tbody>';
+    var inputTotal = 0;
+    var missingCost = [];
+
+    cards.forEach(function (card) {
+      var cur, qty, uc;
+      if (card.querySelector('.fld-currency')) {
+        cur = card.querySelector('.fld-currency').value.trim();
+        qty = parseFloat(card.querySelector('.fld-qty').value) || 0;
+        uc = parseFloat(card.querySelector('.fld-unitcost').value);
+      } else {
+        cur = card.querySelector('.fld-select').value.trim();
+        qty = parseFloat(card.querySelector('.fld-qty').value) || 0;
+        var ov = card.querySelector('.fld-override').value;
+        var meta = inventoryByCurrency[cur];
+        uc = ov !== '' && !isNaN(parseFloat(ov)) ? parseFloat(ov) : (meta && meta.unit_cost != null ? parseFloat(meta.unit_cost) : NaN);
+      }
+      if (!cur || qty <= 0) return;
+      if (isNaN(uc)) {
+        missingCost.push(cur);
+        return;
+      }
+      var ext = qty * uc;
+      inputTotal += ext;
+      lines.push({ currency: cur, qty: qty, uc: uc, ext: ext });
+      html += '<tr><td>' + escapeHtml(cur.slice(0, 80)) + (cur.length > 80 ? '…' : '') + '</td><td>' + qty + '</td><td>$' + uc.toFixed(6) + '</td><td>$' + ext.toFixed(4) + '</td></tr>';
+    });
+
+    var fee = parseFloat(document.getElementById('convFee').value) || 0;
+    var grand = inputTotal + fee;
+    var cpu = M > 0 ? grand / M : 0;
+
+    html += '</tbody></table>';
+    if (missingCost.length) {
+      html += '<p class="err"><strong>Missing unit cost for:</strong> ' + escapeHtml(missingCost.join('; ')) + '</p>';
+    }
+    html += '<p><strong>Inputs subtotal:</strong> $' + inputTotal.toFixed(4) + '</p>';
+    html += '<p><strong>Conversion fee:</strong> $' + fee.toFixed(4) + '</p>';
+    html += '<p><strong>Grand total:</strong> $' + grand.toFixed(4) + '</p>';
+    html += '<p><strong>Cost per output unit (÷ ' + M + '):</strong> $' + cpu.toFixed(6) + '</p>';
+
+    document.getElementById('costBreakdown').innerHTML = html;
+
+    var src = document.getElementById('sourceDesc').value.trim();
+    if (!src && lines.length) src = lines[0].currency;
+    if (!src) src = '<SOURCE_DESCRIPTOR>';
+
+    var suffix = producerSuffix();
+    var curOut;
+    if (templateKind === 'retail_pouch') {
+      curOut = 'Ceremonial Cacao Kraft Pouch - Alibaba:' + pouchRef + ' | Cacao Mass | ' + grams + ' grams | ' + src + ' | ' + suffix;
+    } else {
+      var lead = document.getElementById('bulkOutputLead').value.trim();
+      if (!lead) lead = '<BULK_LINE>';
+      curOut = lead + ' | ' + src + ' | ' + suffix;
+    }
+    document.getElementById('outCurrency').value = curOut;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  document.getElementById('producerPreset').addEventListener('change', function () {
+    document.getElementById('producerCustom').style.display = this.value === 'custom' ? 'block' : 'none';
+  });
+  document.getElementById('templateKind').addEventListener('change', syncTemplateUi);
+  syncTemplateUi();
+
+  holderSelect.addEventListener('change', function () {
+    if (!holderSelect.value) {
+      inventoryList = [];
+      inventoryByCurrency = {};
+      setStatus(loadStatus, 'ok', 'Select an inventory holder.');
+      return;
+    }
+    loadInventory();
+  });
+  document.getElementById('btnAddFromList').addEventListener('click', function () {
+    if (!inventoryList.length) {
+      alert('Select a holder and wait for inventory to load.');
+      return;
+    }
+    makeRow({ custom: false });
+  });
+  document.getElementById('btnAddCustom').addEventListener('click', function () { makeRow({ custom: true }); });
+  document.getElementById('btnCalc').addEventListener('click', calc);
+  document.getElementById('btnCopy').addEventListener('click', function () {
+    var text = document.getElementById('outCurrency').value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () {
+        var t = document.getElementById('outCurrency');
+        t.select();
+        document.execCommand('copy');
+      });
+    } else {
+      var t2 = document.getElementById('outCurrency');
+      t2.select();
+      document.execCommand('copy');
+    }
+  });
+
+  populateHolders();
+})();
+  </script>
+</body>
+</html>

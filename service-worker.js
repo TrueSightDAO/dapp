@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qr-scanner-cache-v1';
+const CACHE_NAME = 'qr-scanner-cache-v2';
 const URLS_TO_CACHE = [
   // HTML pages
   './',
@@ -9,6 +9,7 @@ const URLS_TO_CACHE = [
   './report_contribution.html',
   './report_dao_expenses.html',
   './report_inventory_movement.html',
+  './repackaging_planner.html',
   './report_sales.html',
   './report_tree_planting.html',
   './scanner.html',
