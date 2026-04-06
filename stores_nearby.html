@@ -961,6 +961,7 @@
                                     <option value="Instagram Followed">Instagram Followed</option>
                                     <option value="Contacted">Contacted</option>
                                     <option value="Manager Follow-up">Manager Follow-up</option>
+                                    <option value="Bulk Info Requested">Bulk Info Requested</option>
                                     <option value="Meeting Scheduled">Meeting Scheduled</option>
                                     <option value="Followed Up">Followed Up</option>
                                     <option value="Partnered">Partnered</option>
@@ -1022,6 +1023,10 @@
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="Manager Follow-up" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
                                 <span style="flex: 1;">Manager Follow-up</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Bulk Info Requested" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Bulk Info Requested</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="Meeting Scheduled" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
@@ -1181,6 +1186,10 @@
                                 <span>Manager Follow-up</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Bulk Info Requested" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Bulk Info Requested</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-status-filter-checkbox" value="Meeting Scheduled" style="margin-right: 0.5rem; cursor: pointer;">
                                 <span>Meeting Scheduled</span>
                             </label>
@@ -1308,6 +1317,7 @@
             'Instagram Followed': 'Store has been followed on Instagram. Monitoring their social media presence and engagement.',
             'Contacted': 'Initial contact has been made with the store. This is the first step in the outreach process.',
             'Manager Follow-up': 'Store visit completed. Staff indicated to follow up with the manager using provided contact details. Action required.',
+            'Bulk Info Requested': 'Buyer asked for wholesale or bulk pricing. Use the bulk-info email draft flow (PDF overview), separate from the standard manager follow-up template.',
             'Meeting Scheduled': 'Meeting or call has been scheduled with the store owner/manager. Prepare for the conversation.',
             'Followed Up': 'Follow-up contact with the manager has been completed. Waiting for their response or next steps.',
             'Partnered': 'Store is an active partner. They carry our products and have an established business relationship.',
@@ -5461,6 +5471,7 @@
                             <option value="Instagram Followed" ${store.status === 'Instagram Followed' ? 'selected' : ''}>Instagram Followed</option>
                             <option value="Contacted" ${store.status === 'Contacted' ? 'selected' : ''}>Contacted</option>
                             <option value="Manager Follow-up" ${store.status === 'Manager Follow-up' ? 'selected' : ''}>Manager Follow-up</option>
+                            <option value="Bulk Info Requested" ${store.status === 'Bulk Info Requested' ? 'selected' : ''}>Bulk Info Requested</option>
                             <option value="Meeting Scheduled" ${store.status === 'Meeting Scheduled' ? 'selected' : ''}>Meeting Scheduled</option>
                             <option value="Followed Up" ${store.status === 'Followed Up' ? 'selected' : ''}>Followed Up</option>
                             <option value="Partnered" ${store.status === 'Partnered' ? 'selected' : ''}>Partnered</option>
