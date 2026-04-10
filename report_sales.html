@@ -106,13 +106,43 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
-        input[type="file"], input[type="text"], input[type="number"] {
+        input[type="file"], input[type="text"], input[type="email"], input[type="number"] {
             width: 100%;
             padding: 0.8rem;
             font-size: 1rem;
             box-sizing: border-box;
             border-radius: 5px;
             border: 1px solid #ccc;
+        }
+        .hint {
+            font-size: 0.85rem;
+            font-weight: normal;
+            color: #555;
+            margin-top: 0.25rem;
+        }
+        /* Long Stripe session ids: wrap inside combobox and dropdown */
+        #stripeSelectCombobox {
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        #stripeSelectDisplay {
+            flex: 1;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: normal;
+            text-align: left;
+            line-height: 1.35;
+        }
+        #stripeSelectChevron {
+            flex-shrink: 0;
+            line-height: 1.2;
+            padding-top: 0.15em;
+        }
+        #stripeAutocompleteList > div {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: normal;
         }
         #output {
             margin: 1rem 0;
@@ -225,7 +255,7 @@
                 width: 100%;
                 max-width: 400px;
             }
-            input[type="button"], input[type="file"], input[type="text"], input[type="number"] {
+            input[type="button"],             input[type="file"], input[type="text"], input[type="email"], input[type="number"] {
                 padding: 1rem;
                 font-size: 1.1rem;
                 width: 100%;
@@ -288,6 +318,33 @@
                     </div>
                 </div>
             </div>
+            <div id="list-sales-metadata" style="display: none;">
+                <div class="form-row">
+                    <label for="ownerEmailInput">Owner email</label>
+                    <p class="hint">From <strong>Agroverse QR codes</strong> column L when present. You may edit before submitting.</p>
+                    <input type="email" id="ownerEmailInput" autocomplete="email" placeholder="owner@example.com">
+                </div>
+                <div class="form-row">
+                    <label id="stripeSessionLabel">Stripe Session ID</label>
+                    <p class="hint">Sessions from <strong>Stripe Social Media Checkout ID</strong> where column <strong>P</strong> is still blank (plus this QR&rsquo;s row if already linked). Type to filter.</p>
+                    <input type="hidden" id="stripeSessionInput" value="">
+                    <div style="position: relative;">
+                        <div id="stripeSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; justify-content: space-between;" role="button" tabindex="0" aria-expanded="false" aria-labelledby="stripeSessionLabel">
+                            <span id="stripeSelectDisplay" style="color: #999;">Select Stripe session (optional)...</span>
+                            <span id="stripeSelectChevron" style="color: #666;" aria-hidden="true">▼</span>
+                        </div>
+                        <div id="stripeDropdownContainer" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; z-index: 1001; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px;">
+                            <input type="text" id="stripeSearchInput" placeholder="Type to filter sessions..." autocomplete="off" aria-label="Filter Stripe sessions" style="width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box; border: none; border-bottom: 1px solid #eee; outline: none;">
+                            <div id="stripeAutocompleteList" style="max-height: 200px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label for="trackingNumberInput">Tracking number</label>
+                    <p class="hint">From the same Stripe checkout row when present (column N).</p>
+                    <input type="text" id="trackingNumberInput" placeholder="Carrier tracking number">
+                </div>
+            </div>
             <div class="form-row">
                 <label for="salePriceInput">Sale Price ($):</label>
                 <input type="number" id="salePriceInput" min="0.01" step="0.01" placeholder="Enter sale price">
@@ -326,6 +383,7 @@
 
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
         const QR_CODE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec?list=true';
+        const QR_CODE_LOOKUP_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec';
         let contributorName = '';
         let qrCodes = [];
         let filteredQrCodes = [];
@@ -373,8 +431,141 @@
         const scanButtonRow = document.getElementById('scan-button-row');
         const salePriceInput = document.getElementById('salePriceInput');
         const contributorSelect = document.getElementById('contributorSelect');
+        const listSalesMetadata = document.getElementById('list-sales-metadata');
+        const ownerEmailInput = document.getElementById('ownerEmailInput');
+        const stripeSessionInput = document.getElementById('stripeSessionInput');
+        const stripeSelectCombobox = document.getElementById('stripeSelectCombobox');
+        const stripeDropdownContainer = document.getElementById('stripeDropdownContainer');
+        const stripeSearchInput = document.getElementById('stripeSearchInput');
+        const stripeSelectDisplay = document.getElementById('stripeSelectDisplay');
+        const stripeAutocompleteList = document.getElementById('stripeAutocompleteList');
+        const trackingNumberInput = document.getElementById('trackingNumberInput');
         let scanning = false;
         let allContributors = [];
+        let stripeSessions = [];
+        let filteredStripeSessions = [];
+
+        function setStripeSessionValue(sessionId) {
+            const v = (sessionId || '').toString().trim();
+            if (stripeSessionInput) stripeSessionInput.value = v;
+            if (stripeSelectDisplay) {
+                stripeSelectDisplay.textContent = v || 'Select Stripe session (optional)...';
+                stripeSelectDisplay.style.color = v ? '#333' : '#999';
+            }
+        }
+
+        function clearSalesMetadataFields() {
+            if (ownerEmailInput) ownerEmailInput.value = '';
+            setStripeSessionValue('');
+            if (trackingNumberInput) trackingNumberInput.value = '';
+            if (stripeDropdownContainer) stripeDropdownContainer.style.display = 'none';
+            if (stripeSearchInput) stripeSearchInput.value = '';
+            stripeSessions = [];
+            filteredStripeSessions = [];
+            if (stripeAutocompleteList) stripeAutocompleteList.innerHTML = '';
+        }
+
+        function syncListSalesMetadataVisibility() {
+            if (listSalesMetadata) {
+                listSalesMetadata.style.display = inputMethod.value === 'list' ? 'block' : 'none';
+            }
+            if (inputMethod.value !== 'list') {
+                clearSalesMetadataFields();
+            }
+        }
+
+        async function populateSalesMetadataForQr(qrKey) {
+            clearSalesMetadataFields();
+            if (!qrKey || inputMethod.value !== 'list') return;
+            try {
+                const url = `${QR_CODE_LOOKUP_ENDPOINT}?lookup=true&qr_code=${encodeURIComponent(qrKey)}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (ownerEmailInput) ownerEmailInput.value = (data.email || '').toString();
+                    setStripeSessionValue(data.stripe_session_id || '');
+                    if (trackingNumberInput) trackingNumberInput.value = (data.tracking_number || '').toString();
+                }
+            } catch (err) {
+                console.error('Error loading QR ledger metadata:', err);
+            }
+        }
+
+        async function loadStripeSessionsForList() {
+            if (inputMethod.value !== 'list' || !stripeAutocompleteList) return;
+            const q = lastQrParam ? `&for_qr_code=${encodeURIComponent(lastQrParam)}` : '';
+            const url = `${QR_CODE_LOOKUP_ENDPOINT}?list_unassigned_stripe_sessions=true${q}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.status === 'error') {
+                    throw new Error(data.message || 'Failed to load Stripe sessions');
+                }
+                const items = Array.isArray(data.items) ? data.items : [];
+                stripeSessions = items
+                    .map(it => {
+                        const id = (it.stripe_session_id || '').toString().trim();
+                        return { key: id, name: id };
+                    })
+                    .filter(it => it.key);
+
+                const current = stripeSessionInput && stripeSessionInput.value ? stripeSessionInput.value.trim() : '';
+                if (current && !stripeSessions.some(s => s.key === current)) {
+                    stripeSessions.unshift({ key: current, name: current });
+                }
+
+                filteredStripeSessions = [...stripeSessions];
+                updateStripeAutocomplete();
+            } catch (err) {
+                console.error('Error loading Stripe sessions:', err);
+                stripeSessions = [];
+                filteredStripeSessions = [];
+                updateStripeAutocomplete();
+            }
+        }
+
+        function updateStripeAutocomplete() {
+            if (!stripeSearchInput || !stripeAutocompleteList) return;
+
+            const filterText = stripeSearchInput.value ? stripeSearchInput.value.toLowerCase() : '';
+            filteredStripeSessions = stripeSessions.filter(s => s.name.toLowerCase().includes(filterText));
+
+            stripeAutocompleteList.innerHTML = '';
+
+            const clearOpt = document.createElement('div');
+            clearOpt.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; font-style: italic; color: #666;';
+            clearOpt.textContent = '(No Stripe session)';
+            clearOpt.addEventListener('mouseenter', () => { clearOpt.style.backgroundColor = '#f0f0f0'; });
+            clearOpt.addEventListener('mouseleave', () => { clearOpt.style.backgroundColor = 'white'; });
+            clearOpt.addEventListener('click', () => selectStripeSession(''));
+            stripeAutocompleteList.appendChild(clearOpt);
+
+            const toShow = filterText ? filteredStripeSessions : stripeSessions;
+
+            if (toShow.length > 0) {
+                toShow.forEach(s => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
+                    item.textContent = s.name;
+                    item.addEventListener('mouseenter', () => { item.style.backgroundColor = '#f0f0f0'; });
+                    item.addEventListener('mouseleave', () => { item.style.backgroundColor = 'white'; });
+                    item.addEventListener('click', () => selectStripeSession(s.key));
+                    stripeAutocompleteList.appendChild(item);
+                });
+            } else {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = stripeSessions.length === 0 ? 'No open Stripe sessions (column P blank).' : 'No matching sessions';
+                stripeAutocompleteList.appendChild(noResults);
+            }
+        }
+
+        function selectStripeSession(sessionKey) {
+            setStripeSessionValue(sessionKey || '');
+            if (stripeDropdownContainer) stripeDropdownContainer.style.display = 'none';
+            if (stripeSearchInput) stripeSearchInput.value = '';
+            if (stripeSelectCombobox) stripeSelectCombobox.setAttribute('aria-expanded', 'false');
+        }
 
         async function loadQrCodes() {
             try {
@@ -477,7 +668,7 @@
             }
         }
         
-        function selectQRCode(qrKey, qrName) {
+        async function selectQRCode(qrKey, qrName) {
             lastQrParam = qrKey;
             
             // Update display
@@ -496,6 +687,9 @@
             
             // Show QR code in param display
             qrParamDisplay.textContent = lastQrParam ? `QR Code: ${lastQrParam}` : '';
+
+            await populateSalesMetadataForQr(lastQrParam);
+            await loadStripeSessionsForList();
             
             // Auto-select contributor based on QR code
             if (lastQrParam && allContributors.length > 0) {
@@ -548,6 +742,7 @@
             video.classList.remove('scanning');
             salePriceInput.value = '';
             contributorSelect.value = '';
+            clearSalesMetadataFields();
             updateReportButtonState();
         }
 
@@ -563,6 +758,7 @@
             scanning = false;
             video.classList.remove('scanning');
             salePriceInput.value = '';
+            syncListSalesMetadataVisibility();
 
             if (method === 'camera') {
                 uploadSection.style.display = 'none';
@@ -578,6 +774,7 @@
                 scanButtonRow.style.display = 'none';
                 listSection.style.display = 'block';
                 output.textContent = 'Filter and select a QR code to report an item sale in TrueSight DAO\'s Town Hall. Help us track our transparent ledger!';
+                loadStripeSessionsForList();
             } else {
                 stopCamera();
                 videoHolder.style.display = 'none';
@@ -775,6 +972,8 @@
             // Open dropdown when clicking on combobox
             qrSelectCombobox.addEventListener('click', (e) => {
                 e.stopPropagation();
+                if (stripeDropdownContainer) stripeDropdownContainer.style.display = 'none';
+                if (stripeSearchInput) stripeSearchInput.value = '';
                 if (qrDropdownContainer.style.display === 'none' || qrDropdownContainer.style.display === '') {
                     qrDropdownContainer.style.display = 'block';
                     qrSearchInput.focus();
@@ -800,17 +999,58 @@
                     qrSearchInput.value = '';
                 }
             });
-            
-            // Hide dropdown when clicking outside
-            document.addEventListener('click', (e) => {
+        } else {
+            console.error('QR code combobox elements not found');
+        }
+
+        if (stripeSelectCombobox && stripeDropdownContainer && stripeSearchInput) {
+            stripeSelectCombobox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (inputMethod.value !== 'list') return;
+                if (qrDropdownContainer) qrDropdownContainer.style.display = 'none';
+                if (qrSearchInput) qrSearchInput.value = '';
+                if (stripeDropdownContainer.style.display === 'none' || stripeDropdownContainer.style.display === '') {
+                    stripeDropdownContainer.style.display = 'block';
+                    stripeSearchInput.focus();
+                    stripeSelectCombobox.setAttribute('aria-expanded', 'true');
+                    if (stripeSessions.length === 0) loadStripeSessionsForList();
+                } else {
+                    stripeDropdownContainer.style.display = 'none';
+                    stripeSelectCombobox.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            stripeSearchInput.addEventListener('input', () => {
+                updateStripeAutocomplete();
+            });
+
+            stripeSearchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const first = filteredStripeSessions.length > 0 ? filteredStripeSessions[0] : null;
+                    if (first) selectStripeSession(first.key);
+                } else if (e.key === 'Escape') {
+                    stripeDropdownContainer.style.display = 'none';
+                    stripeSearchInput.value = '';
+                    stripeSelectCombobox.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if (qrSelectCombobox && qrDropdownContainer && qrSearchInput) {
                 if (!qrSelectCombobox.contains(e.target) && !qrDropdownContainer.contains(e.target)) {
                     qrDropdownContainer.style.display = 'none';
                     qrSearchInput.value = '';
                 }
-            });
-        } else {
-            console.error('QR code combobox elements not found');
-        }
+            }
+            if (stripeSelectCombobox && stripeDropdownContainer && stripeSearchInput) {
+                if (!stripeSelectCombobox.contains(e.target) && !stripeDropdownContainer.contains(e.target)) {
+                    stripeDropdownContainer.style.display = 'none';
+                    stripeSearchInput.value = '';
+                    stripeSelectCombobox.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
 
         imageInput.addEventListener('change', () => {
             if (imageInput.files.length > 0) {
@@ -898,10 +1138,13 @@
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const telegramLink = 'https://t.me/TrueSightDAO';
+            const ownerEmailVal = (ownerEmailInput && ownerEmailInput.value ? ownerEmailInput.value : '').trim();
+            const stripeSessionVal = (stripeSessionInput && stripeSessionInput.value ? stripeSessionInput.value : '').trim();
+            const trackingVal = (trackingNumberInput && trackingNumberInput.value ? trackingNumberInput.value : '').trim();
             const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(`[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $${salePrice}\n- Sold by: ${memberName}\n--------`);
 
             try {
-                const requestText = `[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $${salePrice}\n- Sold by: ${memberName}\n- Attached Filename: ${fileName || 'None'}\n- Submission Source: ${window.location.href}\n--------`;
+                const requestText = `[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $${salePrice}\n- Sold by: ${memberName}\n- Owner email: ${ownerEmailVal || '(none)'}\n- Stripe Session ID: ${stripeSessionVal || '(none)'}\n- Tracking number: ${trackingVal || '(none)'}\n- Attached Filename: ${fileName || 'None'}\n- Submission Source: ${window.location.href}\n--------`;
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
                     base64ToArrayBuffer(privateKey),
