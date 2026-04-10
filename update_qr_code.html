@@ -206,6 +206,30 @@
         .combobox-autocomplete-list > div:hover {
             background-color: #f0f0f0;
         }
+        /* Long Stripe session ids wrap */
+        #stripeSelectCombobox {
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        #stripeSelectDisplay {
+            flex: 1;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: normal;
+            text-align: left;
+            line-height: 1.35;
+        }
+        #stripeSelectChevron {
+            flex-shrink: 0;
+            line-height: 1.2;
+            padding-top: 0.15em;
+        }
+        #stripeAutocompleteList > div {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: normal;
+        }
         button, input[type="button"] {
             width: 100%;
             padding: 1rem;
@@ -326,6 +350,30 @@
                 <div class="help-text" id="emailHelpText">Update the owner's email address (leave empty to keep current email)</div>
             </div>
 
+            <div class="form-row" id="stripe-metadata-section">
+                <label id="stripeSessionLabel">Stripe Session ID <span class="optional">(optional)</span></label>
+                <p class="help-text" id="stripeBlockHelpValues">Values come from the Stripe checkout row where column <strong>P</strong> matches this QR (newest row wins). Sessions listed have column P empty or already this QR. Submitting updates the ledger via the same signed Edgar → Telegram flow as status and email.</p>
+                <input type="hidden" id="stripeSessionInput" value="">
+                <div style="position: relative;">
+                    <div id="stripeSelectCombobox" class="combobox-display" role="button" tabindex="0" aria-expanded="false" aria-labelledby="stripeSessionLabel">
+                        <span id="stripeSelectDisplay" style="color: #999;">Select or search Stripe session...</span>
+                        <span id="stripeSelectChevron" class="dropdown-arrow" aria-hidden="true">▼</span>
+                    </div>
+                    <div id="stripeDropdownContainer" class="combobox-dropdown" style="z-index: 1001;">
+                        <input type="text" id="stripeSearchInput" placeholder="Type to filter sessions..." autocomplete="off" class="combobox-search-input" aria-label="Filter Stripe sessions">
+                        <div id="stripeAutocompleteList" class="combobox-autocomplete-list"></div>
+                    </div>
+                </div>
+                <label for="shippingProviderSelect">Shipping Provider <span class="optional">(optional)</span></label>
+                <select id="shippingProviderSelect" aria-describedby="shippingHelpText">
+                    <option value="">-- Not selected --</option>
+                </select>
+                <div class="help-text" id="shippingHelpText">Column M — matches Agroverse Shop checkout labels from EasyPost USPS rates (<code>rate.service</code> + &quot; - USPS&quot;). If the sheet has a different value, it appears as an extra option.</div>
+                <label for="trackingNumberInput">Tracking number <span class="optional">(optional)</span></label>
+                <input type="text" id="trackingNumberInput" placeholder="Carrier tracking number" autocomplete="off">
+                <div class="help-text" id="trackingHelpText">Column N on the Stripe checkout row.</div>
+            </div>
+
             <div class="form-row">
                 <input type="button" id="update_button" value="Update QR Code" onclick="updateQrCode()">
             </div>
@@ -351,8 +399,176 @@
         let currentQrCodeData = {
             status: '',
             email: '',
-            manager_name: ''
+            manager_name: '',
+            stripe_session_id: '',
+            shipping_provider: '',
+            tracking_number: ''
         };
+
+        let stripeSessions = [];
+        let filteredStripeSessions = [];
+
+        /**
+         * EasyPost Shipment `rates[].service` values when `carrier === 'USPS'` (domestic + common intl).
+         * Checkout stores Stripe display_name as service + ' - USPS' (agroverse_shop_checkout.gs).
+         */
+        const EASYPOST_USPS_RATE_SERVICES = [
+            'GroundAdvantage',
+            'Priority',
+            'Express',
+            'First',
+            'ParcelSelect',
+            'MediaMail',
+            'LibraryMail',
+            'FirstClassPackageInternationalService',
+            'PriorityMailInternational',
+            'ExpressMailInternational',
+            'FirstClassMailInternational'
+        ];
+
+        function easypostUspsDisplayName(serviceSlug) {
+            return `${serviceSlug} - USPS`;
+        }
+
+        function removeCustomShippingProviderOptions() {
+            const sel = document.getElementById('shippingProviderSelect');
+            if (!sel) return;
+            const toRemove = sel.querySelectorAll('option[data-from-sheet="1"]');
+            toRemove.forEach((o) => o.remove());
+        }
+
+        function initShippingProviderSelect() {
+            const sel = document.getElementById('shippingProviderSelect');
+            if (!sel) return;
+            removeCustomShippingProviderOptions();
+            const keep = sel.querySelector('option[value=""]');
+            sel.innerHTML = '';
+            if (keep) sel.appendChild(keep.cloneNode(true));
+            else {
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '-- Not selected --';
+                sel.appendChild(placeholder);
+            }
+            const labels = EASYPOST_USPS_RATE_SERVICES.map((slug) => easypostUspsDisplayName(slug)).sort((a, b) => a.localeCompare(b));
+            labels.forEach((label) => {
+                const opt = document.createElement('option');
+                opt.value = label;
+                opt.textContent = label;
+                sel.appendChild(opt);
+            });
+        }
+
+        /**
+         * Prefill from sheet (column M). If value matches a known option, select it; else append a one-off option.
+         */
+        function setShippingProviderSelectFromSheet(sheetValue) {
+            const sel = document.getElementById('shippingProviderSelect');
+            if (!sel) return;
+            removeCustomShippingProviderOptions();
+            const v = (sheetValue || '').toString().trim();
+            sel.value = '';
+            if (!v) return;
+            const match = Array.from(sel.options).some((o) => o.value === v);
+            if (match) {
+                sel.value = v;
+                return;
+            }
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = `Sheet value: ${v}`;
+            opt.setAttribute('data-from-sheet', '1');
+            sel.appendChild(opt);
+            sel.value = v;
+        }
+
+        function setStripeSessionValue(sessionId) {
+            const v = (sessionId || '').toString().trim();
+            const el = document.getElementById('stripeSessionInput');
+            const disp = document.getElementById('stripeSelectDisplay');
+            if (el) el.value = v;
+            if (disp) {
+                disp.textContent = v || 'Select or search Stripe session...';
+                disp.style.color = v ? '#333' : '#999';
+            }
+        }
+
+        function updateStripeAutocomplete() {
+            const stripeSearchInput = document.getElementById('stripeSearchInput');
+            const stripeAutocompleteList = document.getElementById('stripeAutocompleteList');
+            if (!stripeSearchInput || !stripeAutocompleteList) return;
+
+            const filterText = (stripeSearchInput.value || '').toLowerCase();
+            filteredStripeSessions = stripeSessions.filter(s => (s.name || '').toLowerCase().includes(filterText));
+            stripeAutocompleteList.innerHTML = '';
+
+            const clearOpt = document.createElement('div');
+            clearOpt.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; font-style: italic; color: #666;';
+            clearOpt.textContent = '(No Stripe session — unlink)';
+            clearOpt.addEventListener('click', () => selectStripeSessionForUpdate(''));
+            stripeAutocompleteList.appendChild(clearOpt);
+
+            const toShow = filterText ? filteredStripeSessions : stripeSessions;
+            if (toShow.length > 0) {
+                toShow.forEach(s => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee;';
+                    item.textContent = s.name;
+                    item.addEventListener('click', () => selectStripeSessionForUpdate(s.key));
+                    stripeAutocompleteList.appendChild(item);
+                });
+            } else {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
+                noResults.textContent = stripeSessions.length === 0 ? 'No sessions (try reopening dropdown after QR select)' : 'No matching sessions';
+                stripeAutocompleteList.appendChild(noResults);
+            }
+        }
+
+        function selectStripeSessionForUpdate(sessionKey) {
+            setStripeSessionValue(sessionKey || '');
+            const stripeDropdownContainer = document.getElementById('stripeDropdownContainer');
+            const stripeSearchInput = document.getElementById('stripeSearchInput');
+            const stripeSelectCombobox = document.getElementById('stripeSelectCombobox');
+            if (stripeDropdownContainer) stripeDropdownContainer.style.display = 'none';
+            if (stripeSearchInput) stripeSearchInput.value = '';
+            if (stripeSelectCombobox) stripeSelectCombobox.setAttribute('aria-expanded', 'false');
+        }
+
+        async function loadStripeSessionsForUpdatePage() {
+            if (!lastQrParam) {
+                stripeSessions = [];
+                filteredStripeSessions = [];
+                updateStripeAutocomplete();
+                return;
+            }
+            const q = `&for_qr_code=${encodeURIComponent(lastQrParam)}`;
+            const url = `${LOOKUP_ENDPOINT}?list_unassigned_stripe_sessions=true${q}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.status === 'error') throw new Error(data.message || 'Stripe list failed');
+                const items = Array.isArray(data.items) ? data.items : [];
+                stripeSessions = items
+                    .map(it => {
+                        const id = (it.stripe_session_id || '').toString().trim();
+                        return { key: id, name: id };
+                    })
+                    .filter(it => it.key);
+                const current = (document.getElementById('stripeSessionInput') && document.getElementById('stripeSessionInput').value)
+                    ? document.getElementById('stripeSessionInput').value.trim() : '';
+                if (current && !stripeSessions.some(s => s.key === current)) {
+                    stripeSessions.unshift({ key: current, name: current });
+                }
+                filteredStripeSessions = [...stripeSessions];
+                updateStripeAutocomplete();
+            } catch (err) {
+                console.error('Stripe sessions load:', err);
+                stripeSessions = [];
+                filteredStripeSessions = [];
+                updateStripeAutocomplete();
+            }
+        }
 
         async function loadMembers() {
             try {
@@ -625,12 +841,25 @@
                     const qrStatus = data.qr_status || '';
                     const qrEmail = data.email || '';
                     const qrManagerName = data.manager_name || '';
-                    
+                    const sid = (data.stripe_session_id || '').toString().trim();
+                    const prov = (data.shipping_provider || '').toString().trim();
+                    const trk = (data.tracking_number || '').toString().trim();
+
                     currentQrCodeData = {
                         status: qrStatus,
                         email: qrEmail,
-                        manager_name: qrManagerName
+                        manager_name: qrManagerName,
+                        stripe_session_id: sid,
+                        shipping_provider: prov,
+                        tracking_number: trk
                     };
+
+                    setStripeSessionValue(sid);
+                    initShippingProviderSelect();
+                    setShippingProviderSelectFromSheet(prov);
+                    const trkEl = document.getElementById('trackingNumberInput');
+                    if (trkEl) trkEl.value = trk;
+                    await loadStripeSessionsForUpdatePage();
 
                     const statusSelect = document.getElementById('status_select');
                     const emailInput = document.getElementById('email_input');
@@ -688,8 +917,19 @@
                 currentQrCodeData = {
                     status: '',
                     email: '',
-                    manager_name: ''
+                    manager_name: '',
+                    stripe_session_id: '',
+                    shipping_provider: '',
+                    tracking_number: ''
                 };
+                setStripeSessionValue('');
+                initShippingProviderSelect();
+                setShippingProviderSelectFromSheet('');
+                const trkEl = document.getElementById('trackingNumberInput');
+                if (trkEl) trkEl.value = '';
+                stripeSessions = [];
+                filteredStripeSessions = [];
+                updateStripeAutocomplete();
                 
                 // Clear loading state even on error
                 clearFieldLoadingState();
@@ -709,6 +949,9 @@
             const memberSelectDisplay = document.getElementById('memberSelectDisplay');
             const statusSelectEl = document.getElementById('status_select');
             const emailInputEl = document.getElementById('email_input');
+            const stripeSessionEl = document.getElementById('stripeSessionInput');
+            const shippingEl = document.getElementById('shippingProviderSelect');
+            const trackingEl = document.getElementById('trackingNumberInput');
             
             const memberDisplayText = memberSelectDisplay ? memberSelectDisplay.textContent.trim() : '';
             const member = (memberDisplayText && memberDisplayText !== '-- No change --' && memberDisplayText !== 'Loading members...') 
@@ -728,6 +971,16 @@
             const currentManagerName = (currentQrCodeData.manager_name || '').trim().toLowerCase();
             const currentStatus = (currentQrCodeData.status || '').trim().toUpperCase();
             const currentEmail = (currentQrCodeData.email || '').trim().toLowerCase();
+            const stripeSessNow = (stripeSessionEl && stripeSessionEl.value ? stripeSessionEl.value : '').trim();
+            const shipNow = (shippingEl && shippingEl.value !== undefined && shippingEl.value !== null ? String(shippingEl.value) : '').trim();
+            const trackNow = (trackingEl && trackingEl.value ? trackingEl.value : '').trim();
+            const stripeSessWas = (currentQrCodeData.stripe_session_id || '').trim();
+            const shipWas = (currentQrCodeData.shipping_provider || '').trim();
+            const trackWas = (currentQrCodeData.tracking_number || '').trim();
+            const stripeChanged =
+                stripeSessNow !== stripeSessWas ||
+                shipNow !== shipWas ||
+                trackNow !== trackWas;
             
             const memberValue = member.trim().toLowerCase();
             const memberChanged = member && member !== '-- No change --' && 
@@ -737,7 +990,7 @@
                                  status.trim().toUpperCase() !== currentStatus;
             const emailChanged = email && email.trim().toLowerCase() !== currentEmail && email.trim() !== '';
 
-            if (!memberChanged && !statusChanged && !emailChanged) {
+            if (!memberChanged && !statusChanged && !emailChanged && !stripeChanged) {
                 reportOutput.textContent = 'Please make at least one change to update.';
                 reportOutput.className = 'error';
                 reportOutput.style.display = 'block';
@@ -788,22 +1041,28 @@
 
                 const memberName = memberData.name || contributorName || 'Unknown';
 
-                const attributes = {
-                    'QR Code': qrCode,
-                    'Updated by': memberName
-                };
+                const attrPairs = [
+                    ['QR Code', qrCode],
+                    ['Updated by', memberName]
+                ];
 
                 if (memberChanged) {
                     const selectedMember = allMembers.find(m => m.key === member || m.name === member);
-                    attributes['Associated Member'] = selectedMember ? selectedMember.name : member;
+                    attrPairs.push(['Associated Member', selectedMember ? selectedMember.name : member]);
                 }
 
                 if (statusChanged) {
-                    attributes['New Status'] = status;
+                    attrPairs.push(['New Status', status]);
                 }
 
                 if (emailChanged) {
-                    attributes['New Email'] = email;
+                    attrPairs.push(['New Email', email]);
+                }
+
+                if (stripeChanged) {
+                    attrPairs.push(['Stripe Session ID', stripeSessNow]);
+                    attrPairs.push(['Shipping Provider', shipNow]);
+                    attrPairs.push(['Tracking Number', trackNow]);
                 }
 
                 const helper = new EdgarPayloadHelper({
@@ -813,7 +1072,7 @@
 
                 const { payload, requestTransactionId, shareText } = await helper.generatePayload({
                     eventName: 'QR CODE UPDATE EVENT',
-                    attributes: attributes,
+                    attributes: attrPairs,
                     privateKey: privateKey
                 });
 
@@ -837,12 +1096,27 @@
 
                     setTimeout(() => {
                         lastQrParam = '';
-                        currentQrCodeData = { status: '', email: '', manager_name: '' };
+                        currentQrCodeData = {
+                            status: '',
+                            email: '',
+                            manager_name: '',
+                            stripe_session_id: '',
+                            shipping_provider: '',
+                            tracking_number: ''
+                        };
                         document.getElementById('qrSelectDisplay').textContent = 'Select a QR code...';
                         document.getElementById('qrSelectDisplay').style.color = '#999';
                         document.getElementById('status_select').value = '';
                         document.getElementById('email_input').value = '';
                         document.getElementById('email_input').placeholder = 'owner@example.com';
+                        setStripeSessionValue('');
+                        initShippingProviderSelect();
+                        setShippingProviderSelectFromSheet('');
+                        const tr = document.getElementById('trackingNumberInput');
+                        if (tr) tr.value = '';
+                        stripeSessions = [];
+                        filteredStripeSessions = [];
+                        updateStripeAutocomplete();
                         selectMember(null, '-- No change --');
                     }, 2000);
                 } else {
@@ -958,6 +1232,8 @@
 
             await Promise.all([loadMembers(), loadQrCodes()]);
 
+            initShippingProviderSelect();
+
             const qrSelectCombobox = document.getElementById('qrSelectCombobox');
             const qrDropdownContainer = document.getElementById('qrDropdownContainer');
             const qrSearchInput = document.getElementById('qrSearchInput');
@@ -965,6 +1241,10 @@
             if (qrSelectCombobox && qrDropdownContainer && qrSearchInput) {
                 qrSelectCombobox.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    const sdc = document.getElementById('stripeDropdownContainer');
+                    const mdc = document.getElementById('memberDropdownContainer');
+                    if (sdc) sdc.style.display = 'none';
+                    if (mdc) mdc.style.display = 'none';
                     const isOpen = qrDropdownContainer.style.display === 'block';
                     qrDropdownContainer.style.display = isOpen ? 'none' : 'block';
                     if (!isOpen) {
@@ -1004,6 +1284,10 @@
             if (memberSelectCombobox && memberDropdownContainer && memberSearchInput) {
                 memberSelectCombobox.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    const qdc = document.getElementById('qrDropdownContainer');
+                    const sdc = document.getElementById('stripeDropdownContainer');
+                    if (qdc) qdc.style.display = 'none';
+                    if (sdc) sdc.style.display = 'none';
                     const isOpen = memberDropdownContainer.style.display === 'block';
                     memberDropdownContainer.style.display = isOpen ? 'none' : 'block';
                     if (!isOpen) {
@@ -1031,6 +1315,49 @@
                     if (!memberSelectCombobox.contains(e.target) && !memberDropdownContainer.contains(e.target)) {
                         memberDropdownContainer.style.display = 'none';
                         memberSearchInput.value = '';
+                    }
+                });
+            }
+
+            const stripeSelectCombobox = document.getElementById('stripeSelectCombobox');
+            const stripeDropdownContainer = document.getElementById('stripeDropdownContainer');
+            const stripeSearchInput = document.getElementById('stripeSearchInput');
+            if (stripeSelectCombobox && stripeDropdownContainer && stripeSearchInput) {
+                stripeSelectCombobox.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const qdc = document.getElementById('qrDropdownContainer');
+                    const mdc = document.getElementById('memberDropdownContainer');
+                    if (qdc) qdc.style.display = 'none';
+                    if (mdc) mdc.style.display = 'none';
+                    const isOpen = stripeDropdownContainer.style.display === 'block';
+                    stripeDropdownContainer.style.display = isOpen ? 'none' : 'block';
+                    stripeSelectCombobox.setAttribute('aria-expanded', !isOpen ? 'true' : 'false');
+                    if (!isOpen) {
+                        setTimeout(() => stripeSearchInput.focus(), 10);
+                        if (stripeSessions.length === 0 && lastQrParam) {
+                            loadStripeSessionsForUpdatePage();
+                        } else {
+                            updateStripeAutocomplete();
+                        }
+                    }
+                });
+                stripeSearchInput.addEventListener('input', updateStripeAutocomplete);
+                stripeSearchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const first = filteredStripeSessions.length > 0 ? filteredStripeSessions[0] : null;
+                        if (first) selectStripeSessionForUpdate(first.key);
+                    } else if (e.key === 'Escape') {
+                        stripeDropdownContainer.style.display = 'none';
+                        stripeSearchInput.value = '';
+                        stripeSelectCombobox.setAttribute('aria-expanded', 'false');
+                    }
+                });
+                document.addEventListener('click', (e) => {
+                    if (!stripeSelectCombobox.contains(e.target) && !stripeDropdownContainer.contains(e.target)) {
+                        stripeDropdownContainer.style.display = 'none';
+                        stripeSearchInput.value = '';
+                        stripeSelectCombobox.setAttribute('aria-expanded', 'false');
                     }
                 });
             }
