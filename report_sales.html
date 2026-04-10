@@ -340,6 +340,13 @@
                     </div>
                 </div>
                 <div class="form-row">
+                    <label for="shippingProviderSelect">Shipping Provider (optional)</label>
+                    <p class="hint" id="shippingHelpSales"><strong>Stripe Social Media Checkout ID</strong> column M — same labels as checkout (<code>rate.service</code> + &quot; - USPS&quot;). Prefilled from the ledger when present. Leave &quot;-- Not selected --&quot; to omit from the sheet update.</p>
+                    <select id="shippingProviderSelect" aria-describedby="shippingHelpSales">
+                        <option value="">-- Not selected --</option>
+                    </select>
+                </div>
+                <div class="form-row">
                     <label for="trackingNumberInput">Tracking number</label>
                     <p class="hint">From the same Stripe checkout row when present (column N).</p>
                     <input type="text" id="trackingNumberInput" placeholder="Carrier tracking number">
@@ -352,6 +359,13 @@
             <div class="form-row">
                 <label for="contributorSelect">Sold by:</label>
                 <select id="contributorSelect" disabled>
+                    <option value="">Select contributor...</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="cashProceedsSelect">Cash proceeds collected by:</label>
+                <p class="hint">Who received the payment. Defaults to <strong>Sold by</strong>; change when someone else collected (e.g. online order shipped by one person, payment to another).</p>
+                <select id="cashProceedsSelect" disabled>
                     <option value="">Select contributor...</option>
                 </select>
             </div>
@@ -431,6 +445,7 @@
         const scanButtonRow = document.getElementById('scan-button-row');
         const salePriceInput = document.getElementById('salePriceInput');
         const contributorSelect = document.getElementById('contributorSelect');
+        const cashProceedsSelect = document.getElementById('cashProceedsSelect');
         const listSalesMetadata = document.getElementById('list-sales-metadata');
         const ownerEmailInput = document.getElementById('ownerEmailInput');
         const stripeSessionInput = document.getElementById('stripeSessionInput');
@@ -440,6 +455,78 @@
         const stripeSelectDisplay = document.getElementById('stripeSelectDisplay');
         const stripeAutocompleteList = document.getElementById('stripeAutocompleteList');
         const trackingNumberInput = document.getElementById('trackingNumberInput');
+        const shippingProviderSelect = document.getElementById('shippingProviderSelect');
+
+        /**
+         * EasyPost Shipment rates[].service when carrier === USPS (matches Agroverse checkout display_name).
+         */
+        const EASYPOST_USPS_RATE_SERVICES = [
+            'GroundAdvantage',
+            'Priority',
+            'Express',
+            'First',
+            'ParcelSelect',
+            'MediaMail',
+            'LibraryMail',
+            'FirstClassPackageInternationalService',
+            'PriorityMailInternational',
+            'ExpressMailInternational',
+            'FirstClassMailInternational'
+        ];
+
+        function easypostUspsDisplayName(serviceSlug) {
+            return `${serviceSlug} - USPS`;
+        }
+
+        function removeCustomShippingProviderOptions() {
+            const sel = document.getElementById('shippingProviderSelect');
+            if (!sel) return;
+            sel.querySelectorAll('option[data-from-sheet="1"]').forEach((o) => o.remove());
+        }
+
+        function initShippingProviderSelect() {
+            const sel = document.getElementById('shippingProviderSelect');
+            if (!sel) return;
+            removeCustomShippingProviderOptions();
+            const keep = sel.querySelector('option[value=""]');
+            sel.innerHTML = '';
+            if (keep) sel.appendChild(keep.cloneNode(true));
+            else {
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '-- Not selected --';
+                sel.appendChild(placeholder);
+            }
+            EASYPOST_USPS_RATE_SERVICES
+                .map((slug) => easypostUspsDisplayName(slug))
+                .sort((a, b) => a.localeCompare(b))
+                .forEach((label) => {
+                    const opt = document.createElement('option');
+                    opt.value = label;
+                    opt.textContent = label;
+                    sel.appendChild(opt);
+                });
+        }
+
+        function setShippingProviderSelectFromSheet(sheetValue) {
+            const sel = document.getElementById('shippingProviderSelect');
+            if (!sel) return;
+            removeCustomShippingProviderOptions();
+            const v = (sheetValue || '').toString().trim();
+            sel.value = '';
+            if (!v) return;
+            if (Array.from(sel.options).some((o) => o.value === v)) {
+                sel.value = v;
+                return;
+            }
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = `Sheet value: ${v}`;
+            opt.setAttribute('data-from-sheet', '1');
+            sel.appendChild(opt);
+            sel.value = v;
+        }
+
         let scanning = false;
         let allContributors = [];
         let stripeSessions = [];
@@ -458,6 +545,8 @@
             if (ownerEmailInput) ownerEmailInput.value = '';
             setStripeSessionValue('');
             if (trackingNumberInput) trackingNumberInput.value = '';
+            initShippingProviderSelect();
+            setShippingProviderSelectFromSheet('');
             if (stripeDropdownContainer) stripeDropdownContainer.style.display = 'none';
             if (stripeSearchInput) stripeSearchInput.value = '';
             stripeSessions = [];
@@ -484,6 +573,9 @@
                 if (data.status === 'success') {
                     if (ownerEmailInput) ownerEmailInput.value = (data.email || '').toString();
                     setStripeSessionValue(data.stripe_session_id || '');
+                    const prov = (data.shipping_provider || '').toString().trim();
+                    initShippingProviderSelect();
+                    setShippingProviderSelectFromSheet(prov);
                     if (trackingNumberInput) trackingNumberInput.value = (data.tracking_number || '').toString();
                 }
             } catch (err) {
@@ -613,16 +705,39 @@
             }
         }
 
-        function updateContributorDropdown() {
-            contributorSelect.innerHTML = '<option value="">Select contributor...</option>';
+        function fillContributorSelect(selectEl) {
+            if (!selectEl) return;
+            const prev = selectEl.value;
+            selectEl.innerHTML = '<option value="">Select contributor...</option>';
             allContributors.forEach(contributor => {
                 const opt = document.createElement('option');
                 opt.value = contributor.key;
                 opt.textContent = contributor.name;
-                contributorSelect.appendChild(opt);
+                selectEl.appendChild(opt);
             });
+            if (prev && Array.from(selectEl.options).some(o => o.value === prev)) {
+                selectEl.value = prev;
+            }
+        }
+
+        function updateContributorDropdown() {
+            fillContributorSelect(contributorSelect);
+            fillContributorSelect(cashProceedsSelect);
             contributorSelect.disabled = false;
+            if (cashProceedsSelect) cashProceedsSelect.disabled = false;
+            syncCashProceedsToSoldBy();
             updateReportButtonState();
+        }
+
+        /** If false, "Cash proceeds" tracks "Sold by" when Sold by changes. Set true after user edits cash. */
+        let cashProceedsIndependentFromSoldBy = false;
+
+        function syncCashProceedsToSoldBy() {
+            if (!cashProceedsSelect || cashProceedsIndependentFromSoldBy) return;
+            const v = contributorSelect.value;
+            if (v && Array.from(cashProceedsSelect.options).some(o => o.value === v)) {
+                cashProceedsSelect.value = v;
+            }
         }
 
         function updateQrCodeAutocomplete() {
@@ -697,12 +812,18 @@
                     contributor.qr_codes.includes(lastQrParam)
                 );
                 if (matchingContributor) {
+                    cashProceedsIndependentFromSoldBy = false;
                     contributorSelect.value = matchingContributor.key;
+                    syncCashProceedsToSoldBy();
                 } else {
+                    cashProceedsIndependentFromSoldBy = false;
                     contributorSelect.value = '';
+                    if (cashProceedsSelect) cashProceedsSelect.value = '';
                 }
             } else {
+                cashProceedsIndependentFromSoldBy = false;
                 contributorSelect.value = '';
+                if (cashProceedsSelect) cashProceedsSelect.value = '';
             }
             
             updateReportButtonState();
@@ -711,7 +832,8 @@
         function updateReportButtonState() {
             const salePrice = parseFloat(salePriceInput.value);
             const contributorSelected = contributorSelect.value && contributorSelect.value !== '';
-            reportButton.disabled = !lastQrParam || isNaN(salePrice) || salePrice <= 0 || !contributorSelected;
+            const cashSelected = cashProceedsSelect && cashProceedsSelect.value && cashProceedsSelect.value !== '';
+            reportButton.disabled = !lastQrParam || isNaN(salePrice) || salePrice <= 0 || !contributorSelected || !cashSelected;
         }
 
         function resetForm() {
@@ -742,6 +864,8 @@
             video.classList.remove('scanning');
             salePriceInput.value = '';
             contributorSelect.value = '';
+            cashProceedsIndependentFromSoldBy = false;
+            if (cashProceedsSelect) cashProceedsSelect.value = '';
             clearSalesMetadataFields();
             updateReportButtonState();
         }
@@ -1072,8 +1196,16 @@
         });
 
         contributorSelect.addEventListener('change', () => {
+            syncCashProceedsToSoldBy();
             updateReportButtonState();
         });
+
+        if (cashProceedsSelect) {
+            cashProceedsSelect.addEventListener('change', () => {
+                cashProceedsIndependentFromSoldBy = true;
+                updateReportButtonState();
+            });
+        }
 
         reportButton.addEventListener('click', async () => {
             await onReport();
@@ -1126,25 +1258,28 @@
                     if (blob) {
                         fileToShare = new File([blob], 'scan.png', { type: 'image/png' });
                     }
-                    submitSalesReport(fileToShare, fileName, lastQrParam, contributorSelect.value, salePrice);
+                    submitSalesReport(fileToShare, fileName, lastQrParam, contributorSelect.value, cashProceedsSelect ? cashProceedsSelect.value : contributorSelect.value, salePrice);
                 }, 'image/png');
                 return;
             }
 
-            await submitSalesReport(fileToShare, fileName, lastQrParam, contributorSelect.value, salePrice);
+            await submitSalesReport(fileToShare, fileName, lastQrParam, contributorSelect.value, cashProceedsSelect ? cashProceedsSelect.value : contributorSelect.value, salePrice);
         }
 
-        async function submitSalesReport(file, fileName, qrParam, memberName, salePrice) {
+        async function submitSalesReport(file, fileName, qrParam, soldByName, cashProceedsCollectedByName, salePrice) {
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
             const telegramLink = 'https://t.me/TrueSightDAO';
             const ownerEmailVal = (ownerEmailInput && ownerEmailInput.value ? ownerEmailInput.value : '').trim();
             const stripeSessionVal = (stripeSessionInput && stripeSessionInput.value ? stripeSessionInput.value : '').trim();
+            const shippingProvVal = (shippingProviderSelect && shippingProviderSelect.value !== undefined && shippingProviderSelect.value !== null
+                ? String(shippingProviderSelect.value) : '').trim();
             const trackingVal = (trackingNumberInput && trackingNumberInput.value ? trackingNumberInput.value : '').trim();
-            const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(`[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $${salePrice}\n- Sold by: ${memberName}\n--------`);
+            const cashName = (cashProceedsCollectedByName || soldByName || '').trim() || soldByName;
+            const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(`[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $${salePrice}\n- Sold by: ${soldByName}\n- Cash proceeds collected by: ${cashName}\n--------`);
 
             try {
-                const requestText = `[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $${salePrice}\n- Sold by: ${memberName}\n- Owner email: ${ownerEmailVal || '(none)'}\n- Stripe Session ID: ${stripeSessionVal || '(none)'}\n- Tracking number: ${trackingVal || '(none)'}\n- Attached Filename: ${fileName || 'None'}\n- Submission Source: ${window.location.href}\n--------`;
+                const requestText = `[SALES EVENT]\n- Item: ${qrParam}\n- Sales price: $${salePrice}\n- Sold by: ${soldByName}\n- Cash proceeds collected by: ${cashName}\n- Owner email: ${ownerEmailVal || '(none)'}\n- Stripe Session ID: ${stripeSessionVal || '(none)'}\n- Shipping Provider: ${shippingProvVal || '(none)'}\n- Tracking number: ${trackingVal || '(none)'}\n- Attached Filename: ${fileName || 'None'}\n- Submission Source: ${window.location.href}\n--------`;
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     "pkcs8",
                     base64ToArrayBuffer(privateKey),
@@ -1256,6 +1391,7 @@
                 await loadQrCodes();
                 await loadContributors();
                 toggleInputMethod();
+                initShippingProviderSelect();
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';
