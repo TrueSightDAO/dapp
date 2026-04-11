@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Browse holistic wellness hit list stores by status and open Store Interaction History for each row.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stores by Status - TrueSight DAO</title>
+
+    <meta property="og:title" content="Stores by Status - TrueSight DAO">
+    <meta property="og:description" content="Filter the Hit List by status (and shop type), then open full interaction history for a store.">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://dapp.truesight.me/stores_by_status.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TrueSight DAO">
+
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./menu.js"></script>
+    <script src="./tdg_balance.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 960px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333; }
+        select[multiple] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            min-height: 140px;
+        }
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.25rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            flex: 1 1 auto;
+            min-width: 140px;
+        }
+        .btn:hover { background-color: #0056b3; }
+        .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        #statusLine {
+            margin: 0.75rem 0;
+            font-weight: 600;
+            min-height: 24px;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+        .status-ok { color: #28a745; }
+        .status-err { color: #dc3545; }
+        .status-info { color: #007bff; }
+        .help-text { font-size: 0.85rem; color: #666; margin-top: 0.25rem; }
+        .field-loading-message {
+            font-size: 0.85rem;
+            color: #007bff;
+            font-style: italic;
+            margin-top: 0.25rem;
+        }
+        .loading-field { opacity: 0.65; pointer-events: none; }
+        /** Hidden selects hold filter state; users pick filters only from Pipeline overview. */
+        #filterGrid {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        #filterGrid select { min-height: 0; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            vertical-align: top;
+        }
+        th { background: #f8f9fa; font-weight: 600; color: #333; vertical-align: bottom; }
+        th .sort-btn {
+            background: none;
+            border: none;
+            font: inherit;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+            padding: 0.2rem 0;
+            margin: 0;
+            text-align: left;
+            width: 100%;
+        }
+        th .sort-btn:hover, th .sort-btn:focus-visible {
+            color: #007bff;
+            outline: none;
+        }
+        th .sort-btn:focus-visible {
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.35);
+            border-radius: 2px;
+        }
+        tr:nth-child(even) { background: #fbfbfb; }
+        .store-details-link {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .store-details-link:hover { text-decoration: underline; }
+        .meta { font-size: 0.8rem; color: #666; margin-top: 0.35rem; }
+        .config-warn {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        #pipelineOverview {
+            margin: 1rem 0 1.5rem;
+            padding: 1rem;
+            background: #fafafa;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+        }
+        #pipelineOverview h2 {
+            margin: 0 0 0.35rem;
+            font-size: 1.15rem;
+            color: #333;
+            text-align: left;
+        }
+        .pipeline-sub {
+            font-size: 0.88rem;
+            color: #666;
+            margin: 0 0 0.75rem;
+            line-height: 1.45;
+        }
+        .pipeline-sub a { color: #007bff; }
+        .pipeline-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem 1.5rem;
+            align-items: start;
+        }
+        @media (max-width: 720px) {
+            .pipeline-cols { grid-template-columns: 1fr; }
+        }
+        .pipeline-col h3 {
+            margin: 0 0 0.5rem;
+            font-size: 0.95rem;
+            color: #444;
+        }
+        .pipeline-rows { display: flex; flex-direction: column; gap: 0.35rem; }
+        .pipeline-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.35rem 0.5rem;
+            align-items: center;
+            text-align: left;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            padding: 0.35rem 0.5rem;
+            background: #fff;
+            cursor: pointer;
+            font: inherit;
+            color: inherit;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .pipeline-row:hover {
+            border-color: #007bff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .pipeline-row:focus {
+            outline: 2px solid #007bff;
+            outline-offset: 1px;
+        }
+        .pipeline-label {
+            font-size: 0.82rem;
+            color: #333;
+            line-height: 1.25;
+            word-break: break-word;
+        }
+        .pipeline-count {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #007bff;
+            white-space: nowrap;
+        }
+        .pipeline-bar-wrap {
+            grid-column: 1 / -1;
+            height: 6px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .pipeline-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #5a9fd4, #007bff);
+            border-radius: 4px;
+            min-width: 2px;
+        }
+        .pipeline-shop .pipeline-row { padding: 0.3rem 0.45rem; }
+        .pipeline-shop .pipeline-label { font-size: 0.78rem; }
+        .pipeline-shop .pipeline-count { font-size: 0.8rem; }
+        .pipeline-meta {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.6rem;
+        }
+        .pipeline-body-inner {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr);
+            gap: 1rem 1.25rem;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .pipeline-body-inner { grid-template-columns: 1fr; }
+        }
+        .pipeline-block .pipeline-rows {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 0.15rem;
+        }
+        .pipeline-rows-shop {
+            max-height: 260px;
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div id="tdgBalanceBadge"></div>
+    <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>
+
+        <h1>Stores by Status</h1>
+        <p id="description">Filter by clicking a row under <strong>Pipeline overview</strong> (status or shop type). Open a store from the table below in <strong>Store Interaction History</strong>. Use <strong>Refresh list</strong> after sheet updates; <strong>Clear filters</strong> resets the overview and table.</p>
+        <p style="text-align: center; font-size: 0.95rem; margin: 0.5rem 0;">
+            <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer" class="store-details-link">Hit List in Google Sheets ↗</a>
+            ·
+            <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=1606881029#gid=1606881029" target="_blank" rel="noopener noreferrer" class="store-details-link">Pipeline Dashboard (sheet) ↗</a>
+            ·
+            <a href="./store_interaction_history.html" class="store-details-link">Store Interaction History ↗</a>
+        </p>
+
+        <div id="pipelineOverview" aria-live="polite">
+            <h2>Pipeline overview</h2>
+            <p class="pipeline-sub">
+                Counts come from the <strong>Hit List</strong>. Click a row under <strong>Stores by status</strong> or <strong>Stores by shop type</strong> to apply that filter to the table below (same idea as the
+                <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=1606881029#gid=1606881029" target="_blank" rel="noopener noreferrer">Pipeline Dashboard</a> sheet). Use <strong>Clear filters</strong> under the buttons to reset.
+            </p>
+            <div id="pipelineBody" class="pipeline-body-inner"></div>
+            <p id="pipelineMeta" class="pipeline-meta"></p>
+        </div>
+
+        <div id="configWarn" class="config-warn" style="display:none;">
+            Set <strong>API_BASE_URL</strong> in this page to your deployed Apps Script web app URL (see <code>tokenomics/google_app_scripts/holistic_hit_list_store_history/README.md</code>).
+        </div>
+
+        <div id="filterGrid" aria-hidden="true">
+            <select id="statusSelect" multiple aria-label="Selected status filters (set from Pipeline overview)"></select>
+            <select id="shopTypeSelect" multiple aria-label="Selected shop type filters (set from Pipeline overview)"></select>
+        </div>
+
+        <div class="btn-row">
+            <button type="button" class="btn" id="refreshBtn">Refresh list</button>
+            <button type="button" class="btn btn-secondary" id="clearFiltersBtn">Clear filters</button>
+        </div>
+
+        <p id="statusLine" class="status-info" role="status" aria-live="polite">Ready.</p>
+        <p id="lastFetchMeta" class="meta" style="text-align:center;"></p>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+(function () {
+    var API_BASE_URL = 'https://script.google.com/macros/s/AKfycbwoBqZnDS4JRRdFkxSXdlGt-qIn-RauMcORuDHeWs29oQ2CpJ3L4A10uM8se9anL108/exec';
+    var API_TOKEN = '';
+
+    var STATUS_OPTIONS = [
+        'Research',
+        'AI: Shortlisted',
+        'AI: Photo rejected',
+        'AI: Photo needs review',
+        'AI: Enrich with contact',
+        'AI: Email found',
+        'AI: Contact Form found',
+        'AI: Enrich — manual',
+        'AI: Warm up prospect',
+        'AI: Prospect replied',
+        'Shortlisted',
+        'Instagram Followed',
+        'Contacted',
+        'Manager Follow-up',
+        'Bulk Info Requested',
+        'Meeting Scheduled',
+        'Followed Up',
+        'Partnered',
+        'On Hold',
+        'Rejected',
+        'Not Appropriate'
+    ];
+
+    var SHOP_TYPE_OPTIONS = [
+        'Metaphysical/Spiritual',
+        'Wellness Center',
+        'Health Food Store',
+        'Natural Goods',
+        'Conscious Cafe',
+        'Boutique Chocolate',
+        'Antique Store',
+        'Gift Shop',
+        'Candy Store',
+        'Yoga Studio',
+        'Apothecary',
+        'Other'
+    ];
+
+    var statusSelect = document.getElementById('statusSelect');
+    var shopTypeSelect = document.getElementById('shopTypeSelect');
+    var refreshBtn = document.getElementById('refreshBtn');
+    var clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    var statusLine = document.getElementById('statusLine');
+    var lastFetchMeta = document.getElementById('lastFetchMeta');
+    var resultsEl = document.getElementById('results');
+    var configWarn = document.getElementById('configWarn');
+    var filterGrid = document.getElementById('filterGrid');
+    var pipelineBody = document.getElementById('pipelineBody');
+    var pipelineMeta = document.getElementById('pipelineMeta');
+
+    var loadInFlight = false;
+    /** Last successful table payload (for client-side resort without refetch). */
+    var lastRows = [];
+    var lastTotal = 0;
+    /** Column id: shop | status | citystate | shop_type — null = API order. */
+    var sortColumn = null;
+    /** 'asc' | 'desc' */
+    var sortDir = 'asc';
+    /** True when server rejected listStatusSummary (stale web app deployment). */
+    var pipelineSummaryServerMissing = false;
+
+    function tokenQs() {
+        return API_TOKEN ? '&token=' + encodeURIComponent(API_TOKEN) : '';
+    }
+
+    function apiConfigured() {
+        return API_BASE_URL && API_BASE_URL.indexOf('REPLACE') === -1 && API_BASE_URL.length > 10;
+    }
+
+    function populateSelect(el, options) {
+        options.forEach(function (val) {
+            var opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = val;
+            el.appendChild(opt);
+        });
+    }
+
+    function setLoadingUi(loading) {
+        refreshBtn.disabled = !!loading;
+        filterGrid.classList.toggle('loading-field', !!loading);
+        if (loading) {
+            statusLine.textContent = 'Loading…';
+            statusLine.className = 'status-info';
+        }
+    }
+
+    function setStatus(msg, kind) {
+        statusLine.textContent = msg || '';
+        statusLine.className = kind === 'error' ? 'status-err' : kind === 'ok' ? 'status-ok' : 'status-info';
+    }
+
+    function selectedValues(el) {
+        return Array.from(el.selectedOptions || []).map(function (o) { return o.value; });
+    }
+
+    function buildListUrl() {
+        var params = new URLSearchParams();
+        params.set('action', 'listStoresByFilter');
+        params.set('limit', '500');
+        params.set('offset', '0');
+        selectedValues(statusSelect).forEach(function (s) { params.append('status', s); });
+        selectedValues(shopTypeSelect).forEach(function (s) { params.append('shop_type', s); });
+        return API_BASE_URL + '?' + params.toString() + tokenQs();
+    }
+
+    function openHistoryUrl(row) {
+        var key = (row.store_key || '').trim();
+        var shop = (row.shop_name || '').trim();
+        var u = new URL('store_interaction_history.html', window.location.href);
+        if (key) {
+            u.searchParams.set('store', key);
+            if (shop) u.searchParams.set('shop', shop);
+        } else if (shop) {
+            u.searchParams.set('shop', shop);
+        } else {
+            return;
+        }
+        window.open(u.pathname + u.search + u.hash, '_blank', 'noopener,noreferrer');
+    }
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function clearSelect(el) {
+        Array.from(el.options || []).forEach(function (o) { o.selected = false; });
+    }
+
+    function ensureOption(el, val) {
+        if (!val) return;
+        var exists = Array.from(el.options || []).some(function (o) { return o.value === val; });
+        if (!exists) {
+            var opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = val;
+            el.appendChild(opt);
+        }
+    }
+
+    function selectOnly(el, val) {
+        Array.from(el.options || []).forEach(function (o) {
+            o.selected = (o.value === val);
+        });
+    }
+
+    function maxCount(items) {
+        return items.reduce(function (m, x) {
+            var c = x && typeof x.count === 'number' ? x.count : 0;
+            return Math.max(m, c);
+        }, 0) || 1;
+    }
+
+    function renderPipelineRows(items, kind, maxVal) {
+        return (items || []).map(function (item) {
+            var label = kind === 'status' ? item.status : item.shop_type;
+            var count = typeof item.count === 'number' ? item.count : 0;
+            var pct = Math.round((count / maxVal) * 100);
+            var enc = encodeURIComponent(label || '');
+            var cls = 'pipeline-row' + (kind === 'shop' ? ' pipeline-shop' : '');
+            return '<button type="button" class="' + cls + '" data-kind="' + kind + '" data-value="' + enc + '">' +
+                '<span class="pipeline-label">' + escapeHtml(label) + '</span>' +
+                '<span class="pipeline-count">' + count + '</span>' +
+                '<span class="pipeline-bar-wrap"><span class="pipeline-bar" style="width:' + pct + '%"></span></span>' +
+                '</button>';
+        }).join('');
+    }
+
+    /**
+     * Build status/shop-type counts from the rows already loaded (up to API limit).
+     * Used when listStatusSummary is not deployed yet.
+     */
+    function buildPipelineDataFromRows(rows) {
+        var st = {};
+        var sh = {};
+        (rows || []).forEach(function (r) {
+            var s = ((r && r.status) || '').toString().trim() || '(blank status)';
+            st[s] = (st[s] || 0) + 1;
+            var t = ((r && r.shop_type) || '').toString().trim() || '(blank shop type)';
+            sh[t] = (sh[t] || 0) + 1;
+        });
+        function toPairs(obj, keyName) {
+            return Object.keys(obj).map(function (k) {
+                var o = { count: obj[k] };
+                o[keyName] = k;
+                return o;
+            }).sort(function (a, b) { return b.count - a.count; });
+        }
+        return {
+            by_status: toPairs(st, 'status'),
+            by_shop_type: toPairs(sh, 'shop_type'),
+        };
+    }
+
+    function renderPipeline(data) {
+        if (!pipelineBody) return;
+        var byStatus = data.by_status || [];
+        var byShop = data.by_shop_type || [];
+        var maxS = maxCount(byStatus);
+        var maxSh = maxCount(byShop);
+        pipelineBody.innerHTML =
+            '<div class="pipeline-block"><h3>Stores by status</h3><div class="pipeline-rows">' +
+            renderPipelineRows(byStatus, 'status', maxS) +
+            '</div></div>' +
+            '<div class="pipeline-block pipeline-shop"><h3>Stores by shop type</h3><div class="pipeline-rows pipeline-rows-shop">' +
+            renderPipelineRows(byShop, 'shop', maxSh) +
+            '</div></div>';
+
+        var parts = [];
+        if (typeof data.total_data_rows === 'number') {
+            parts.push('Hit List data rows: ' + data.total_data_rows);
+        }
+        if (typeof data.blank_status === 'number' && data.blank_status > 0) {
+            parts.push('blank status: ' + data.blank_status);
+        }
+        if (typeof data.blank_shop_type === 'number' && data.blank_shop_type > 0) {
+            parts.push('blank shop type: ' + data.blank_shop_type);
+        }
+        if (pipelineMeta) {
+            var extra = (data && data._client_note) ? ' ' + data._client_note : '';
+            pipelineMeta.textContent = (parts.length ? parts.join(' · ') : '') + extra;
+        }
+    }
+
+    function showPipelineDeployHint(serverMessage) {
+        pipelineSummaryServerMissing = true;
+        var msg = escapeHtml(serverMessage || 'Unknown action');
+        if (!pipelineBody) return;
+        pipelineBody.innerHTML =
+            '<p class="config-warn" style="display:block;">' +
+            '<strong>Full-sheet overview needs a redeployed web app.</strong> The server said: ' + msg + '. ' +
+            'In Apps Script open the project for this <code>API_BASE_URL</code>, then <strong>Deploy → Manage deployments</strong> → ' +
+            'your Web app → <strong>Edit</strong> → <strong>New version</strong> → Deploy so <code>listStatusSummary</code> is live. ' +
+            'After the table loads, this page will show <strong>approximate</strong> counts from the loaded rows only (same cap as the table).</p>';
+    }
+
+    function maybeFillPipelineFromTableRows() {
+        if (!pipelineBody || !pipelineSummaryServerMissing || !lastRows || !lastRows.length) return;
+        var d = buildPipelineDataFromRows(lastRows);
+        d._client_note = '(Approximate: from rows in the table below only, not the entire Hit List.)';
+        renderPipeline(d);
+    }
+
+    function rowSortKey(col, r) {
+        if (col === 'shop') return (r.shop_name || '').toString();
+        if (col === 'status') return (r.status || '').toString();
+        if (col === 'citystate') return [r.city, r.state].filter(Boolean).join(', ');
+        if (col === 'shop_type') return (r.shop_type || '').toString();
+        return '';
+    }
+
+    function compareRowsLocale(a, b) {
+        return String(a || '').localeCompare(String(b || ''), undefined, { sensitivity: 'base', numeric: true });
+    }
+
+    function sortedRowsForDisplay(rows) {
+        if (!sortColumn || !rows || !rows.length) return (rows || []).slice();
+        var col = sortColumn;
+        var mult = sortDir === 'desc' ? -1 : 1;
+        var out = rows.slice();
+        out.sort(function (a, b) {
+            return mult * compareRowsLocale(rowSortKey(col, a), rowSortKey(col, b));
+        });
+        return out;
+    }
+
+    function sortHeaderHtml(col, label) {
+        var arrow = '';
+        if (sortColumn === col) {
+            arrow = sortDir === 'asc' ? ' \u25B2' : ' \u25BC';
+        }
+        return '<th scope="col"><button type="button" class="sort-btn" data-sort="' + col + '" title="Sort by column; click again to reverse">' +
+            escapeHtml(label) + arrow + '</button></th>';
+    }
+
+    function sortColumnDisplayName(col) {
+        if (col === 'citystate') return 'City / State';
+        if (col === 'shop_type') return 'Shop type';
+        if (col === 'shop') return 'Shop';
+        if (col === 'status') return 'Status';
+        return col || '';
+    }
+
+    async function fetchSummary() {
+        if (!apiConfigured() || !pipelineBody) return;
+        pipelineSummaryServerMissing = false;
+        pipelineBody.innerHTML = '<p class="help-text">Loading overview…</p>';
+        if (pipelineMeta) pipelineMeta.textContent = '';
+        try {
+            var url = API_BASE_URL + '?action=listStatusSummary' + tokenQs();
+            var res = await fetch(url);
+            var json = await res.json();
+            if (json.status !== 'success') {
+                var m = (json.message || '').toString();
+                if (m.indexOf('Unknown action') !== -1) {
+                    showPipelineDeployHint(m);
+                } else {
+                    pipelineBody.innerHTML = '<p class="status-err">' + escapeHtml(m || 'Overview request failed') + '</p>';
+                }
+                return;
+            }
+            renderPipeline(json.data || {});
+        } catch (err) {
+            console.error(err);
+            pipelineBody.innerHTML = '<p class="status-err">' + escapeHtml(err && err.message ? err.message : String(err)) + '</p>';
+        }
+    }
+
+    function renderTable(rows, total) {
+        lastRows = rows && rows.length ? rows.slice() : [];
+        lastTotal = typeof total === 'number' ? total : lastRows.length;
+
+        if (!lastRows.length) {
+            resultsEl.innerHTML = '<p class="help-text" style="text-align:center;">No rows match the current filters.</p>';
+            return;
+        }
+
+        var displayRows = sortedRowsForDisplay(lastRows);
+        var html = '<table class="stores-by-status-table"><thead><tr>';
+        html += sortHeaderHtml('shop', 'Shop');
+        html += sortHeaderHtml('status', 'Status');
+        html += sortHeaderHtml('citystate', 'City / State');
+        html += sortHeaderHtml('shop_type', 'Shop type');
+        html += '<th scope="col">Open</th>';
+        html += '</tr></thead><tbody>';
+        displayRows.forEach(function (r) {
+            var label = escapeHtml(r.shop_name || '(no name)');
+            var key = (r.store_key || '').trim();
+            html += '<tr>';
+            html += '<td>' + label + (key ? '<div class="meta">Key: ' + escapeHtml(key) + '</div>' : '') + '</td>';
+            html += '<td>' + escapeHtml(r.status || '') + '</td>';
+            html += '<td>' + escapeHtml([r.city, r.state].filter(Boolean).join(', ')) + '</td>';
+            html += '<td>' + escapeHtml(r.shop_type || '') + '</td>';
+            html += '<td><a href="#" class="store-details-link row-open" data-key="' + escapeHtml(key) + '" data-shop="' + escapeHtml(r.shop_name || '') + '">History</a></td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        html += '<p class="meta" style="margin-top:0.75rem;">Showing ' + displayRows.length + ' of ' + lastTotal + ' matching row(s) (server cap applies).';
+        if (sortColumn) {
+            html += ' Sorted by <strong>' + escapeHtml(sortColumnDisplayName(sortColumn)) + '</strong> (' + escapeHtml(sortDir) + ').';
+        }
+        html += '</p>';
+        resultsEl.innerHTML = html;
+
+        resultsEl.querySelectorAll('a.row-open').forEach(function (a) {
+            a.addEventListener('click', function (e) {
+                e.preventDefault();
+                openHistoryUrl({ store_key: a.getAttribute('data-key') || '', shop_name: a.getAttribute('data-shop') || '' });
+            });
+        });
+
+        resultsEl.querySelectorAll('.sort-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var col = (btn.getAttribute('data-sort') || '').trim();
+                if (!col) return;
+                if (sortColumn === col) {
+                    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortColumn = col;
+                    sortDir = 'asc';
+                }
+                renderTable(lastRows, lastTotal);
+            });
+        });
+    }
+
+    async function fetchList() {
+        if (!apiConfigured()) {
+            configWarn.style.display = 'block';
+            setStatus('Configure API_BASE_URL in this page.', 'error');
+            return;
+        }
+        configWarn.style.display = 'none';
+        if (loadInFlight) return;
+        loadInFlight = true;
+        setLoadingUi(true);
+        try {
+            var url = buildListUrl();
+            var res = await fetch(url);
+            var json = await res.json();
+            if (json.status !== 'success') {
+                setStatus(json.message || 'Request failed', 'error');
+                resultsEl.innerHTML = '';
+                lastRows = [];
+                lastTotal = 0;
+                return;
+            }
+            var d = json.data || {};
+            var rows = d.rows || [];
+            var total = typeof d.total === 'number' ? d.total : rows.length;
+            renderTable(rows, total);
+            maybeFillPipelineFromTableRows();
+            setStatus('Loaded ' + rows.length + ' row(s).', 'ok');
+            lastFetchMeta.textContent = 'Last fetch: ' + new Date().toLocaleString() + ' · total matching ' + total;
+        } catch (err) {
+            console.error(err);
+            setStatus('Error: ' + (err && err.message ? err.message : String(err)), 'error');
+            resultsEl.innerHTML = '';
+            lastRows = [];
+            lastTotal = 0;
+        } finally {
+            loadInFlight = false;
+            setLoadingUi(false);
+        }
+    }
+
+    populateSelect(statusSelect, STATUS_OPTIONS);
+    populateSelect(shopTypeSelect, SHOP_TYPE_OPTIONS);
+
+    refreshBtn.addEventListener('click', function () {
+        fetchSummary();
+        fetchList();
+    });
+    clearFiltersBtn.addEventListener('click', function () {
+        clearSelect(statusSelect);
+        clearSelect(shopTypeSelect);
+        fetchList();
+    });
+
+    if (pipelineBody) {
+        pipelineBody.addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest('.pipeline-row') : null;
+            if (!btn) return;
+            var kind = (btn.getAttribute('data-kind') || '').trim();
+            var raw = btn.getAttribute('data-value') || '';
+            var value = '';
+            try { value = decodeURIComponent(raw); } catch (err) { value = raw; }
+            if (!value) return;
+            if (kind === 'status') {
+                clearSelect(shopTypeSelect);
+                clearSelect(statusSelect);
+                ensureOption(statusSelect, value);
+                selectOnly(statusSelect, value);
+            } else if (kind === 'shop') {
+                clearSelect(statusSelect);
+                clearSelect(shopTypeSelect);
+                ensureOption(shopTypeSelect, value);
+                selectOnly(shopTypeSelect, value);
+            }
+            fetchList();
+        });
+    }
+
+    if (!apiConfigured()) {
+        configWarn.style.display = 'block';
+    }
+
+    window.addEventListener('load', function () {
+        fetchSummary();
+        fetchList();
+    });
+})();
+    </script>
+</body>
+</html>
