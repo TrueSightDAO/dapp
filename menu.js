@@ -16,6 +16,7 @@
     { title: 'Cacao Bag Scanner', url: './scanner.html', section: 'Retail & field activity' },
     { title: 'Sales Reporter', url: './report_sales.html', section: 'Retail & field activity' },
     { title: 'Stores Nearby', url: './stores_nearby.html', section: 'Retail & field activity' },
+    { title: 'Stores by Status', url: './stores_by_status.html', section: 'Retail & field activity' },
     { title: 'Store Interaction History', url: './store_interaction_history.html', section: 'Retail & field activity' },
     { title: 'Register Your Farm', url: './register_farm.html', section: 'Sunmint Tree Planting Program' },
     { title: 'Report Tree Planting', url: './report_tree_planting.html', section: 'Sunmint Tree Planting Program' },

@@ -1450,6 +1450,106 @@
         let lastSignatureNotice = 0;
         const knownStoresByKey = new Map();
 
+        /** Throttle “field agent location” pings to GAS (Recent Field Agent Location). */
+        const FIELD_AGENT_LAST_MS_KEY = 'tsd_field_agent_loc_last_ms_v1';
+        let fieldAgentSaveParamsConsumed = false;
+        /** True after maybeAttach adds save_location; cleared when the fetch attempt is finalized. */
+        let lastFetchRequestedFieldAgentSave = false;
+
+        function pageSaveLocationForced() {
+            try {
+                const q = new URLSearchParams(window.location.search);
+                const v = (q.get('save_location') || '').toLowerCase();
+                return v === 'true' || v === '1';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function fieldAgentStorageSuffix() {
+            const pk = localStorage.getItem('publicKey') || '';
+            return pk ? pk.slice(0, 80) : 'anon';
+        }
+
+        function getLastFieldAgentLocationMs() {
+            try {
+                const raw = localStorage.getItem(FIELD_AGENT_LAST_MS_KEY + ':' + fieldAgentStorageSuffix());
+                const n = raw ? parseInt(raw, 10) : 0;
+                return Number.isFinite(n) ? n : 0;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function shouldAttachFieldAgentLocationSave() {
+            if (pageSaveLocationForced()) {
+                return true;
+            }
+            if (interactionMode !== 'interactive') {
+                return false;
+            }
+            if (!localStorage.getItem('publicKey')) {
+                return false;
+            }
+            const last = getLastFieldAgentLocationMs();
+            if (!last) {
+                return true;
+            }
+            return Date.now() - last >= 24 * 60 * 60 * 1000;
+        }
+
+        function markFieldAgentLocationLoggedFromServer() {
+            try {
+                localStorage.setItem(
+                    FIELD_AGENT_LAST_MS_KEY + ':' + fieldAgentStorageSuffix(),
+                    String(Date.now())
+                );
+            } catch (e) {
+                /* ignore storage quota / private mode */
+            }
+        }
+
+        function maybeAttachFieldAgentLocationParams(params) {
+            if (fieldAgentSaveParamsConsumed) {
+                return;
+            }
+            if (!shouldAttachFieldAgentLocationSave()) {
+                return;
+            }
+            if (interactionMode !== 'interactive') {
+                return;
+            }
+            const pk = localStorage.getItem('publicKey');
+            if (!pk) {
+                return;
+            }
+            params.set('save_location', 'true');
+            params.set('digital_signature', pk);
+            lastFetchRequestedFieldAgentSave = true;
+        }
+
+        function applyFieldAgentLocationResponse(data) {
+            const attemptedSave = lastFetchRequestedFieldAgentSave;
+            if (attemptedSave) {
+                fieldAgentSaveParamsConsumed = true;
+                lastFetchRequestedFieldAgentSave = false;
+            }
+            if (attemptedSave && data && data.success && !data.field_agent_location) {
+                console.warn(
+                    '[field agent] Request included save_location=true but the JSON response has no field_agent_location. ' +
+                    'Redeploy the Stores Nearby Google Apps Script web app so the sheet row is written.'
+                );
+            }
+            if (!data || !data.field_agent_location) {
+                return;
+            }
+            if (data.field_agent_location.saved) {
+                markFieldAgentLocationLoggedFromServer();
+            } else if (data.field_agent_location.reason) {
+                console.warn('[field agent] Location not saved:', data.field_agent_location.reason);
+            }
+        }
+
         function updateNewStoreCoordinatesUI() {
             const latInput = document.getElementById('newStoreLat');
             const lngInput = document.getElementById('newStoreLng');
@@ -1853,6 +1953,11 @@
 
         function setInteractionMode(mode) {
             interactionMode = mode;
+            if (mode === 'interactive') {
+                // Allow the first interactive store fetch to attach save_location (avoids races with early URL auto-search).
+                fieldAgentSaveParamsConsumed = false;
+                lastFetchRequestedFieldAgentSave = false;
+            }
             const banner = document.getElementById('signaturePromptBanner');
             if (banner) {
                 banner.style.display = mode === 'interactive' ? 'none' : 'block';
@@ -2038,9 +2143,12 @@
                     // If no shop type selected, send empty to show all
                     params.append('shop_type', '');
                 }
+
+                maybeAttachFieldAgentLocationParams(params);
                 
                 const response = await fetch(`${API_URL}?${params.toString()}`);
                 const data = await response.json();
+                applyFieldAgentLocationResponse(data);
                 
                 console.log('loadStoresForBounds response:', {
                     success: data.success,
@@ -2114,6 +2222,7 @@
                 }
             } catch (error) {
                 console.error('Error loading stores for bounds:', error);
+                applyFieldAgentLocationResponse(null);
             } finally {
                 showMapLoading(false);
                 isMapLoading = false;
@@ -2727,7 +2836,10 @@
                 initMap();
             }
 
-            // Only clear markers if not in expanded mode (to preserve lazy-loaded stores)
+            // Only clear markers if not in expanded mode (to preserve lazy-loaded stores).
+            // In expanded mode, lazy loading uses addStoresToMap (not updateMap with stores).
+            // When updateMap is called with a non-empty stores array (e.g. searchStores), we must
+            // replace markers or stale pins from the previous filter remain on the map.
             if (!isMapExpanded) {
             // Clear existing markers
             if (userMarker) {
@@ -2737,9 +2849,18 @@
             storeMarkers = [];
                 loadedStoreKeys.clear();
             } else {
-                // In expanded mode, only clear user marker if needed
                 if (userMarker) {
                     map.removeLayer(userMarker);
+                }
+                if (stores && stores.length > 0) {
+                    loadedStoreKeys.clear();
+                    storeMarkers.forEach(marker => map.removeLayer(marker));
+                    storeMarkers = [];
+                    if (window.routeLine) {
+                        map.removeLayer(window.routeLine);
+                        window.routeLine = null;
+                    }
+                    window.allStoresData = [];
                 }
             }
 
@@ -3208,70 +3329,95 @@
                 statusMessage.innerHTML = '<div class="loading"><div class="spinner"></div>Getting your location...</div>';
             }
             
-            // Set a timeout to prevent hanging
+            // Desktop / localhost: enableHighAccuracy:true often yields POSITION_UNAVAILABLE (no GPS).
+            // Try network/Wi‑Fi position first, then one GPS/high-accuracy attempt on mobile.
+            const geoAttempts = [
+                { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 },
+                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+            ];
+            let settled = false;
             const timeoutId = setTimeout(() => {
+                if (settled) return;
+                settled = true;
                 if (locationStatusEl) {
                     locationStatusEl.innerHTML = `<span style="color: #dc3545;">❌ Location request timed out. Please try again or use "Use Current Location" button.</span>`;
                 }
                 if (statusMessage) {
                     statusMessage.innerHTML = `<div class="error">Location request timed out. Please try again or use "Use Current Location" button.</div>`;
                 }
-            }, 15000); // 15 second timeout
-            
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    clearTimeout(timeoutId);
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    currentLocationLabel = 'Your Location (Start)';
-                    currentLat = lat;
-                    currentLng = lng;
-                    
-                    // Update location status
-                    if (locationStatusEl) {
-                        locationStatusEl.innerHTML = `<span style="color: #28a745;">✅ Location detected: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
-                    }
-                    
-                    // Update map with user location
-                    updateMap(lat, lng, []);
-                    
-                    // Update URL with new location
-                    updateURLState(true);
-                    
-                    if (autoSearch) {
-                        // Automatically search after getting location
-                        searchStores();
-                    } else {
-                        if (statusMessage) {
-                            statusMessage.innerHTML = '<div class="status">Location found! Click "Find Nearby Stores" to search.</div>';
-                        }
-                    }
-                },
-                function(error) {
-                    clearTimeout(timeoutId);
-                    let errorMsg = 'Unknown error';
-                    if (error.code === 1) {
-                        errorMsg = 'Permission denied. Please allow location access and try again.';
-                    } else if (error.code === 2) {
-                        errorMsg = 'Location unavailable. Please check your device settings.';
-                    } else if (error.code === 3) {
-                        errorMsg = 'Location request timed out. Please try again.';
-                    } else {
-                        errorMsg = error.message || 'Unable to get location';
-                    }
-                    if (locationStatusEl) {
-                        locationStatusEl.innerHTML = `<span style="color: #dc3545;">❌ Error: ${errorMsg}</span>`;
-                    }
-                    if (statusMessage) {
-                        statusMessage.innerHTML = `<div class="error">Error getting location: ${errorMsg}</div>`;
-                    }
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 15000, // 15 second timeout
-                    maximumAge: 0 // Don't use cached location
+            }, 45000);
+
+            function showGeoError(error) {
+                let errorMsg = 'Unknown error';
+                if (error.code === 1) {
+                    errorMsg = 'Permission denied. Please allow location access for this site (browser address bar) and try again.';
+                } else if (error.code === 2) {
+                    errorMsg = 'Location unavailable. On desktop, enable location for your browser in System Settings → Privacy → Location Services, or disable VPN. If the problem persists, try another browser.';
+                } else if (error.code === 3) {
+                    errorMsg = 'Location request timed out. Please try again.';
+                } else {
+                    errorMsg = error.message || 'Unable to get location';
                 }
-            );
+                if (locationStatusEl) {
+                    locationStatusEl.innerHTML = `<span style="color: #dc3545;">❌ Error: ${errorMsg}</span>`;
+                }
+                if (statusMessage) {
+                    statusMessage.innerHTML = `<div class="error">Error getting location: ${errorMsg}</div>`;
+                }
+            }
+
+            function onPosition(position) {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeoutId);
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                currentLocationLabel = 'Your Location (Start)';
+                currentLat = lat;
+                currentLng = lng;
+
+                if (locationStatusEl) {
+                    locationStatusEl.innerHTML = `<span style="color: #28a745;">✅ Location detected: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
+                }
+
+                updateMap(lat, lng, []);
+                updateURLState(true);
+
+                if (autoSearch) {
+                    searchStores();
+                } else if (statusMessage) {
+                    statusMessage.innerHTML = '<div class="status">Location found! Click "Find Nearby Stores" to search.</div>';
+                }
+            }
+
+            function tryAttempt(i) {
+                if (settled) return;
+                if (i > 0 && locationStatusEl) {
+                    locationStatusEl.innerHTML = '<span style="color: #007bff;">📍 Retrying with higher accuracy…</span>';
+                }
+                navigator.geolocation.getCurrentPosition(
+                    onPosition,
+                    function (error) {
+                        if (settled) return;
+                        if (error.code === 1) {
+                            settled = true;
+                            clearTimeout(timeoutId);
+                            showGeoError(error);
+                            return;
+                        }
+                        if (i + 1 < geoAttempts.length) {
+                            tryAttempt(i + 1);
+                        } else {
+                            settled = true;
+                            clearTimeout(timeoutId);
+                            showGeoError(error);
+                        }
+                    },
+                    geoAttempts[i]
+                );
+            }
+
+            tryAttempt(0);
         }
 
         // Note: Location detection is now triggered after signature verification
@@ -3280,6 +3426,28 @@
         document.getElementById('useCurrentLocation').addEventListener('click', function() {
             getCurrentLocation(false); // false = don't auto-search, just update location
         });
+
+        /**
+         * After status/shop-type filter changes: reload data.
+         * Expanded map uses bounds + lazy fetch (loadStoresForBounds). Normal view uses searchStores().
+         * Previously, expanded mode skipped clearing markers in updateMap, so filters appeared "stuck"
+         * until the map moved; expanded map also did not refetch when only the top filter changed.
+         */
+        function refreshStoresAfterFilterChange() {
+            if (isMapExpanded && map) {
+                loadedStoreKeys.clear();
+                window.allStoresData = [];
+                storeMarkers.forEach(marker => map.removeLayer(marker));
+                storeMarkers = [];
+                if (window.routeLine) {
+                    map.removeLayer(window.routeLine);
+                    window.routeLine = null;
+                }
+                loadStoresForBounds();
+            } else if (currentLat && currentLng) {
+                searchStores();
+            }
+        }
 
         // Auto-update when status filter changes
         // Function to update filter count badges and summaries
@@ -3379,10 +3547,7 @@
                     updateStatusDescription('');
                 }
             
-            // Only auto-search if we have valid coordinates
-            if (currentLat && currentLng) {
-                searchStores();
-            }
+            refreshStoresAfterFilterChange();
             });
         });
         
@@ -3399,10 +3564,7 @@
                 // Update counts and summaries
                 updateFilterCounts();
                 
-                // Only auto-search if we have valid coordinates
-                if (currentLat && currentLng) {
-                    searchStores();
-                }
+                refreshStoresAfterFilterChange();
             });
         });
         
@@ -4190,11 +4352,14 @@
                 params.append('shop_type', '');
             }
 
+            maybeAttachFieldAgentLocationParams(params);
+
             // Fetch stores
             fetch(`${API_URL}?${params.toString()}`)
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('searchBtn').disabled = false;
+                    applyFieldAgentLocationResponse(data);
                     
                     if (data.success) {
                         // Update map with stores (this will apply TSP ordering)
@@ -4214,6 +4379,7 @@
                 })
                 .catch(error => {
                     document.getElementById('searchBtn').disabled = false;
+                    applyFieldAgentLocationResponse(null);
                     statusMessage.innerHTML = 
                         `<div class="error">Error fetching stores: ${error.message}</div>`;
                     console.error('Error:', error);
@@ -5003,15 +5169,39 @@
             if (statusEl) {
                 statusEl.innerHTML = '<span style="color: #007bff;">Detecting location...</span>';
             }
-            
-            // Set a timeout to prevent hanging
+
+            const geoAttempts = [
+                { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 },
+                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+            ];
+            let settled = false;
             const timeoutId = setTimeout(() => {
+                if (settled) return;
+                settled = true;
                 if (statusEl) {
                     statusEl.innerHTML = `<span style="color: #dc3545;">Location request timed out. Please try again.</span>`;
                 }
-            }, 15000); // 15 second timeout
-            
-            navigator.geolocation.getCurrentPosition(async (position) => {
+            }, 45000);
+
+            function showCaptureError(error) {
+                let errorMsg = 'Unable to access location';
+                if (error.code === 1) {
+                    errorMsg = 'Permission denied. Please allow location access.';
+                } else if (error.code === 2) {
+                    errorMsg = 'Location unavailable. On desktop, enable location for your browser in System Settings, or try without VPN.';
+                } else if (error.code === 3) {
+                    errorMsg = 'Location request timed out. Please try again.';
+                } else {
+                    errorMsg = error.message || 'Unable to access location';
+                }
+                if (statusEl) {
+                    statusEl.innerHTML = `<span style="color: #dc3545;">${errorMsg}</span>`;
+                }
+            }
+
+            async function onCapturePosition(position) {
+                if (settled) return;
+                settled = true;
                 clearTimeout(timeoutId);
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
@@ -5024,26 +5214,36 @@
                     statusEl.innerHTML = `<span style="color: #28a745;">Location captured: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
                 }
                 await populateNewStoreAddressFromCoords(lat, lng);
-            }, (error) => {
-                clearTimeout(timeoutId);
-                let errorMsg = 'Unable to access location';
-                if (error.code === 1) {
-                    errorMsg = 'Permission denied. Please allow location access.';
-                } else if (error.code === 2) {
-                    errorMsg = 'Location unavailable. Please check your device settings.';
-                } else if (error.code === 3) {
-                    errorMsg = 'Location request timed out. Please try again.';
-                } else {
-                    errorMsg = error.message || 'Unable to access location';
+            }
+
+            function tryCaptureAttempt(i) {
+                if (settled) return;
+                if (i > 0 && statusEl) {
+                    statusEl.innerHTML = '<span style="color: #007bff;">Retrying with higher accuracy…</span>';
                 }
-                if (statusEl) {
-                    statusEl.innerHTML = `<span style="color: #dc3545;">${errorMsg}</span>`;
-                }
-            }, {
-                enableHighAccuracy: true,
-                timeout: 15000, // 15 second timeout
-                maximumAge: 0 // Don't use cached location
-            });
+                navigator.geolocation.getCurrentPosition(
+                    onCapturePosition,
+                    function (error) {
+                        if (settled) return;
+                        if (error.code === 1) {
+                            settled = true;
+                            clearTimeout(timeoutId);
+                            showCaptureError(error);
+                            return;
+                        }
+                        if (i + 1 < geoAttempts.length) {
+                            tryCaptureAttempt(i + 1);
+                        } else {
+                            settled = true;
+                            clearTimeout(timeoutId);
+                            showCaptureError(error);
+                        }
+                    },
+                    geoAttempts[i]
+                );
+            }
+
+            tryCaptureAttempt(0);
         }
 
         async function populateNewStoreAddressFromCoords(lat, lng) {
