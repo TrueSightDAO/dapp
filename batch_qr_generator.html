@@ -195,6 +195,14 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="managerSelect">Manager name (serialized inventory / labels):</label>
+                    <select id="managerSelect" required>
+                        <option value="">Loading contributors…</option>
+                    </select>
+                    <p style="font-size:0.85rem;color:#555;margin:0.35rem 0 0;">Defaults to your signed-in contributor name. Must appear in the signed request text.</p>
+                </div>
+
+                <div class="form-group">
                     <label for="quantity">Number of QR Codes (1-100):</label>
                     <input type="number" id="quantity" min="1" max="100" value="10" required>
                 </div>
@@ -212,6 +220,72 @@
         
         let currencies = [];
         let contributorName = '';
+
+        function setUrlParamsFromForm(zipFileNameOpt) {
+            try {
+                const cur = document.getElementById('currencySelect').value || '';
+                const qty = document.getElementById('quantity').value || '';
+                const mgr = document.getElementById('managerSelect').value || '';
+                const u = new URL(window.location.href);
+                if (cur) u.searchParams.set('currency', cur); else u.searchParams.delete('currency');
+                if (qty) u.searchParams.set('qty', qty); else u.searchParams.delete('qty');
+                if (mgr) u.searchParams.set('manager', mgr); else u.searchParams.delete('manager');
+                if (zipFileNameOpt) u.searchParams.set('zip', zipFileNameOpt); else u.searchParams.delete('zip');
+                window.history.replaceState({}, '', u.toString());
+            } catch (e) { console.warn('setUrlParamsFromForm', e); }
+        }
+
+        function applyUrlParamsToForm() {
+            try {
+                const u = new URL(window.location.href);
+                const cur = u.searchParams.get('currency');
+                const qty = u.searchParams.get('qty');
+                const mgr = u.searchParams.get('manager');
+                if (qty) {
+                    const qn = parseInt(qty, 10);
+                    if (!isNaN(qn)) document.getElementById('quantity').value = String(Math.min(100, Math.max(1, qn)));
+                }
+                if (mgr) {
+                    const sel = document.getElementById('managerSelect');
+                    const opt = Array.from(sel.options).find(o => o.value === mgr);
+                    if (opt) sel.value = mgr;
+                }
+                if (cur) {
+                    const sel = document.getElementById('currencySelect');
+                    const opt = Array.from(sel.options).find(o => o.value === cur);
+                    if (opt) {
+                        sel.value = cur;
+                        sel.dispatchEvent(new Event('change'));
+                    }
+                }
+            } catch (e) { console.warn('applyUrlParamsToForm', e); }
+        }
+
+        async function loadManagerDropdown() {
+            const sel = document.getElementById('managerSelect');
+            sel.innerHTML = '';
+            const add = (name) => {
+                if (!name) return;
+                const o = document.createElement('option');
+                o.value = name;
+                o.textContent = name;
+                sel.appendChild(o);
+            };
+            try {
+                const r = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?list_contributor_names=true`);
+                const j = await r.json();
+                const names = (j && j.status === 'success' && Array.isArray(j.names)) ? j.names : [];
+                const merged = [];
+                if (contributorName) merged.push(contributorName);
+                names.forEach(n => { if (n && merged.indexOf(n) === -1) merged.push(n); });
+                if (!merged.length) merged.push(contributorName || 'Unknown');
+                merged.forEach(add);
+                sel.value = contributorName && merged.indexOf(contributorName) !== -1 ? contributorName : merged[0];
+            } catch (e) {
+                add(contributorName || 'Unknown');
+            }
+            applyUrlParamsToForm();
+        }
 
         // Utility functions
         function base64ToArrayBuffer(base64) {
@@ -278,8 +352,9 @@
                 statusElement.textContent = 'Signature verified successfully';
                 statusElement.className = 'status fade-in';
 
-                // Load currencies after signature verification
+                // Load currencies and manager dropdown after signature verification
                 await loadCurrencies();
+                await loadManagerDropdown();
             } catch (error) {
                 statusElement.textContent = 'Error fetching data: ' + error.message;
                 statusElement.className = 'error fade-in';
@@ -314,6 +389,7 @@
                     }
                     
                     populateCurrencySelect();
+                    applyUrlParamsToForm();
                     statusElement.textContent = 'Currencies loaded successfully';
                     statusElement.className = 'status fade-in';
                 } else {
@@ -358,6 +434,7 @@
             
             const currencyName = document.getElementById('currencySelect').value;
             const quantity = document.getElementById('quantity').value;
+            const managerName = (document.getElementById('managerSelect').value || contributorName || '').trim();
             const submitBtn = document.getElementById('submitBtn');
             const output = document.getElementById('outputMessage');
             
@@ -375,6 +452,11 @@
 
             if (!currencyName) {
                 output.textContent = 'Please select a currency.';
+                output.className = 'error';
+                return;
+            }
+            if (!managerName) {
+                output.textContent = 'Please select a manager name.';
                 output.className = 'error';
                 return;
             }
@@ -405,10 +487,13 @@
 - Currency: ${currencyName}
 - Quantity: ${quantity}
 - Contributor: ${contributorName}
+- Manager Name: ${managerName}
 - Timestamp: ${new Date().toISOString()}
 - Expected Zip File: ${zipFileName}
 - Download Location: ${downloadUrl}
 --------`;
+
+                setUrlParamsFromForm(zipFileName);
 
                 // Import private key and sign the message
                 const privateKeyObj = await window.crypto.subtle.importKey(
@@ -469,7 +554,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
                                 <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
                                     <li>Your request has been queued for processing</li>
                                     <li>QR codes will be generated in the background</li>
-                                    <li>You'll receive an email notification when ready</li>
+                                    <li>If you navigate away, you can still get an <strong>email when the batch is ready</strong> (when your signature is linked to an email in the contributors sheet)</li>
                                     <li>Check the download location above for your zip file</li>
                                 </ul>
                             </div>
@@ -502,9 +587,17 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
         document.getElementById('batchForm').addEventListener('submit', onSubmit);
 
         // Real-time validation and currency details
+        document.getElementById('managerSelect').addEventListener('change', function() {
+            setUrlParamsFromForm();
+            const submitBtn = document.getElementById('submitBtn');
+            const cur = document.getElementById('currencySelect').value;
+            submitBtn.disabled = !cur || !this.value;
+        });
+
         document.getElementById('currencySelect').addEventListener('change', function() {
             const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = !this.value;
+            const mgr = document.getElementById('managerSelect').value;
+            submitBtn.disabled = !this.value || !mgr;
             
             // Show currency details if a currency is selected
             if (this.value) {
@@ -521,6 +614,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
             const value = parseInt(this.value);
             if (value < 1) this.value = 1;
             if (value > 100) this.value = 100;
+            setUrlParamsFromForm();
         });
 
         function showCurrencyDetails(currency) {
