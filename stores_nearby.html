@@ -336,6 +336,19 @@
             font-size: 0.9rem;
             color: #6c757d;
         }
+        .store-hours-preview {
+            margin-top: 0.45rem;
+            font-size: 0.88rem;
+            color: #495057;
+            line-height: 1.35;
+        }
+        .store-hours-preview strong {
+            color: #212529;
+            font-weight: 600;
+        }
+        .store-opening-hours-table td {
+            vertical-align: top;
+        }
         .store-coordinates {
             font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
             font-size: 0.85rem;
@@ -420,6 +433,40 @@
         }
         .store-details-link:hover {
             text-decoration: underline;
+        }
+        .store-card.store-permanently-closed {
+            border-color: #adb5bd;
+            background: linear-gradient(180deg, #f1f3f5 0%, #e9ecef 100%);
+        }
+        .store-card.store-permanently-closed .store-name {
+            color: #495057;
+        }
+        .badge-google-closed {
+            display: inline-block;
+            margin-left: 0.35rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            background: #6c757d;
+            color: #fff;
+        }
+        #newStoreClosureWarning {
+            display: none;
+            margin: 0.75rem 0;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            border: 2px solid #842029;
+            background: #f8d7da;
+            color: #58151c;
+            font-size: 0.95rem;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+        #newStoreClosureWarning.show {
+            display: block;
         }
         .store-card.highlight {
             animation: highlightFade 2.5s ease-out;
@@ -913,6 +960,9 @@
                                     <strong>Coordinates:</strong> <span id="newStoreCoordinatesText"></span>
                                 </div>
                                 <div id="newStoreLocationStatus" style="font-size: 0.85rem; color: #6c757d;"></div>
+                                <div id="newStoreClosureWarning" role="alert">
+                                    Google lists this place as <strong>permanently closed</strong>. If you still add it, we will save <strong>Google listing = Closed</strong> on the Hit List so others see it on the map.
+                                </div>
                             </div>
 
                             <div class="form-group">
@@ -1349,6 +1399,16 @@
                             </label>
                         </div>
                     </div>
+                    <div style="flex: 1; min-width: 200px; max-width: 320px;">
+                        <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.9rem;">Hours filter:</label>
+                        <div class="expanded-multi-select-container" style="border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem 0.65rem; background: white; font-size: 0.875rem;">
+                            <label style="display: flex; align-items: flex-start; gap: 0.45rem; cursor: pointer; user-select: none; line-height: 1.35;">
+                                <input type="checkbox" id="expandedOpenNowFilterToggle" style="margin-top: 0.15rem; width: 18px; height: 18px; flex-shrink: 0; accent-color: #007bff; cursor: pointer;">
+                                <span><strong>Open now</strong> <span style="color: #6c757d; font-weight: 400;">(device time zone)</span><br>
+                                <span style="font-size: 0.78rem; color: #868e96;">Uses Hit List hours; excludes permanently closed on Google.</span></span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
                 <button class="close-btn" id="closeExpandedMapBtn">Close Map</button>
             </div>
@@ -1358,6 +1418,10 @@
 
             <!-- Search Button - Secondary action -->
             <form id="searchForm" style="margin-bottom: 1.5rem;">
+                <label style="display:flex; align-items:center; justify-content:center; gap:0.5rem; margin: 0 auto 0.75rem; max-width:400px; font-size:0.95rem; color:#333; cursor:pointer;">
+                    <input type="checkbox" id="openNowFilterToggle" style="width:18px; height:18px; accent-color:#007bff;">
+                    <span>Filter by Open now <span style="color:#6c757d; font-size:0.85rem;">(uses your device time zone)</span></span>
+                </label>
                 <button type="submit" class="btn" id="searchBtn" style="width: 100%; max-width: 400px; padding: 0.75rem 1.5rem; font-size: 1rem; display: block; margin: 0 auto;">
                     🔍 Find Nearby Stores
                 </button>
@@ -1449,6 +1513,323 @@
         let pendingStoreDeepLink = null;
         let lastSignatureNotice = 0;
         const knownStoresByKey = new Map();
+
+        /** Optional Monday…Sunday open/close (24h HH:MM) from Google Places for DApp → GAS add_store. */
+        let newStoreHourParams = {};
+        /** Sent as ``google_listing`` on add_store when Google marks the place permanently closed. */
+        let newStoreGoogleListing = '';
+        let openNowFilterEnabled = false;
+
+        const HIT_LIST_OPENING_HOUR_HEADERS = [
+            'Monday Open', 'Monday Close',
+            'Tuesday Open', 'Tuesday Close',
+            'Wednesday Open', 'Wednesday Close',
+            'Thursday Open', 'Thursday Close',
+            'Friday Open', 'Friday Close',
+            'Saturday Open', 'Saturday Close',
+            'Sunday Open', 'Sunday Close'
+        ];
+
+        const GOOGLE_DAY_TO_PAIR_START = { 0: 12, 1: 0, 2: 2, 3: 4, 4: 6, 5: 8, 6: 10 };
+
+        function pad2(n) {
+            return (n < 10 ? '0' : '') + n;
+        }
+
+        function parseDayToken(d) {
+            if (typeof d === 'number' && d >= 0 && d <= 6) {
+                return d;
+            }
+            const map = { SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6 };
+            if (typeof d === 'string') {
+                return map[d.toUpperCase()] ?? null;
+            }
+            return null;
+        }
+
+        function toHHMMFromHourMinute(hour, minute) {
+            const h = Number(hour);
+            const m = Number(minute);
+            if (!Number.isFinite(h) || !Number.isFinite(m)) {
+                return '';
+            }
+            return pad2(h) + ':' + pad2(m);
+        }
+
+        function legacyPeriodFromNewApiPeriod(p) {
+            if (!p || !p.open) {
+                return null;
+            }
+            const od = parseDayToken(p.open.day);
+            if (od === null) {
+                return null;
+            }
+            const om = (Number(p.open.hour) || 0) * 60 + (Number(p.open.minute) || 0);
+            const openTime = pad2(Math.floor(om / 60)) + pad2(om % 60);
+            const out = { open: { day: od, time: openTime } };
+            if (p.close && p.close.day !== undefined) {
+                const cd = parseDayToken(p.close.day);
+                if (cd === null) {
+                    return out;
+                }
+                const cm = (Number(p.close.hour) || 0) * 60 + (Number(p.close.minute) || 0);
+                const closeTime = pad2(Math.floor(cm / 60)) + pad2(cm % 60);
+                out.close = { day: cd, time: closeTime };
+            }
+            return out;
+        }
+
+        function openingHourParamsFromGooglePeriods(periods) {
+            const out = {};
+            HIT_LIST_OPENING_HOUR_HEADERS.forEach((h) => {
+                out[h.toLowerCase().replace(/\s+/g, '_')] = '';
+            });
+            if (!Array.isArray(periods) || !periods.length) {
+                return out;
+            }
+
+            const intervals = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+
+            function parseDayTime(day, tim) {
+                const d = parseDayToken(day);
+                if (d === null) {
+                    return null;
+                }
+                let s = String(tim || '').trim();
+                if (!/^\d+$/.test(s)) {
+                    return null;
+                }
+                if (s.length === 3) {
+                    s = '0' + s;
+                }
+                if (s.length !== 4) {
+                    return null;
+                }
+                const mins = parseInt(s.slice(0, 2), 10) * 60 + parseInt(s.slice(2), 10);
+                return { d: d, m: mins };
+            }
+
+            periods.forEach((p) => {
+                const o = p.open || {};
+                const c = p.close || {};
+                const op = parseDayTime(o.day, o.time);
+                if (!op) {
+                    return;
+                }
+                const openDay = op.d;
+                const openM = op.m;
+                const cp = c && c.day !== undefined && c.time !== undefined ? parseDayTime(c.day, c.time) : null;
+                if (!cp) {
+                    intervals[openDay].push([0, 24 * 60]);
+                    return;
+                }
+                const closeDay = cp.d;
+                const closeM = cp.m;
+                if (closeDay === openDay) {
+                    const endM = closeM > openM ? closeM : closeM + 24 * 60;
+                    intervals[openDay].push([openM, endM]);
+                } else {
+                    const span = (24 * 60 - openM) + closeM;
+                    intervals[openDay].push([openM, openM + span]);
+                }
+            });
+
+            Object.keys(intervals).forEach((dk) => {
+                const d = Number(dk);
+                const segs = intervals[d];
+                if (!segs.length) {
+                    return;
+                }
+                const start = Math.min.apply(null, segs.map((s) => s[0]));
+                const end = Math.max.apply(null, segs.map((s) => s[1]));
+                const pair0 = GOOGLE_DAY_TO_PAIR_START[d];
+                if (pair0 === undefined) {
+                    return;
+                }
+                const openCol = HIT_LIST_OPENING_HOUR_HEADERS[pair0];
+                const closeCol = HIT_LIST_OPENING_HOUR_HEADERS[pair0 + 1];
+                out[openCol.toLowerCase().replace(/\s+/g, '_')] = pad2(Math.floor(start / 60)) + ':' + pad2(start % 60);
+                const endNorm = end % (24 * 60);
+                out[closeCol.toLowerCase().replace(/\s+/g, '_')] = pad2(Math.floor(endNorm / 60)) + ':' + pad2(endNorm % 60);
+            });
+            return out;
+        }
+
+        function setNewStoreHoursFromPlace(place) {
+            newStoreHourParams = {};
+            if (!place) {
+                return;
+            }
+            const legacy = place.opening_hours && Array.isArray(place.opening_hours.periods)
+                ? place.opening_hours.periods
+                : null;
+            if (legacy && legacy.length) {
+                newStoreHourParams = openingHourParamsFromGooglePeriods(legacy);
+                return;
+            }
+            const roh = place.regularOpeningHours || place.regular_opening_hours;
+            const rawPeriods = roh && Array.isArray(roh.periods) ? roh.periods : null;
+            if (!rawPeriods || !rawPeriods.length) {
+                return;
+            }
+            const legacyLike = rawPeriods.map(legacyPeriodFromNewApiPeriod).filter(Boolean);
+            newStoreHourParams = openingHourParamsFromGooglePeriods(legacyLike);
+        }
+
+        function appendNewStoreHourParams(params) {
+            Object.keys(newStoreHourParams || {}).forEach((k) => {
+                const v = (newStoreHourParams[k] || '').trim();
+                if (v) {
+                    params.append(k, v);
+                }
+            });
+        }
+
+        function isGoogleListingClosed(value) {
+            return String(value || '').trim().toLowerCase() === 'closed';
+        }
+
+        function isStorePermanentlyClosed(store) {
+            return !!(store && isGoogleListingClosed(store.google_listing));
+        }
+
+        function mapMarkerColorForStore(store) {
+            return isStorePermanentlyClosed(store) ? 'closed' : 'blue';
+        }
+
+        function placeIsPermanentlyClosedFromGoogle(place) {
+            if (!place) {
+                return false;
+            }
+            const bs = place.businessStatus;
+            if (bs === undefined || bs === null) {
+                return false;
+            }
+            if (typeof google !== 'undefined' && google.maps && google.maps.places && google.maps.places.BusinessStatus) {
+                if (bs === google.maps.places.BusinessStatus.CLOSED_PERMANENTLY) {
+                    return true;
+                }
+            }
+            const s = String(bs);
+            return s.toUpperCase().indexOf('CLOSED_PERMANENTLY') >= 0;
+        }
+
+        function updateNewStoreClosureBanner(place) {
+            const el = document.getElementById('newStoreClosureWarning');
+            if (!el) {
+                return;
+            }
+            if (placeIsPermanentlyClosedFromGoogle(place)) {
+                newStoreGoogleListing = 'Closed';
+                el.classList.add('show');
+            } else {
+                newStoreGoogleListing = '';
+                el.classList.remove('show');
+            }
+        }
+
+        /** Match GAS / Hit List JSON keys: ``Monday Open`` → ``monday_open``. */
+        function hitListHourFieldKey(header) {
+            return String(header || '').trim().toLowerCase().replace(/\s+/g, '_');
+        }
+
+        const OPENING_HOURS_DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const OPENING_HOURS_DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+        function storeHasAnyOpeningHours(store) {
+            if (!store) {
+                return false;
+            }
+            for (let d = 0; d < 7; d++) {
+                const o = (store[hitListHourFieldKey(HIT_LIST_OPENING_HOUR_HEADERS[d * 2])] || '').trim();
+                const c = (store[hitListHourFieldKey(HIT_LIST_OPENING_HOUR_HEADERS[d * 2 + 1])] || '').trim();
+                if (o || c) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** One-line preview for the listing card: today’s hours in the viewer’s local weekday. */
+        function getTodaysHoursSummaryLine(store) {
+            if (!storeHasAnyOpeningHours(store)) {
+                return '';
+            }
+            const jsDow = new Date().getDay();
+            const pairStart = GOOGLE_DAY_TO_PAIR_START[jsDow];
+            if (pairStart === undefined) {
+                return '';
+            }
+            const openH = HIT_LIST_OPENING_HOUR_HEADERS[pairStart];
+            const closeH = HIT_LIST_OPENING_HOUR_HEADERS[pairStart + 1];
+            const o = (store[hitListHourFieldKey(openH)] || '').trim();
+            const c = (store[hitListHourFieldKey(closeH)] || '').trim();
+            const short = OPENING_HOURS_DAY_SHORT[jsDow] || 'Today';
+            if (o && c) {
+                return `<strong>${short}:</strong> ${escapeHtml(o)}–${escapeHtml(c)} <span style="color:#868e96;">(24h)</span>`;
+            }
+            if (o) {
+                return `<strong>${short}:</strong> opens ${escapeHtml(o)} <span style="color:#868e96;">(24h)</span>`;
+            }
+            if (c) {
+                return `<strong>${short}:</strong> closes ${escapeHtml(c)} <span style="color:#868e96;">(24h)</span>`;
+            }
+            return '';
+        }
+
+        /** Full week table for expanded store details. */
+        function buildOpeningHoursSectionHtml(store) {
+            if (!storeHasAnyOpeningHours(store)) {
+                return '';
+            }
+            const rows = [];
+            for (let d = 0; d < 7; d++) {
+                const openH = HIT_LIST_OPENING_HOUR_HEADERS[d * 2];
+                const closeH = HIT_LIST_OPENING_HOUR_HEADERS[d * 2 + 1];
+                const o = (store[hitListHourFieldKey(openH)] || '').trim();
+                const c = (store[hitListHourFieldKey(closeH)] || '').trim();
+                if (!o && !c) {
+                    continue;
+                }
+                rows.push(
+                    '<tr><td style="padding:0.2rem 0.65rem 0.2rem 0;font-weight:600;white-space:nowrap;">' +
+                    escapeHtml(OPENING_HOURS_DAY_LABELS[d]) +
+                    '</td><td style="padding:0.2rem 0.35rem 0.2rem 0;">' +
+                    escapeHtml(o || '—') +
+                    '</td><td style="padding:0.2rem 0.35rem;color:#868e96;">–</td><td style="padding:0.2rem 0;">' +
+                    escapeHtml(c || '—') +
+                    '</td></tr>'
+                );
+            }
+            if (!rows.length) {
+                return '';
+            }
+            return `
+                <div class="store-details-section">
+                    <div class="store-details-title">🕒 Opening hours</div>
+                    <div class="store-details-content">
+                        <table class="store-opening-hours-table" style="width:100%;max-width:22rem;border-collapse:collapse;font-size:0.9rem;">
+                            <tbody>${rows.join('')}</tbody>
+                        </table>
+                        <p style="margin:0.55rem 0 0;font-size:0.78rem;color:#6c757d;line-height:1.35;">Times follow the Hit List (24-hour HH:MM). They may differ from Google if the sheet was edited.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function maybeAttachOpenNowParams(params) {
+            if (!openNowFilterEnabled) {
+                return;
+            }
+            let tz = 'Etc/UTC';
+            try {
+                tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz;
+            } catch (e) {
+                /* ignore */
+            }
+            params.set('open_now', '1');
+            params.set('tz', tz);
+        }
 
         /** Throttle “field agent location” pings to GAS (Recent Field Agent Location). */
         const FIELD_AGENT_LAST_MS_KEY = 'tsd_field_agent_loc_last_ms_v1';
@@ -2145,6 +2526,7 @@
                 }
 
                 maybeAttachFieldAgentLocationParams(params);
+                maybeAttachOpenNowParams(params);
                 
                 const response = await fetch(`${API_URL}?${params.toString()}`);
                 const data = await response.json();
@@ -2273,11 +2655,12 @@
                     : `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`;
 
                 const marker = L.marker([store.latitude, store.longitude], {
-                    icon: createNumberedIcon(storeMarkers.length + 1, 'blue')
+                    icon: createNumberedIcon(storeMarkers.length + 1, mapMarkerColorForStore(store))
                 })
                 .addTo(map)
                 .bindPopup(`
                     <strong>${escapeHtml(store.name)}</strong><br>
+                    ${isStorePermanentlyClosed(store) ? '<span style="color:#842029;font-weight:700;">Permanently closed (Google)</span><br>' : ''}
                     ${escapeHtml(store.address || '')}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}<br>
                     <strong>Distance:</strong> ${store.distance ? store.distance.toFixed(1) : 'N/A'} miles<br>
                     <a href="${mapsUrl}" target="_blank" style="color: #007bff; text-decoration: none; margin-right: 0.5rem;">📍 View on Google Maps</a>
@@ -2359,6 +2742,11 @@
             // Sync checkbox states from normal view to expanded view
             syncCheckboxes('.status-filter-checkbox', '.expanded-status-filter-checkbox');
             syncCheckboxes('.shop-type-filter-checkbox', '.expanded-shop-type-filter-checkbox');
+            const mainOpenNowEl = document.getElementById('openNowFilterToggle');
+            if (mainOpenNowEl) {
+                openNowFilterEnabled = !!mainOpenNowEl.checked;
+            }
+            syncOpenNowCheckboxesToDom();
             
             isMapExpanded = true;
             loadedStoreKeys.clear();
@@ -2404,6 +2792,12 @@
             // Prevent race conditions: don't collapse if not expanded
             // Allow collapse even during restoration (user might want to cancel)
             if (!mapEl || !map || !isMapExpanded) return;
+
+            const expandedOpenEl = document.getElementById('expandedOpenNowFilterToggle');
+            if (expandedOpenEl) {
+                openNowFilterEnabled = !!expandedOpenEl.checked;
+            }
+            syncOpenNowCheckboxesToDom();
             
             // Update UI
             mapEl.classList.remove('expanded');
@@ -2594,6 +2988,26 @@
                         loadStoresForBounds();
                     });
                 });
+
+                const expandedOpenNowEl = document.getElementById('expandedOpenNowFilterToggle');
+                if (expandedOpenNowEl) {
+                    const clonedOpenNow = expandedOpenNowEl.cloneNode(true);
+                    expandedOpenNowEl.parentNode.replaceChild(clonedOpenNow, expandedOpenNowEl);
+                    clonedOpenNow.addEventListener('change', function () {
+                        openNowFilterEnabled = !!clonedOpenNow.checked;
+                        syncOpenNowCheckboxesToDom();
+                        saveFilterStates();
+                        loadedStoreKeys.clear();
+                        window.allStoresData = [];
+                        storeMarkers.forEach(marker => map.removeLayer(marker));
+                        storeMarkers = [];
+                        if (window.routeLine) {
+                            map.removeLayer(window.routeLine);
+                            window.routeLine = null;
+                        }
+                        loadStoresForBounds();
+                    });
+                }
             }, 100);
         }
 
@@ -2779,7 +3193,7 @@
                            Math.abs(pos.lng - store.longitude) < 0.0001;
                 });
                 if (marker) {
-                    marker.setIcon(createNumberedIcon(index + 1, 'blue'));
+                    marker.setIcon(createNumberedIcon(index + 1, mapMarkerColorForStore(store)));
                 }
             });
             
@@ -2801,9 +3215,15 @@
 
         // Create numbered marker icon using DivIcon
         function createNumberedIcon(number, color = 'blue') {
+            let bg = '#3388ff';
+            if (color === 'red') {
+                bg = '#ff3333';
+            } else if (color === 'closed') {
+                bg = '#6c757d';
+            }
             const iconHtml = `
                 <div style="
-                    background-color: ${color === 'blue' ? '#3388ff' : '#ff3333'};
+                    background-color: ${bg};
                     width: 30px;
                     height: 30px;
                     border-radius: 50%;
@@ -2934,11 +3354,12 @@
                         : `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`;
 
                     const marker = L.marker([store.latitude, store.longitude], {
-                        icon: createNumberedIcon(store.routeOrder, 'blue')
+                        icon: createNumberedIcon(store.routeOrder, mapMarkerColorForStore(store))
                     })
                     .addTo(map)
                     .bindPopup(`
                         <strong>Stop ${store.routeOrder}: ${escapeHtml(store.name)}</strong><br>
+                        ${isStorePermanentlyClosed(store) ? '<span style="color:#842029;font-weight:700;">Permanently closed (Google)</span><br>' : ''}
                         ${escapeHtml(store.address || '')}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}<br>
                         <strong>Distance from previous:</strong> ${store.routeDistance ? store.routeDistance.toFixed(1) : store.distance} miles<br>             
                         <strong>Distance from you:</strong> ${store.distance} miles<br>                                                                         
@@ -3624,6 +4045,12 @@
                         params.append('shop_type', shopType);
                     });
                 }
+
+                if (openNowFilterEnabled) {
+                    params.set('open_now', 'true');
+                } else {
+                    params.delete('open_now');
+                }
                 
                 // Add map expanded state
                 if (isMapExpanded) {
@@ -3770,6 +4197,15 @@
                         }
                     }
                 }
+
+                const openNowEl = document.getElementById('openNowFilterToggle');
+                if (openNowEl) {
+                    const rawOn = (params.get('open_now') || '').toLowerCase();
+                    const on = rawOn === 'true' || rawOn === '1';
+                    openNowFilterEnabled = on;
+                    openNowEl.checked = on;
+                }
+                syncOpenNowCheckboxesToDom();
                 
                 // If we loaded location from URL, trigger search if filters are present
                 // But skip if map is expanded - loadStoresForBounds will handle it with higher limit
@@ -3804,6 +4240,7 @@
                 
                 localStorage.setItem('storeFilters_status', JSON.stringify(statusFilters));
                 localStorage.setItem('storeFilters_shopType', JSON.stringify(shopTypeFilters));
+                localStorage.setItem('storeFilters_open_now', openNowFilterEnabled ? '1' : '0');
                 
                 // Also update URL
                 updateURLState(true); // Use replaceState to avoid cluttering history
@@ -4209,6 +4646,14 @@
                         document.querySelectorAll('.shop-type-filter-checkbox').forEach(cb => cb.checked = true);
                         document.querySelectorAll('.expanded-shop-type-filter-checkbox').forEach(cb => cb.checked = true);
                     }
+
+                    const savedOpenNow = localStorage.getItem('storeFilters_open_now');
+                    const openNowEl = document.getElementById('openNowFilterToggle');
+                    if (openNowEl && savedOpenNow !== null && savedOpenNow !== undefined) {
+                        openNowFilterEnabled = savedOpenNow === '1';
+                        openNowEl.checked = openNowFilterEnabled;
+                    }
+                    syncOpenNowCheckboxesToDom();
                 } catch (e) {
                     console.warn('Failed to load filter states:', e);
                     // Fallback: select all
@@ -4273,6 +4718,15 @@
             searchStores();
         });
 
+        const openNowToggleEl = document.getElementById('openNowFilterToggle');
+        if (openNowToggleEl) {
+            openNowToggleEl.addEventListener('change', function () {
+                openNowFilterEnabled = !!openNowToggleEl.checked;
+                syncOpenNowCheckboxesToDom();
+                saveFilterStates();
+            });
+        }
+
         // Helper functions to get selected values from checkboxes
         function getSelectedStatusFilters() {
             const checkboxes = document.querySelectorAll('.status-filter-checkbox:checked');
@@ -4303,6 +4757,22 @@
                     targetCheckboxes[index].checked = source.checked;
                 }
             });
+        }
+
+        /** Keep main + expanded **Open now** checkboxes aligned with ``openNowFilterEnabled``. */
+        function syncOpenNowCheckboxesToDom() {
+            try {
+                const main = document.getElementById('openNowFilterToggle');
+                const exp = document.getElementById('expandedOpenNowFilterToggle');
+                if (main) {
+                    main.checked = openNowFilterEnabled;
+                }
+                if (exp) {
+                    exp.checked = openNowFilterEnabled;
+                }
+            } catch (err) {
+                console.warn('syncOpenNowCheckboxesToDom:', err);
+            }
         }
 
         function searchStores() {
@@ -4353,6 +4823,7 @@
             }
 
             maybeAttachFieldAgentLocationParams(params);
+            maybeAttachOpenNowParams(params);
 
             // Fetch stores
             fetch(`${API_URL}?${params.toString()}`)
@@ -4429,15 +4900,18 @@
                     ? `<span class="store-coordinates" title="Coordinates captured for this shop">📍 ${latNumber.toFixed(4)}, ${lngNumber.toFixed(4)}</span>`
                     : '';
                 
+                const hoursPreviewLine = getTodaysHoursSummaryLine(store);
+                const closedClass = isStorePermanentlyClosed(store) ? ' store-permanently-closed' : '';
                 html += `
-                    <div class="store-card" id="store-card-${index}" onclick="toggleStoreDetails(${index}, event)" data-store-index="${index}" data-store-key="${storeKey}">
+                    <div class="store-card${closedClass}" id="store-card-${index}" onclick="toggleStoreDetails(${index}, event)" data-store-index="${index}" data-store-key="${storeKey}">
                         <div class="store-header">
-                            <div class="store-name">Stop ${routeOrder}: ${escapeHtml(store.name)}</div>
+                            <div class="store-name">Stop ${routeOrder}: ${escapeHtml(store.name)}${getGoogleListingBadge(store)}</div>
                             <div class="store-distance">${store.distance} mi</div>
                         </div>
                         <div class="store-info">
                             ${escapeHtml(store.address)}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}
                         </div>
+                        ${hoursPreviewLine ? `<div class="store-hours-preview">${hoursPreviewLine}</div>` : ''}
                         <div class="store-meta">
                             ${store.routeDistance ? `<span style="color: #007bff; font-weight: 600;">Route: ${store.routeDistance.toFixed(1)} mi from previous</span>` : ''}
                             ${priorityBadge}
@@ -4476,6 +4950,13 @@
             if (priorityLower === 'high') badgeClass = 'badge-high';
             else if (priorityLower === 'low') badgeClass = 'badge-low';
             return `<span class="store-badge ${badgeClass}">${escapeHtml(priority)} Priority</span>`;
+        }
+
+        function getGoogleListingBadge(store) {
+            if (!store || !isGoogleListingClosed(store.google_listing)) {
+                return '';
+            }
+            return '<span class="badge-google-closed" title="Google Maps lists this business as permanently closed">Closed on Google</span>';
         }
 
         function getStatusBadge(status) {
@@ -4540,7 +5021,9 @@
                         'location',
                         'formattedPhoneNumber',
                         'internationalPhoneNumber',
-                        'websiteUri'
+                        'websiteUri',
+                        'regularOpeningHours',
+                        'businessStatus'
                     ];
                     if ('fields' in autocompleteElement) {
                         autocompleteElement.fields = fields;
@@ -4568,7 +5051,8 @@
                         'geometry',
                         'formatted_phone_number',
                         'international_phone_number',
-                        'website'
+                        'website',
+                        'opening_hours'
                     ]
                 });
 
@@ -4687,7 +5171,8 @@
                             'location',
                             'formattedPhoneNumber',
                             'internationalPhoneNumber',
-                            'websiteUri'
+                            'websiteUri',
+                            'businessStatus'
                         ]
                     });
                 } else if (googleMapsState.placesLib && typeof googleMapsState.placesLib.Place === 'function' && (selectedPlace.placeId || selectedPlace.id)) {                                            
@@ -4701,7 +5186,8 @@
                             'location',
                             'formattedPhoneNumber',
                             'internationalPhoneNumber',
-                            'websiteUri'
+                            'websiteUri',
+                            'businessStatus'
                         ]
                     });
                 }
@@ -4715,6 +5201,8 @@
 
         function applyPlaceDetailsFromAddress(place) {
             if (!place) return;
+
+            newStoreHourParams = {};
 
             const nameInput = document.getElementById('newStoreName');
             const addressInput = document.getElementById('newStoreAddress');
@@ -4873,6 +5361,7 @@
                 }
             }
 
+            updateNewStoreClosureBanner(place);
             setNewStoreCardExpanded(true);
         }
 
@@ -4899,7 +5388,9 @@
                             'location',
                             'formattedPhoneNumber',
                             'internationalPhoneNumber',
-                            'websiteUri'
+                            'websiteUri',
+                            'regularOpeningHours',
+                            'businessStatus'
                         ]
                     });
                 } else if (googleMapsState.placesLib && typeof googleMapsState.placesLib.Place === 'function' && (selectedPlace.placeId || selectedPlace.id)) {                                            
@@ -4913,7 +5404,9 @@
                             'location',
                             'formattedPhoneNumber',
                             'internationalPhoneNumber',
-                            'websiteUri'
+                            'websiteUri',
+                            'regularOpeningHours',
+                            'businessStatus'
                         ]
                     });
                 }
@@ -5031,6 +5524,8 @@
                 }
             }
 
+            updateNewStoreClosureBanner(place);
+            setNewStoreHoursFromPlace(place);
             setNewStoreCardExpanded(true);
         }
 
@@ -5107,6 +5602,13 @@
             const submitBtn = document.getElementById('newStoreSubmitBtn');
             const messageEl = document.getElementById('newStoreStatusMessage');
             const locationStatusEl = document.getElementById('newStoreLocationStatus');
+
+            newStoreHourParams = {};
+            newStoreGoogleListing = '';
+            const closureEl = document.getElementById('newStoreClosureWarning');
+            if (closureEl) {
+                closureEl.classList.remove('show');
+            }
             
             // Clear all form fields explicitly
             const fields = [
@@ -5558,6 +6060,11 @@
                 params.append('submitted_by', publicKey);
             }
 
+            appendNewStoreHourParams(params);
+            if (newStoreGoogleListing) {
+                params.append('google_listing', newStoreGoogleListing);
+            }
+
             if (messageEl) {
                 messageEl.innerHTML = '<span style="color: #007bff;">Saving new store...</span>';
             }
@@ -5625,7 +6132,18 @@
                 : `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`;
             const fullAddress = `${escapeHtml(store.address || '')}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}`.trim();
             
-            let html = `
+            let html = '';
+            if (isStorePermanentlyClosed(store)) {
+                html += `
+                    <div class="store-details-section" style="border-color:#842029;background:#f8d7da;">
+                        <div class="store-details-title" style="color:#58151c;">⚠️ Google listing</div>
+                        <div class="store-details-content" style="color:#58151c;font-weight:600;">
+                            Google Maps reports this business as <strong>permanently closed</strong>. Treat outreach and visits accordingly.
+                        </div>
+                    </div>
+                `;
+            }
+            html += `
                 <div class="store-details-section">
                     <div class="store-details-title">📍 Location</div>
                     <div class="store-details-content">
@@ -5647,6 +6165,8 @@
                     </div>
                 `;
             }
+
+            html += buildOpeningHoursSectionHtml(store);
 
             if (store.phone || store.email || store.website || store.instagram) {
                 html += `
