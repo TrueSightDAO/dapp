@@ -829,6 +829,44 @@
             updateSubmitButtonState();
         }
 
+        /**
+         * If the user pastes a file or image into the contribution description while
+         * "Links in description" (or camera) is selected, switch proof mode to Upload and
+         * apply the same preview pipeline as the paste zone — without dumping binary into the textarea.
+         */
+        function handleDescriptionPasteForProof(event) {
+            const cd = event.clipboardData || (event.originalEvent && event.originalEvent.clipboardData);
+            if (!cd) return;
+
+            let file = null;
+            if (cd.items) {
+                for (let i = 0; i < cd.items.length; i++) {
+                    const item = cd.items[i];
+                    if (item.kind === 'file') {
+                        const f = item.getAsFile();
+                        if (f && f.size > 0) {
+                            file = f;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!file && cd.files && cd.files.length > 0) {
+                const f = cd.files[0];
+                if (f && f.size > 0) file = f;
+            }
+            if (!file) return;
+
+            event.preventDefault();
+
+            const inputMethodEl = document.getElementById('inputMethod');
+            if (inputMethodEl && inputMethodEl.value !== 'upload') {
+                inputMethodEl.value = 'upload';
+                toggleInputMethod();
+            }
+            handleFile(file);
+        }
+
         function handlePaste(event) {
             const inputMethod = document.getElementById('inputMethod').value;
             if (inputMethod !== 'upload') return;
@@ -1124,6 +1162,7 @@
                     charCount.textContent = this.value.length;
                     updateSubmitButtonState();
                 });
+                descriptionInput.addEventListener('paste', handleDescriptionPasteForProof);
                 // Setup contributor combobox
                 const contributorSelectCombobox = document.getElementById('contributorSelectCombobox');
                 const contributorDropdownContainer = document.getElementById('contributorDropdownContainer');
