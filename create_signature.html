@@ -798,12 +798,15 @@
       }
 
       if (verifyParams) {
-        document.getElementById('verifyBrowserSection').style.display = 'flex';
+        const verifySection = document.getElementById('verifyBrowserSection');
+        const verifyBtn = document.getElementById('verifyBrowserButton');
+        verifySection.style.display = 'flex';
         document.getElementById('verifyIntro').textContent =
-          'We found keys in this browser. Click below to confirm you control this device. This sends a signed verification event to Edgar.';
+          'We found keys in this browser. Your verification link is being applied automatically — you do not need to tap the button unless this stalls.';
+        verifyBtn.textContent = 'Retry verification';
         statusElement.textContent = '';
         statusElement.className = 'fade-in';
-        setVerifyInlineStatus('Email link opened successfully.', 'status');
+        setVerifyInlineStatus('Email link opened — submitting verification…', 'loading');
         createNewButton.style.display = 'inline-block';
         createNewButton.classList.add('secondary');
         createNewButtonSecondary.style.display = 'none';
@@ -812,6 +815,10 @@
         notarizeLink.style.display = 'none';
         actionHeader.style.display = 'none';
         separator.style.display = 'none';
+        // Same signed POST as a manual click; email link already proves intent, so avoid an extra tap.
+        setTimeout(() => {
+          verifyBtn.click();
+        }, 0);
         return;
       }
 
