@@ -795,13 +795,16 @@
                 if (!response.ok) {
                     throw new Error('Failed to load freight lane registry (HTTP ' + response.status + ')');
                 }
-                const contentType = (response.headers.get('content-type') || '').toLowerCase();
-                if (!contentType.includes('application/json')) {
-                    const text = await response.text();
+                // raw.githubusercontent.com commonly serves JSON as text/plain; be permissive and parse ourselves.
+                const text = await response.text();
+                let index;
+                try {
+                    index = JSON.parse(text);
+                } catch (parseErr) {
+                    const contentType = (response.headers.get('content-type') || '').toLowerCase();
                     const preview = text.slice(0, 140).replace(/\s+/g, ' ').trim();
-                    throw new Error('Freight lane registry is not JSON (got ' + contentType + '). Preview: ' + preview);
+                    throw new Error('Freight lane registry is not valid JSON (got ' + contentType + '). Preview: ' + preview);
                 }
-                const index = await response.json();
                 if (!index || !Array.isArray(index.lanes)) {
                     throw new Error('Invalid freight lane registry JSON');
                 }
@@ -835,13 +838,15 @@
             if (!response.ok) {
                 throw new Error('Failed to load lane snapshot (HTTP ' + response.status + ')');
             }
-            const contentType = (response.headers.get('content-type') || '').toLowerCase();
-            if (!contentType.includes('application/json')) {
-                const text = await response.text();
+            const text = await response.text();
+            let snapshot;
+            try {
+                snapshot = JSON.parse(text);
+            } catch (parseErr) {
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
                 const preview = text.slice(0, 140).replace(/\s+/g, ' ').trim();
-                throw new Error('Lane snapshot is not JSON (got ' + contentType + '). Preview: ' + preview);
+                throw new Error('Lane snapshot is not valid JSON (got ' + contentType + '). Preview: ' + preview);
             }
-            const snapshot = await response.json();
             freightLaneSnapshots[laneId] = { snapshot: snapshot, calculator: lane.calculator, lane: lane };
             updateFreightLaneHint();
         }
