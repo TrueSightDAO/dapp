@@ -522,6 +522,15 @@
                     </small>
                 </div>
                 
+                <!-- Freight lane (client-side estimates from agroverse-freight-audit JSON) -->
+                <div id="freightLaneSection" class="form-row" style="display: none;">
+                    <label for="freightLaneSelect">Freight lane:</label>
+                    <select id="freightLaneSelect"></select>
+                    <small id="freightLaneHint" style="color: #666; font-size: 0.85rem; margin-top: 0.25rem; display: block;">
+                        Estimates use the latest archived Omega quotation JSON for the selected lane (not Google Apps Script).
+                    </small>
+                </div>
+                
                 <!-- Destination Address (for local shipping) -->
                 <div id="destinationAddressSection" class="address-form" style="display: none;">
                     <h3>Destination Address (for local shipping)</h3>
@@ -572,6 +581,8 @@
     <script>
         // Configuration - Google Apps Script deployment URL
         const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz5Tt_vz1X26i82yqlGUSI_OtCUEO31jImZH2tXfNaxMbfmJ01dkwUIEZDjsnd10xMbcg/exec';
+        // Freight lane registry (TrueSightDAO/agroverse-freight-audit)
+        const FREIGHT_LANES_INDEX_URL = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-freight-audit/main/pointers/freight_lanes.json';
         
         // Store current shipping data for PDF export
         let currentShippingData = null;
@@ -579,6 +590,10 @@
         let managersList = [];
         let inventoryList = [];
         let selectedItems = [];
+        let freightLanesList = [];
+        let freightLaneSnapshots = {};
+        let freightLanesLoadPromise = null;
+        let freightLanesLoadError = null;
         
         // Format number with thousand separators
         function formatNumber(num, decimals) {
@@ -587,6 +602,276 @@
                 minimumFractionDigits: decimals,
                 maximumFractionDigits: decimals
             });
+        }
+        
+        function getPalletPackagingWeightKg() {
+            return 35;
+        }
+        
+        function computeManifestWeightKg() {
+            let productWeightGrams = 0;
+            selectedItems.forEach(function(item) {
+                const w = parseFloat(item.weight_grams) || 0;
+                const q = parseFloat(item.quantity) || 0;
+                productWeightGrams += w * q;
+            });
+            const packagingWeightKg = getPalletPackagingWeightKg();
+            const totalWeightKg = productWeightGrams / 1000 + packagingWeightKg;
+            return {
+                total_weight_kg: totalWeightKg,
+                product_weight_kg: productWeightGrams / 1000,
+                packaging_weight_kg: packagingWeightKg,
+                total_weight_grams: productWeightGrams + packagingWeightKg * 1000
+            };
+        }
+        
+        function interpolateAirFreightUsdPerKg(weightKg, tiers, ratesByTier) {
+            if (!tiers || tiers.length === 0) {
+                return 0;
+            }
+            let lowerTier = tiers[0];
+            let upperTier = tiers[0];
+            for (let i = 0; i < tiers.length - 1; i++) {
+                if (weightKg >= tiers[i] && weightKg <= tiers[i + 1]) {
+                    lowerTier = tiers[i];
+                    upperTier = tiers[i + 1];
+                    break;
+                }
+            }
+            if (weightKg < tiers[0]) {
+                lowerTier = upperTier = tiers[0];
+            } else if (weightKg > tiers[tiers.length - 1]) {
+                lowerTier = upperTier = tiers[tiers.length - 1];
+            }
+            const lowerRate = parseFloat(ratesByTier[String(lowerTier)] || ratesByTier[lowerTier] || 0);
+            const upperRate = parseFloat(ratesByTier[String(upperTier)] || ratesByTier[upperTier] || 0);
+            if (lowerTier === upperTier) {
+                return lowerRate;
+            }
+            const ratio = (weightKg - lowerTier) / (upperTier - lowerTier);
+            return lowerRate + (upperRate - lowerRate) * ratio;
+        }
+        
+        function computeFreightEstimateFromSnapshot(snapshot, calculator, weightKg, cargoValueUsd, options) {
+            const opts = options || {};
+            const invoiceLines = parseInt(opts.invoice_lines, 10) || (snapshot.module_defaults && snapshot.module_defaults.invoice_lines_default) || 3;
+            const customsExams = parseInt(opts.customs_exams, 10) || 0;
+            const dutyPercent = parseFloat(opts.duty_percent) || 0;
+            const fdaRequired = opts.fda_required === true || opts.fda_required === 'true' || opts.fda_required === 'Yes';
+            const bondRequired = opts.bond_required === true || opts.bond_required === 'true' || opts.bond_required === 'Yes';
+            const cc = snapshot.cost_components || {};
+            const lineItems = [];
+            let totalCost = 0;
+            
+            function pushLine(description, amount, note) {
+                const amt = typeof amount === 'number' ? amount : parseFloat(amount) || 0;
+                lineItems.push({ description: description, amount: amt, note: note || '' });
+                totalCost += amt;
+            }
+            
+            let airFreightRatePerKg = null;
+            let airFreightNote = '';
+            
+            if (calculator === 'tiered_per_kg_plus_line_items') {
+                const tiers = snapshot.weight_tiers_kg || [200, 300, 500, 750, 1000];
+                const rates = snapshot.air_freight_rates_usd_per_kg || {};
+                airFreightRatePerKg = interpolateAirFreightUsdPerKg(weightKg, tiers, rates);
+                const airFreightCost = airFreightRatePerKg * weightKg;
+                pushLine('Air Freight (airport to airport)', airFreightCost, 'Interpolated tier rate × weight');
+                
+                if (typeof cc.brazil_airline_charges_usd_per_shipment === 'number') {
+                    pushLine('Airline charges in Brazil (per shipment)', cc.brazil_airline_charges_usd_per_shipment, cc.brazil_airline_charges_note || '');
+                } else if (typeof cc.export_documentation_usd_per_shipment === 'number') {
+                    pushLine('Export Documentation', cc.export_documentation_usd_per_shipment, '');
+                }
+            } else if (calculator === 'lump_sum_air_freight_scaled_by_weight') {
+                const af = snapshot.air_freight || {};
+                const lump = parseFloat(af.total_usd_vendor_quote) || 0;
+                const cw = parseFloat(af.chargeable_weight_kg) || 0;
+                if (lump > 0 && cw > 0) {
+                    airFreightRatePerKg = lump / cw;
+                    const airFreightCost = airFreightRatePerKg * weightKg;
+                    airFreightNote = 'Vendor lump sum $' + formatNumber(lump, 2) + ' at chargeable weight ' + formatNumber(cw, 2) + ' kg; scaled by manifest weight.';
+                    pushLine('Air Freight (' + (af.mode_text || 'lane quote') + ')', airFreightCost, airFreightNote);
+                } else {
+                    return { error: 'Snapshot missing air_freight lump sum or chargeable weight.' };
+                }
+            } else {
+                return { error: 'Unknown freight calculator: ' + calculator };
+            }
+            
+            if (cc.inland_transport_brazil) {
+                const base = parseFloat(cc.inland_transport_brazil.base_usd) || 0;
+                const mult = parseFloat(cc.inland_transport_brazil.cargo_value_multiplier) || 0;
+                pushLine('Inland Transport (Brazil)', base + mult * cargoValueUsd, cc.inland_transport_brazil.quote_text || '');
+            }
+            if (cc.brazil_airport_charges) {
+                const perKg = parseFloat(cc.brazil_airport_charges.usd_per_kg) || 0;
+                const minUsd = parseFloat(cc.brazil_airport_charges.minimum_usd) || 0;
+                pushLine('Brazil Airport Charges', Math.max(perKg * weightKg, minUsd), cc.brazil_airport_charges.quote_text || '');
+            }
+            
+            let terminalUsd = null;
+            if (cc.us_airline_terminal_fee_usd_per_shipment_vendor_quote && typeof cc.us_airline_terminal_fee_usd_per_shipment_vendor_quote.amount_usd === 'number') {
+                terminalUsd = parseFloat(cc.us_airline_terminal_fee_usd_per_shipment_vendor_quote.amount_usd);
+                pushLine('US Airline Terminal Fee', terminalUsd, cc.us_airline_terminal_fee_usd_per_shipment_vendor_quote.quote_text || '');
+            } else if (typeof cc.us_airline_terminal_fee_usd_per_shipment === 'number') {
+                terminalUsd = parseFloat(cc.us_airline_terminal_fee_usd_per_shipment);
+                pushLine('US Airline Terminal Fee', terminalUsd, '');
+            }
+            
+            if (typeof cc.us_import_handling_fee_usd_per_shipment === 'number') {
+                pushLine('US Import Handling Fee', cc.us_import_handling_fee_usd_per_shipment, '');
+            }
+            if (cc.delivery_to_door_usd_vendor_quote && typeof cc.delivery_to_door_usd_vendor_quote.amount_usd === 'number') {
+                pushLine('Delivery to the door', cc.delivery_to_door_usd_vendor_quote.amount_usd, cc.delivery_to_door_usd_vendor_quote.quote_text || '');
+            }
+            if (typeof cc.us_customs_clearance_usd_per_shipment === 'number') {
+                pushLine('US Customs Clearance', cc.us_customs_clearance_usd_per_shipment, '');
+            }
+            
+            if (cc.invoice_line_items) {
+                const included = parseInt(cc.invoice_line_items.included_lines, 10) || 3;
+                const extraUsd = parseFloat(cc.invoice_line_items.extra_line_usd) || 5;
+                const extraLines = Math.max(0, invoiceLines - included);
+                pushLine('Invoice Line Items', extraLines * extraUsd, extraLines > 0 ? (extraLines + ' extra lines × $' + extraUsd) : 'First ' + included + ' free');
+            }
+            
+            const fdaCost = fdaRequired ? (parseFloat(cc.fda_processing_usd_if_applicable) || 0) : 0;
+            pushLine('FDA Processing', fdaCost, fdaRequired ? 'If applicable' : 'Not required');
+            
+            let bondCost = 0;
+            if (bondRequired && cc.bond_single_entry) {
+                const dutyAmount = cargoValueUsd * (dutyPercent / 100);
+                const minB = parseFloat(cc.bond_single_entry.minimum_usd) || 100;
+                const per1k = parseFloat(cc.bond_single_entry.usd_per_1000_value) || 6;
+                bondCost = Math.max(minB, (per1k * (cargoValueUsd / 1000)) + dutyAmount);
+            }
+            pushLine('Bond (Single-Entry)', bondCost, bondRequired ? 'If applicable' : 'Not required');
+            
+            if (cc.mpf_merchandise_processing_fee) {
+                const rate = parseFloat(cc.mpf_merchandise_processing_fee.rate) || 0;
+                const minM = parseFloat(cc.mpf_merchandise_processing_fee.minimum_usd) || 0;
+                const maxM = parseFloat(cc.mpf_merchandise_processing_fee.maximum_usd) || 0;
+                const mpf = Math.min(Math.max(rate * cargoValueUsd, minM), maxM);
+                pushLine('MPF (Merchandise Processing Fee)', mpf, cc.mpf_merchandise_processing_fee.formula || '');
+            }
+            
+            const examUsd = (cc.us_customs_exam_charges && typeof cc.us_customs_exam_charges.usd_per_exam === 'number')
+                ? customsExams * parseFloat(cc.us_customs_exam_charges.usd_per_exam)
+                : 0;
+            pushLine('US Customs Exam Charges', examUsd, customsExams > 0 ? (customsExams + ' exam(s)') : 'No exams expected');
+            
+            if (dutyPercent > 0) {
+                pushLine('Duty (' + dutyPercent + '% of cargo value)', cargoValueUsd * (dutyPercent / 100), '');
+            }
+            
+            return {
+                estimated_cost_usd: Math.round(totalCost * 100) / 100,
+                weight_kg: weightKg,
+                cargo_value_usd: cargoValueUsd,
+                line_items: lineItems,
+                air_freight_rate_per_kg: airFreightRatePerKg,
+                freight_source: 'agroverse-freight-audit',
+                snapshot_id: snapshot.snapshot_id || '',
+                calculator: calculator
+            };
+        }
+        
+        async function ensureFreightLanesLoaded() {
+            if (freightLanesLoadPromise) {
+                return freightLanesLoadPromise;
+            }
+            freightLanesLoadError = null;
+            freightLanesLoadPromise = (async function() {
+                const response = await fetch(FREIGHT_LANES_INDEX_URL, { cache: 'no-store' });
+                if (!response.ok) {
+                    throw new Error('Failed to load freight lane registry (HTTP ' + response.status + ')');
+                }
+                const index = await response.json();
+                if (!index || !Array.isArray(index.lanes)) {
+                    throw new Error('Invalid freight lane registry JSON');
+                }
+                freightLanesList = index.lanes;
+                const select = document.getElementById('freightLaneSelect');
+                select.innerHTML = '';
+                freightLanesList.forEach(function(lane) {
+                    const opt = document.createElement('option');
+                    opt.value = lane.lane_id;
+                    opt.textContent = lane.title || lane.lane_id;
+                    select.appendChild(opt);
+                });
+                if (freightLanesList.length > 0) {
+                    select.value = freightLanesList[0].lane_id;
+                    await loadFreightSnapshotForLaneId(select.value);
+                }
+            })().catch(function(err) {
+                freightLanesLoadError = err;
+                freightLanesLoadPromise = null;
+                throw err;
+            });
+            return freightLanesLoadPromise;
+        }
+        
+        async function loadFreightSnapshotForLaneId(laneId) {
+            const lane = freightLanesList.find(function(l) { return l.lane_id === laneId; });
+            if (!lane || !lane.latest_snapshot_url) {
+                throw new Error('Lane not found or missing latest_snapshot_url');
+            }
+            const response = await fetch(lane.latest_snapshot_url, { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error('Failed to load lane snapshot (HTTP ' + response.status + ')');
+            }
+            const snapshot = await response.json();
+            freightLaneSnapshots[laneId] = { snapshot: snapshot, calculator: lane.calculator, lane: lane };
+            updateFreightLaneHint();
+        }
+        
+        function updateFreightLaneHint() {
+            const hint = document.getElementById('freightLaneHint');
+            const laneId = document.getElementById('freightLaneSelect').value;
+            const bundle = freightLaneSnapshots[laneId];
+            if (!hint) {
+                return;
+            }
+            if (freightLanesLoadError) {
+                hint.textContent = 'Could not load freight lanes: ' + freightLanesLoadError.message;
+                return;
+            }
+            if (!bundle || !bundle.snapshot) {
+                hint.textContent = 'Loading lane pricing…';
+                return;
+            }
+            const snap = bundle.snapshot;
+            const parts = [];
+            parts.push('Estimates use archived Omega quotation JSON (not Google Apps Script).');
+            if (snap.snapshot_id) {
+                parts.push('Snapshot: ' + snap.snapshot_id + '.');
+            }
+            if (snap.timestamp_source_text) {
+                parts.push('Quote time: ' + snap.timestamp_source_text + '.');
+            }
+            hint.textContent = parts.join(' ');
+        }
+        
+        async function refreshFreightLaneUI() {
+            const section = document.getElementById('freightLaneSection');
+            const shippingType = document.getElementById('shippingType').value;
+            if (shippingType !== 'freight') {
+                section.style.display = 'none';
+                return;
+            }
+            section.style.display = 'block';
+            try {
+                await ensureFreightLanesLoaded();
+                document.getElementById('status').textContent = 'Ready';
+                document.getElementById('status').className = 'status';
+            } catch (e) {
+                document.getElementById('status').textContent = 'Freight lanes error: ' + e.message;
+                document.getElementById('status').className = 'error';
+            }
+            updateFreightLaneHint();
+            updateCalculateButton();
         }
         
         // Load image from URL and convert to data URL for PDF
@@ -621,6 +906,17 @@
         window.addEventListener('DOMContentLoaded', function() {
             loadManagers();
             document.getElementById('shippingType').addEventListener('change', onShippingTypeChange);
+            document.getElementById('freightLaneSelect').addEventListener('change', function() {
+                const laneId = this.value;
+                loadFreightSnapshotForLaneId(laneId).then(function() {
+                    updateFreightLaneHint();
+                    updateCalculateButton();
+                    document.getElementById('shippingOptions').style.display = 'none';
+                }).catch(function(err) {
+                    document.getElementById('status').textContent = 'Error loading lane: ' + err.message;
+                    document.getElementById('status').className = 'error';
+                });
+            });
             // Packaging type is auto-set, but we still update when it changes programmatically
             document.getElementById('packagingType').addEventListener('change', function() {
                 updateShippingManifest();
@@ -1224,11 +1520,15 @@
             const shippingType = document.getElementById('shippingType').value;
             const packagingTypeSelect = document.getElementById('packagingType');
             const addressSection = document.getElementById('destinationAddressSection');
+            const freightLaneSection = document.getElementById('freightLaneSection');
             
             // Automatically set packaging type based on shipping type
             if (shippingType === 'local') {
                 packagingTypeSelect.value = 'box';
                 addressSection.style.display = 'block';
+                if (freightLaneSection) {
+                    freightLaneSection.style.display = 'none';
+                }
                 
                 // Show origin address information
                 let originInfo = document.getElementById('originAddressInfo');
@@ -1251,6 +1551,10 @@
             } else if (shippingType === 'freight') {
                 packagingTypeSelect.value = 'pallet';
                 addressSection.style.display = 'none';
+                if (freightLaneSection) {
+                    freightLaneSection.style.display = 'block';
+                }
+                refreshFreightLaneUI();
                 
                 // Hide origin address info for freight
                 const originInfo = document.getElementById('originAddressInfo');
@@ -1289,6 +1593,11 @@
                 const state = document.getElementById('destState').value.trim();
                 const zip = document.getElementById('destZip').value.trim();
                 canCalculate = canCalculate && street1 && city && state && zip;
+            } else if (shippingType === 'freight') {
+                const laneSelect = document.getElementById('freightLaneSelect');
+                const laneId = laneSelect ? laneSelect.value : '';
+                const bundle = laneId ? freightLaneSnapshots[laneId] : null;
+                canCalculate = canCalculate && !!bundle && !!bundle.snapshot;
             }
             
             btn.disabled = !canCalculate;
@@ -1309,46 +1618,86 @@
                 const shippingType = document.getElementById('shippingType').value;
                 const packagingType = document.getElementById('packagingType').value;
                 
-                let destinationAddress = null;
-                if (shippingType === 'local') {
-                    destinationAddress = {
-                        street1: document.getElementById('destStreet1').value.trim(),
-                        city: document.getElementById('destCity').value.trim(),
-                        state: document.getElementById('destState').value.trim(),
-                        zip: document.getElementById('destZip').value.trim(),
-                        country: document.getElementById('destCountry').value.trim() || 'US'
+                if (shippingType === 'freight') {
+                    const laneId = document.getElementById('freightLaneSelect').value;
+                    if (!laneId) {
+                        throw new Error('Select a freight lane');
+                    }
+                    if (!freightLaneSnapshots[laneId]) {
+                        await loadFreightSnapshotForLaneId(laneId);
+                    }
+                    const bundle = freightLaneSnapshots[laneId];
+                    if (!bundle || !bundle.snapshot) {
+                        throw new Error('Freight lane pricing not loaded yet');
+                    }
+                    const weightInfo = computeManifestWeightKg();
+                    const weightKg = weightInfo.total_weight_kg;
+                    const cargoValueUsd = weightKg * 5;
+                    const freightCost = computeFreightEstimateFromSnapshot(
+                        bundle.snapshot,
+                        bundle.calculator,
+                        weightKg,
+                        cargoValueUsd,
+                        {}
+                    );
+                    if (freightCost.error) {
+                        throw new Error(freightCost.error);
+                    }
+                    const lane = bundle.lane || {};
+                    const totalQuantity = selectedItems.reduce(function(sum, it) {
+                        return sum + (parseInt(it.quantity, 10) || 0);
+                    }, 0);
+                    const payload = {
+                        action: 'calculate_shipping',
+                        weight_info: {
+                            total_weight_kg: weightKg,
+                            total_weight_grams: weightInfo.total_weight_grams,
+                            product_weight_kg: weightInfo.product_weight_kg,
+                            packaging_weight_kg: weightInfo.packaging_weight_kg,
+                            total_quantity: totalQuantity
+                        },
+                        packaging_type: packagingType,
+                        shipping_type: 'freight',
+                        shipping_options: [],
+                        freight_cost: freightCost,
+                        freight_lane_id: laneId,
+                        freight_lane_title: lane.title || laneId
                     };
-                }
-                
-                // Build URL with parameters for GET request (avoids CORS issues)
-                const params = new URLSearchParams();
-                params.append('action', 'calculate_shipping');
-                params.append('selected_items', JSON.stringify(selectedItems));
-                params.append('packaging_type', packagingType);
-                params.append('shipping_type', shippingType);
-                
-                if (destinationAddress) {
-                    params.append('destination_address', JSON.stringify(destinationAddress));
-                }
-                
-                // For freight, add optional parameters (using defaults for now)
-                // These can be added as UI inputs later if needed
-                // params.append('cargo_value_usd', cargoValueUsd);
-                // params.append('fda_required', fdaRequired);
-                // params.append('bond_required', bondRequired);
-                // params.append('invoice_lines', invoiceLines);
-                // params.append('customs_exams', customsExams);
-                // params.append('duty_percent', dutyPercent);
-                
-                const url = API_BASE_URL + '?' + params.toString();
-                const response = await fetch(url);
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    displayShippingResults(data.data);
+                    displayShippingResults(payload);
+                    document.getElementById('status').textContent = 'Ready';
+                    document.getElementById('status').className = 'status';
                 } else {
-                    throw new Error(data.message || 'Failed to calculate shipping');
+                    let destinationAddress = null;
+                    if (shippingType === 'local') {
+                        destinationAddress = {
+                            street1: document.getElementById('destStreet1').value.trim(),
+                            city: document.getElementById('destCity').value.trim(),
+                            state: document.getElementById('destState').value.trim(),
+                            zip: document.getElementById('destZip').value.trim(),
+                            country: document.getElementById('destCountry').value.trim() || 'US'
+                        };
+                    }
+                    
+                    const params = new URLSearchParams();
+                    params.append('action', 'calculate_shipping');
+                    params.append('selected_items', JSON.stringify(selectedItems));
+                    params.append('packaging_type', packagingType);
+                    params.append('shipping_type', shippingType);
+                    
+                    if (destinationAddress) {
+                        params.append('destination_address', JSON.stringify(destinationAddress));
+                    }
+                    
+                    const url = API_BASE_URL + '?' + params.toString();
+                    const response = await fetch(url);
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        displayShippingResults(data.data);
+                    } else {
+                        throw new Error(data.message || 'Failed to calculate shipping');
+                    }
                 }
             } catch (error) {
                 document.getElementById('status').textContent = 'Error: ' + error.message;
@@ -1368,6 +1717,18 @@
             const listDiv = document.getElementById('shippingOptionsList');
             
             listDiv.innerHTML = '';
+            
+            if (data.freight_lane_title) {
+                const laneDiv = document.createElement('div');
+                laneDiv.style.marginBottom = '0.75rem';
+                laneDiv.style.padding = '0.5rem';
+                laneDiv.style.backgroundColor = '#e7f3ff';
+                laneDiv.style.borderRadius = '4px';
+                laneDiv.style.border = '1px solid #b3d9ff';
+                laneDiv.style.fontSize = '0.9rem';
+                laneDiv.innerHTML = '<strong>Freight lane:</strong> ' + data.freight_lane_title;
+                listDiv.appendChild(laneDiv);
+            }
             
             // Get total weight in kg for cost per kg calculation
             const totalWeightKg = data.weight_info ? data.weight_info.total_weight_kg : 0;
@@ -1532,6 +1893,10 @@
             yPos += 7;
             doc.text('Shipping Type: ' + shippingTypeText, 14, yPos);
             yPos += 7;
+            if (shippingType === 'freight' && currentShippingData.freight_lane_title) {
+                doc.text('Freight lane: ' + currentShippingData.freight_lane_title, 14, yPos);
+                yPos += 7;
+            }
             doc.text('Date: ' + new Date().toLocaleDateString(), 14, yPos);
             yPos += 7;
             
