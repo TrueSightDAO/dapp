@@ -525,9 +525,11 @@
                 <!-- Freight lane (client-side estimates from agroverse-freight-audit JSON) -->
                 <div id="freightLaneSection" class="form-row" style="display: none;">
                     <label for="freightLaneSelect">Freight lane:</label>
-                    <select id="freightLaneSelect"></select>
+                    <select id="freightLaneSelect" disabled>
+                        <option value="">Loading freight lanes…</option>
+                    </select>
                     <small id="freightLaneHint" style="color: #666; font-size: 0.85rem; margin-top: 0.25rem; display: block;">
-                        Estimates use the latest archived Omega quotation JSON for the selected lane (not Google Apps Script).
+                        Loading lane registry…
                     </small>
                 </div>
                 
@@ -784,16 +786,26 @@
             }
             freightLanesLoadError = null;
             freightLanesLoadPromise = (async function() {
+                const select = document.getElementById('freightLaneSelect');
+                if (select) {
+                    select.disabled = true;
+                    select.innerHTML = '<option value="">Loading freight lanes…</option>';
+                }
                 const response = await fetch(FREIGHT_LANES_INDEX_URL, { cache: 'no-store' });
                 if (!response.ok) {
                     throw new Error('Failed to load freight lane registry (HTTP ' + response.status + ')');
+                }
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    const preview = text.slice(0, 140).replace(/\s+/g, ' ').trim();
+                    throw new Error('Freight lane registry is not JSON (got ' + contentType + '). Preview: ' + preview);
                 }
                 const index = await response.json();
                 if (!index || !Array.isArray(index.lanes)) {
                     throw new Error('Invalid freight lane registry JSON');
                 }
                 freightLanesList = index.lanes;
-                const select = document.getElementById('freightLaneSelect');
                 select.innerHTML = '';
                 freightLanesList.forEach(function(lane) {
                     const opt = document.createElement('option');
@@ -805,6 +817,7 @@
                     select.value = freightLanesList[0].lane_id;
                     await loadFreightSnapshotForLaneId(select.value);
                 }
+                select.disabled = false;
             })().catch(function(err) {
                 freightLanesLoadError = err;
                 freightLanesLoadPromise = null;
@@ -822,6 +835,12 @@
             if (!response.ok) {
                 throw new Error('Failed to load lane snapshot (HTTP ' + response.status + ')');
             }
+            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+            if (!contentType.includes('application/json')) {
+                const text = await response.text();
+                const preview = text.slice(0, 140).replace(/\s+/g, ' ').trim();
+                throw new Error('Lane snapshot is not JSON (got ' + contentType + '). Preview: ' + preview);
+            }
             const snapshot = await response.json();
             freightLaneSnapshots[laneId] = { snapshot: snapshot, calculator: lane.calculator, lane: lane };
             updateFreightLaneHint();
@@ -835,7 +854,9 @@
                 return;
             }
             if (freightLanesLoadError) {
-                hint.textContent = 'Could not load freight lanes: ' + freightLanesLoadError.message;
+                hint.innerHTML =
+                    '<strong style="color:#dc3545;">Could not load freight lanes.</strong> ' +
+                    '<span style="color:#666;">' + freightLanesLoadError.message + '</span>';
                 return;
             }
             if (!bundle || !bundle.snapshot) {
@@ -864,11 +885,8 @@
             section.style.display = 'block';
             try {
                 await ensureFreightLanesLoaded();
-                document.getElementById('status').textContent = 'Ready';
-                document.getElementById('status').className = 'status';
             } catch (e) {
-                document.getElementById('status').textContent = 'Freight lanes error: ' + e.message;
-                document.getElementById('status').className = 'error';
+                // Keep the main status reserved for manager/inventory loads.
             }
             updateFreightLaneHint();
             updateCalculateButton();
