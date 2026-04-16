@@ -17,6 +17,7 @@
   
   <script src="./menu.js"></script>
   <script src="./tdg_balance.js"></script>
+  <script src="./scripts/edgar_payload_helper.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -72,7 +73,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
+      width: 100%;
     }
     button {
       padding: 0.8rem 1.5rem;
@@ -155,9 +157,11 @@
       text-decoration: underline;
     }
     #publicKeyLabel {
-      margin: 0.5rem 0;
+      margin: 0.5rem 0 0.75rem;
       color: #333;
       font-size: 1.2rem;
+      text-align: center;
+      width: 100%;
     }
     #secondaryActions {
       margin: 0.5rem 0;
@@ -180,11 +184,12 @@
       to { opacity: 1; }
     }
     #status {
-      margin: 1rem 0;
+      margin: 0.5rem 0 1rem;
       font-weight: bold;
       min-height: 24px;
       font-size: 1rem;
       text-align: center;
+      width: 100%;
     }
     #welcome {
       font-size: 1.2rem;
@@ -256,9 +261,76 @@
       #status {
         font-size: 0.95rem;
       }
-      #shareOptions {
-        gap: 0.3rem;
+      .flow-inline-status {
+        font-size: 0.95rem;
       }
+    #shareOptions {
+      gap: 0.3rem;
+      }
+    }
+    #emailRegistrationSection {
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 1.75rem;
+      padding: 1rem 0 1.5rem;
+    }
+    #emailRegistrationSection label[for="registrationEmail"] {
+      display: block;
+      width: 100%;
+      max-width: 420px;
+      margin: 0;
+      font-weight: 600;
+      color: #333;
+      line-height: 1.35;
+      text-align: center;
+    }
+    #registrationEmail {
+      width: 100%;
+      max-width: 420px;
+      margin: 0;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 1rem;
+    }
+    #emailRegistrationSection #startRegistrationButton {
+      margin: 0;
+      max-width: 420px;
+    }
+    .flow-inline-status {
+      width: 100%;
+      max-width: 420px;
+      margin: 0;
+      min-height: 1.35rem;
+      font-weight: bold;
+      font-size: 1rem;
+      text-align: center;
+      line-height: 1.35;
+    }
+    .registration-email-hint {
+      font-size: 0.9rem;
+      color: #666;
+      line-height: 1.55;
+      text-align: center;
+      margin: 0;
+      padding-top: 0.25rem;
+      max-width: 420px;
+    }
+    #verifyBrowserSection {
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 1rem;
     }
   </style>
 </head>
@@ -275,16 +347,30 @@
     <p id="explanation" class="fade-in">Your digital signature is used in our DAO to verify your identity for sensitive actions, like cashing out your voting rights, managing inventory, or notarizing documents.</p>
     
     <div id="welcome"></div>
+
+    <div id="emailRegistrationSection" class="fade-in" style="display:none;">
+      <label for="registrationEmail">Email to register with TrueSight DAO</label>
+      <input id="registrationEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
+      <button id="startRegistrationButton" type="button">Continue</button>
+      <p id="registrationInlineStatus" class="flow-inline-status fade-in" style="display: none;" role="status" aria-live="polite"></p>
+      <p class="registration-email-hint">A TrueSight DAO governor will send you a verification link. Your private key is created and stored only in this browser.</p>
+    </div>
+
+    <div id="verifyBrowserSection" class="fade-in" style="display:none;text-align:center;">
+      <p id="verifyIntro" style="color:#333;line-height:1.5;"></p>
+      <button id="verifyBrowserButton" type="button">Verify this browser</button>
+      <p id="verifyInlineStatus" class="flow-inline-status fade-in" style="display: none;" role="status" aria-live="polite"></p>
+    </div>
+
+    <p id="registeredEmailLine" style="display:none;text-align:center;color:#333;font-size:1rem;"></p>
     
     <h3 id="publicKeyLabel" style="display: none;">Your Digital Signature</h3>
     <div id="publicKey"></div>
-
-    <p id="status" class="fade-in"></p>  
     <div id="buttons">
-      <button id="generateButton" onclick="generateKeys()">Create Digital Signature</button>
-      <button id="shareButton" onclick="registerSignature()" style="display: none;">Register It with Our Community</button>
-      <button id="createNewButton" onclick="generateKeys()" style="display: none;">Create New Signature</button>
+      <button id="generateButton" type="button" onclick="generateKeys()" style="display: none;">Create Digital Signature</button>
+      <button id="createNewButton" type="button" onclick="generateKeys()" style="display: none;">Create New Signature</button>
     </div>
+    <p id="status" class="fade-in"></p>
     
     <h3 id="actionHeader" style="display: none;">Things You Can Do with Your Voting Rights</h3>
     <div id="actionLinks">
@@ -302,21 +388,34 @@
   </div>
 
   <script>
-    // API endpoint for checking registration
-    const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+    // Default: production Edgar. For local Rails testing, open this page with either:
+    //   ?local_edgar=1  → same host as this page (127.0.0.1 vs localhost preserved), port 3000
+    //   ?edgar_base=http://127.0.0.1:3000  → custom origin (no trailing slash)
+    const EDGAR_BASE = (() => {
+      const qs = new URLSearchParams(window.location.search || '');
+      const custom = (qs.get('edgar_base') || '').trim();
+      if (custom && /^https?:\/\//i.test(custom)) return custom.replace(/\/$/, '');
+      const local = (qs.get('local_edgar') || '').trim().toLowerCase();
+      if (local === '1' || local === 'true' || local === 'yes') {
+        const h = window.location.hostname;
+        if (h === '127.0.0.1' || h === 'localhost') {
+          return `${window.location.protocol}//${h}:3000`;
+        }
+        return 'http://localhost:3000';
+      }
+      return 'https://edgar.truesight.me';
+    })();
+    const EDGAR_SUBMIT_URL = `${EDGAR_BASE}/dao/submit_contribution`;
+    const EDGAR_CHECK_SIGNATURE_URL = `${EDGAR_BASE}/dao/check_digital_signature`;
 
-    // Utility function for Base64 conversion
     function arrayBufferToBase64(buffer) {
       return btoa(String.fromCharCode(...new Uint8Array(buffer)));
     }
 
-    // Function to safely encode a signature for URL
     function encodeSignature(signature) {
       try {
         let encoded = encodeURIComponent(signature);
-        encoded = encoded.replace(/%20/g, '+')
-                         .replace(/'/g, '%27')
-                         .replace(/"/g, '%22');
+        encoded = encoded.replace(/%20/g, '+').replace(/'/g, '%27').replace(/"/g, '%22');
         return encoded;
       } catch (e) {
         console.error('Error encoding signature:', e);
@@ -324,43 +423,52 @@
       }
     }
 
-    // Function to validate signature format before sending
     function isValidSignature(signature) {
       if (!signature) return false;
       const regex = /^[A-Za-z0-9+/=]+$/;
-      if (!regex.test(signature)) {
-        console.error('Invalid signature format - contains non-Base64 characters');
-        return false;
-      }
-      if (signature.length < 100 || signature.length > 5000) {
-        console.error('Invalid signature length');
-        return false;
-      }
+      if (!regex.test(signature)) return false;
+      if (signature.length < 100 || signature.length > 5000) return false;
       return true;
     }
 
-    // Modified fetch call with proper encoding
+    function normalizeEmail(email) {
+      return (email || '').trim().toLowerCase();
+    }
+
+    function readVerifyParams() {
+      const params = new URLSearchParams(window.location.search || '');
+      const vk = (params.get('vk') || '').trim();
+      const em = normalizeEmail(params.get('em') || '');
+      if (!vk || !em) return null;
+      return { vk, em };
+    }
+
+    function stripVerifyParamsFromUrl() {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('vk');
+      url.searchParams.delete('em');
+      window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+    }
+
     async function checkSignatureRegistration(publicKey) {
       const statusElement = document.getElementById('status');
-      
       if (!isValidSignature(publicKey)) {
         statusElement.textContent = 'Invalid digital signature format';
         statusElement.className = 'error fade-in';
         return null;
       }
-      
       try {
-        const encodedSignature = encodeSignature(publicKey);
-        const url = `${API_ENDPOINT}?signature=${encodedSignature}`;
-        console.log('Making request to:', url);
-        
+        const url = `${EDGAR_CHECK_SIGNATURE_URL}?signature=${encodeSignature(publicKey)}`;
         const response = await fetch(url);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 404) {
+          return { registered: false, error: data.error || 'No matching contributor digital signature' };
         }
-        
-        return await response.json();
+        if (!response.ok) {
+          const msg = data.error || `HTTP error ${response.status}`;
+          throw new Error(msg);
+        }
+        return data;
       } catch (error) {
         console.error('Error checking registration:', error);
         statusElement.textContent = 'Error verifying signature: ' + error.message;
@@ -369,26 +477,173 @@
       }
     }
 
-    // Handle registration via email or WhatsApp
-    function registerSignature() {
-      const publicKey = localStorage.getItem('publicKey');
-      const shareText = `[DIGITAL SIGNATURE EVENT]\nThis is my digital signature which you can use to verify my request\n\nDIGITAL SIGNATURE: ${publicKey}\n\nThis submission was generated using ${window.location.href}`;
-      const statusElement = document.getElementById('status');
-      const emailSubject = encodeURIComponent('Register my Digital Signature');
-      const emailBody = encodeURIComponent(shareText);
-      const mailtoLink = `mailto:admin@truesight.me?subject=${emailSubject}&body=${emailBody}`;
-      const whatsappLink = `https://wa.me/14423405782?text=${encodeURIComponent(shareText)}`;
-
-      navigator.clipboard.writeText(shareText).then(() => {
-        statusElement.innerHTML = '<p>Signature copied to clipboard!</p><p>Please send an email to <a href="' + mailtoLink + '">admin@truesight.me</a> with the subject "Register my Digital Signature" and paste the copied text in the email body, or send it via WhatsApp to our program administrator at <a href="' + whatsappLink + '">+1 442 340 5782</a>. You will receive a confirmation once your signature is registered.</p>';
-        statusElement.className = 'status fade-in';
-      }).catch(error => {
-        statusElement.innerHTML = '<p>Error copying to clipboard: ' + error + '.</p><p>Please manually copy the signature below and email it to <a href="' + mailtoLink + '">admin@truesight.me</a> with the subject "Register my Digital Signature", or send it via WhatsApp to our program administrator at <a href="' + whatsappLink + '">+1 442 340 5782</a>. You will receive a confirmation once your signature is registered.</p>';
-        statusElement.className = 'error fade-in';
-      });
+    async function generateKeyPairIntoStorage() {
+      const keyPair = await window.crypto.subtle.generateKey(
+        { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+        true,
+        ['sign', 'verify']
+      );
+      const publicKey = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
+      const privateKey = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+      const publicKeyBase64 = arrayBufferToBase64(publicKey);
+      const privateKeyBase64 = arrayBufferToBase64(privateKey);
+      localStorage.setItem('publicKey', publicKeyBase64);
+      localStorage.setItem('privateKey', privateKeyBase64);
+      return publicKeyBase64;
     }
 
-    // Check for existing keys and registration status on page load
+    async function submitSignedEmailEvent({ eventName, attributes }) {
+      if (!window.EdgarPayloadHelper) throw new Error('EdgarPayloadHelper failed to load');
+      const publicKey = localStorage.getItem('publicKey');
+      const privateKey = localStorage.getItem('privateKey');
+      const helper = new EdgarPayloadHelper({
+        digitalSignature: publicKey,
+        generationSource: window.location.href.split('#')[0]
+      });
+      const { shareText } = await helper.generatePayload({
+        eventName,
+        attributes,
+        privateKey,
+        includeShareText: true
+      });
+      const formData = new FormData();
+      formData.append('text', shareText);
+      const resp = await fetch(EDGAR_SUBMIT_URL, { method: 'POST', body: formData });
+      const rawText = await resp.text();
+      let data = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch (_) {
+        data = {};
+      }
+
+      if (resp.status === 409) {
+        throw new Error(data.error || 'This submission was already processed. Please refresh the page.');
+      }
+      if (!resp.ok) {
+        const base = (data && data.error) || rawText || `HTTP ${resp.status}`;
+        const er = data && data.email_registration;
+        const extra =
+          er && er.error && String(er.error).trim() && String(er.error).trim() !== String(base).trim()
+            ? ` — ${er.error}`
+            : '';
+        throw new Error(String(base) + extra);
+      }
+      return data;
+    }
+
+    function clearRegistrationInlineStatus() {
+      const el = document.getElementById('registrationInlineStatus');
+      if (!el) return;
+      el.textContent = '';
+      el.className = 'flow-inline-status fade-in';
+      el.style.display = 'none';
+    }
+
+    function setRegistrationInlineStatus(text, className) {
+      const el = document.getElementById('registrationInlineStatus');
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'flow-inline-status fade-in' + (className ? ' ' + className : '');
+      el.style.display = 'block';
+    }
+
+    function clearVerifyInlineStatus() {
+      const el = document.getElementById('verifyInlineStatus');
+      if (!el) return;
+      el.textContent = '';
+      el.className = 'flow-inline-status fade-in';
+      el.style.display = 'none';
+    }
+
+    function setVerifyInlineStatus(text, className) {
+      const el = document.getElementById('verifyInlineStatus');
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'flow-inline-status fade-in' + (className ? ' ' + className : '');
+      el.style.display = 'block';
+    }
+
+    function hideAllFlows() {
+      document.getElementById('emailRegistrationSection').style.display = 'none';
+      document.getElementById('verifyBrowserSection').style.display = 'none';
+      document.getElementById('registeredEmailLine').style.display = 'none';
+      clearRegistrationInlineStatus();
+      clearVerifyInlineStatus();
+    }
+
+    function setRegisteredEmailLine(email) {
+      const el = document.getElementById('registeredEmailLine');
+      if (!email) {
+        el.style.display = 'none';
+        el.textContent = '';
+        return;
+      }
+      el.textContent = `Registered email: ${email}`;
+      el.style.display = 'block';
+    }
+
+    async function applyRegisteredUi(data) {
+      hideAllFlows();
+      const welcomeElement = document.getElementById('welcome');
+      const statusElement = document.getElementById('status');
+      const createNewButton = document.getElementById('createNewButton');
+      const createNewButtonSecondary = document.getElementById('createNewButtonSecondary');
+      const cashOutLink = document.getElementById('cashOutLink');
+      const inventoryLink = document.getElementById('inventoryLink');
+      const notarizeLink = document.getElementById('notarizeLink');
+      const actionHeader = document.getElementById('actionHeader');
+      const separator = document.getElementById('separator');
+      const generateButton = document.getElementById('generateButton');
+
+      welcomeElement.textContent = `Welcome back, ${data.contributor_name || 'contributor'}!`;
+      welcomeElement.style.display = 'block';
+      statusElement.textContent = 'Signature verified successfully';
+      statusElement.className = 'status fade-in';
+      setRegisteredEmailLine(data.contributor_email || '');
+      generateButton.style.display = 'none';
+      createNewButton.style.display = 'none';
+      createNewButtonSecondary.style.display = 'inline-block';
+      cashOutLink.style.display = 'block';
+      inventoryLink.style.display = 'block';
+      notarizeLink.style.display = 'block';
+      actionHeader.style.display = 'block';
+      separator.style.display = 'block';
+    }
+
+    async function applyPendingVerificationUi(emailHint) {
+      hideAllFlows();
+      const statusElement = document.getElementById('status');
+      const welcomeElement = document.getElementById('welcome');
+      welcomeElement.style.display = 'none';
+      statusElement.textContent = emailHint
+        ? `Check your email (${emailHint}) for a verification link.`
+        : 'Check your email for a verification link.';
+      statusElement.className = 'prompt fade-in';
+      document.getElementById('generateButton').style.display = 'none';
+      document.getElementById('createNewButton').style.display = 'inline-block';
+      document.getElementById('createNewButton').classList.add('secondary');
+      document.getElementById('createNewButtonSecondary').style.display = 'none';
+    }
+
+    async function applyUnregisteredKeyUi() {
+      hideAllFlows();
+      const statusElement = document.getElementById('status');
+      const welcomeElement = document.getElementById('welcome');
+      welcomeElement.style.display = 'none';
+      statusElement.textContent = '';
+      statusElement.className = 'fade-in';
+      document.getElementById('emailRegistrationSection').style.display = 'flex';
+      setRegistrationInlineStatus(
+        'Your digital signature exists in this browser but is not registered yet.',
+        'prompt'
+      );
+      document.getElementById('generateButton').style.display = 'none';
+      document.getElementById('createNewButton').style.display = 'inline-block';
+      document.getElementById('createNewButton').classList.add('secondary');
+      document.getElementById('createNewButtonSecondary').style.display = 'none';
+    }
+
     window.onload = async function() {
       const publicKey = localStorage.getItem('publicKey');
       const privateKey = localStorage.getItem('privateKey');
@@ -397,7 +652,6 @@
       const publicKeyDiv = document.getElementById('publicKey');
       const publicKeyLabel = document.getElementById('publicKeyLabel');
       const generateButton = document.getElementById('generateButton');
-      const shareButton = document.getElementById('shareButton');
       const createNewButton = document.getElementById('createNewButton');
       const createNewButtonSecondary = document.getElementById('createNewButtonSecondary');
       const cashOutLink = document.getElementById('cashOutLink');
@@ -405,16 +659,113 @@
       const notarizeLink = document.getElementById('notarizeLink');
       const actionHeader = document.getElementById('actionHeader');
       const separator = document.getElementById('separator');
+      const verifyParams = readVerifyParams();
+
+      document.getElementById('startRegistrationButton').addEventListener('click', async () => {
+        const raw = document.getElementById('registrationEmail').value;
+        const email = normalizeEmail(raw);
+        const btn = document.getElementById('startRegistrationButton');
+        statusElement.textContent = '';
+        statusElement.className = 'fade-in';
+        if (!email || !email.includes('@')) {
+          setRegistrationInlineStatus('Please enter a valid email address.', 'error');
+          return;
+        }
+        btn.disabled = true;
+        setRegistrationInlineStatus('Creating keys and registering…', 'loading');
+        try {
+          await generateKeyPairIntoStorage();
+          publicKeyLabel.style.display = 'block';
+          publicKeyDiv.textContent = localStorage.getItem('publicKey');
+          const regResult = await submitSignedEmailEvent({
+            eventName: 'EMAIL REGISTERED EVENT',
+            attributes: { Email: email }
+          });
+          localStorage.setItem('signature_registration_email', email);
+          hideAllFlows();
+          const er = regResult && regResult.email_registration;
+          if (er && er.skipped) {
+            statusElement.textContent =
+              'This browser key is already pending verification or active. If you expected a new email, use “Create New Signature”.';
+            statusElement.className = 'prompt fade-in';
+          } else {
+            statusElement.textContent = 'Check your email for a verification link.';
+            statusElement.className = 'status fade-in';
+          }
+        } catch (e) {
+          console.error(e);
+          setRegistrationInlineStatus('Registration failed: ' + e.message, 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      document.getElementById('verifyBrowserButton').addEventListener('click', async () => {
+        const params = readVerifyParams();
+        if (!params) return;
+        const btn = document.getElementById('verifyBrowserButton');
+        statusElement.textContent = '';
+        statusElement.className = 'fade-in';
+        btn.disabled = true;
+        setVerifyInlineStatus('Submitting verification…', 'loading');
+        try {
+          const verifyResult = await submitSignedEmailEvent({
+            eventName: 'EMAIL VERIFICATION EVENT',
+            attributes: {
+              'Verification Key': params.vk,
+              Email: params.em
+            }
+          });
+          const ver = verifyResult && verifyResult.email_registration;
+          if (ver && ver.activated) {
+            setVerifyInlineStatus('Verification succeeded. Loading your contributor status…', 'status');
+          }
+          stripVerifyParamsFromUrl();
+          hideAllFlows();
+          const data = await checkSignatureRegistration(localStorage.getItem('publicKey'));
+          if (data && !data.error && data.registered) {
+            await applyRegisteredUi(data);
+          } else if (data && data.pending_verification) {
+            await applyPendingVerificationUi(data.contributor_email);
+          } else {
+            statusElement.textContent = 'Verification submitted. It may take a few seconds to activate; refresh if needed.';
+            statusElement.className = 'status fade-in';
+          }
+        } catch (e) {
+          console.error(e);
+          setVerifyInlineStatus('Verification failed: ' + e.message, 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
 
       if (!publicKey || !privateKey) {
-        statusElement.textContent = 'Your digital signature is not created yet.';
-        statusElement.className = 'prompt fade-in';
+        if (verifyParams) {
+          statusElement.textContent = 'This is not the original browser that started registration. Open the link on the same device/browser where you entered your email, or start again from this page.';
+          statusElement.className = 'error fade-in';
+          welcomeElement.style.display = 'none';
+          publicKeyLabel.style.display = 'none';
+          publicKeyDiv.textContent = '';
+          hideAllFlows();
+          generateButton.style.display = 'none';
+          createNewButton.style.display = 'none';
+          createNewButtonSecondary.style.display = 'none';
+          cashOutLink.style.display = 'none';
+          inventoryLink.style.display = 'none';
+          notarizeLink.style.display = 'none';
+          actionHeader.style.display = 'none';
+          separator.style.display = 'none';
+          return;
+        }
+
+        statusElement.textContent = '';
+        statusElement.className = 'fade-in';
         welcomeElement.style.display = 'none';
         publicKeyLabel.style.display = 'none';
         publicKeyDiv.textContent = '';
-        generateButton.style.display = 'inline-block';
-        generateButton.classList.remove('secondary');
-        shareButton.style.display = 'none';
+        document.getElementById('emailRegistrationSection').style.display = 'flex';
+        setRegistrationInlineStatus('Enter your email to create a digital signature in this browser.', 'prompt');
+        generateButton.style.display = 'none';
         createNewButton.style.display = 'none';
         createNewButtonSecondary.style.display = 'none';
         cashOutLink.style.display = 'none';
@@ -422,132 +773,94 @@
         notarizeLink.style.display = 'none';
         actionHeader.style.display = 'none';
         separator.style.display = 'none';
-      } else {
-        publicKeyLabel.style.display = 'block';
-        publicKeyDiv.textContent = publicKey;
-        statusElement.textContent = 'Verifying your digital signature...';
-        statusElement.className = 'loading fade-in';
-        welcomeElement.style.display = 'none';
-        generateButton.style.display = 'none';
+        return;
+      }
 
-        if (!isValidSignature(publicKey)) {
-          statusElement.textContent = 'Invalid digital signature format';
-          statusElement.className = 'error fade-in';
-          welcomeElement.style.display = 'none';
-          shareButton.style.display = 'none';
-          createNewButton.style.display = 'inline-block';
-          createNewButton.classList.add('secondary');
-          createNewButtonSecondary.style.display = 'inline-block';
-          cashOutLink.style.display = 'none';
-          inventoryLink.style.display = 'none';
-          notarizeLink.style.display = 'none';
-          actionHeader.style.display = 'none';
-          separator.style.display = 'block';
-        } else {
-          const data = await checkSignatureRegistration(publicKey);
-          
-          if (data && !data.error) {
-            welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
-            welcomeElement.style.display = 'block';
-            statusElement.textContent = 'Signature verified successfully';
-            statusElement.className = 'status fade-in';
-            shareButton.style.display = 'none';
-            createNewButton.style.display = 'none';
-            createNewButtonSecondary.style.display = 'inline-block';
-            cashOutLink.style.display = 'block';
-            inventoryLink.style.display = 'block';
-            notarizeLink.style.display = 'block';
-            actionHeader.style.display = 'block';
-            separator.style.display = 'block';
-          } else if (data && data.error) {
-            statusElement.textContent = data.error.includes('No matching') ? 
-              'Your digital signature is not registered yet.' : 
-              data.error;
-            statusElement.className = data.error.includes('No matching') ? 
-              'prompt fade-in' : 'error fade-in';
-            welcomeElement.style.display = 'none';
-            shareButton.style.display = 'inline-block';
-            shareButton.classList.remove('secondary');
-            createNewButton.style.display = 'inline-block';
-            createNewButton.classList.add('secondary');
-            createNewButtonSecondary.style.display = 'none';
-            cashOutLink.style.display = 'none';
-            inventoryLink.style.display = 'none';
-            notarizeLink.style.display = 'none';
-            actionHeader.style.display = 'none';
-            separator.style.display = 'none';
-          }
-        }
+      publicKeyLabel.style.display = 'block';
+      publicKeyDiv.textContent = publicKey;
+      statusElement.textContent = 'Verifying your digital signature...';
+      statusElement.className = 'loading fade-in';
+      welcomeElement.style.display = 'none';
+      generateButton.style.display = 'none';
+
+      if (!isValidSignature(publicKey)) {
+        statusElement.textContent = 'Invalid digital signature format';
+        statusElement.className = 'error fade-in';
+        createNewButton.style.display = 'inline-block';
+        createNewButton.classList.add('secondary');
+        createNewButtonSecondary.style.display = 'inline-block';
+        cashOutLink.style.display = 'none';
+        inventoryLink.style.display = 'none';
+        notarizeLink.style.display = 'none';
+        actionHeader.style.display = 'none';
+        separator.style.display = 'block';
+        return;
+      }
+
+      if (verifyParams) {
+        document.getElementById('verifyBrowserSection').style.display = 'flex';
+        document.getElementById('verifyIntro').textContent =
+          'We found keys in this browser. Click below to confirm you control this device. This sends a signed verification event to Edgar.';
+        statusElement.textContent = '';
+        statusElement.className = 'fade-in';
+        setVerifyInlineStatus('Email link opened successfully.', 'status');
+        createNewButton.style.display = 'inline-block';
+        createNewButton.classList.add('secondary');
+        createNewButtonSecondary.style.display = 'none';
+        cashOutLink.style.display = 'none';
+        inventoryLink.style.display = 'none';
+        notarizeLink.style.display = 'none';
+        actionHeader.style.display = 'none';
+        separator.style.display = 'none';
+        return;
+      }
+
+      const data = await checkSignatureRegistration(publicKey);
+      if (data && !data.error && data.registered) {
+        await applyRegisteredUi(data);
+      } else if (data && data.pending_verification) {
+        await applyPendingVerificationUi(data.contributor_email);
+      } else if (data && data.error) {
+        statusElement.textContent = data.error.includes('No matching') ? 'Your digital signature is not registered yet.' : data.error;
+        statusElement.className = data.error.includes('No matching') ? 'prompt fade-in' : 'error fade-in';
+        welcomeElement.style.display = 'none';
+        await applyUnregisteredKeyUi();
       }
     };
 
-    // Generate RSA key pair
     async function generateKeys() {
       const statusElement = document.getElementById('status');
       const welcomeElement = document.getElementById('welcome');
+      if (!window.confirm('Create a new key pair? You will need to register your email again.')) {
+        return;
+      }
       statusElement.textContent = 'Generating new digital signature...';
       statusElement.className = 'loading fade-in';
       welcomeElement.style.display = 'none';
-
       try {
-        const keyPair = await window.crypto.subtle.generateKey(
-          {
-            name: "RSASSA-PKCS1-v1_5",
-            modulusLength: 2048,
-            publicExponent: new Uint8Array([1, 0, 1]),
-            hash: "SHA-256"
-          },
-          true,
-          ["sign", "verify"]
-        );
-
-        const publicKey = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
-        const privateKey = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-        
-        const publicKeyBase64 = arrayBufferToBase64(publicKey);
-        const privateKeyBase64 = arrayBufferToBase64(privateKey);
-
-        localStorage.setItem('publicKey', publicKeyBase64);
-        localStorage.setItem('privateKey', privateKeyBase64);
-
+        const publicKeyBase64 = await generateKeyPairIntoStorage();
         document.getElementById('publicKeyLabel').style.display = 'block';
         document.getElementById('publicKey').textContent = publicKeyBase64;
-        statusElement.textContent = 'Your digital signature is not registered yet.';
-        statusElement.className = 'prompt fade-in';
-        welcomeElement.style.display = 'none';
+        localStorage.removeItem('signature_registration_email');
+        hideAllFlows();
+        document.getElementById('emailRegistrationSection').style.display = 'flex';
+        statusElement.textContent = '';
+        statusElement.className = 'fade-in';
+        setRegistrationInlineStatus('New keys generated. Enter your email to register this browser.', 'prompt');
         document.getElementById('generateButton').style.display = 'none';
-        document.getElementById('shareButton').style.display = 'inline-block';
-        document.getElementById('shareButton').classList.remove('secondary');
-        document.getElementById('createNewButton').style.display = 'inline-block';
-        document.getElementById('createNewButton').classList.add('secondary');
+        document.getElementById('createNewButton').style.display = 'none';
         document.getElementById('createNewButtonSecondary').style.display = 'none';
         document.getElementById('cashOutLink').style.display = 'none';
         document.getElementById('inventoryLink').style.display = 'none';
         document.getElementById('notarizeLink').style.display = 'none';
         document.getElementById('actionHeader').style.display = 'none';
         document.getElementById('separator').style.display = 'none';
-
-        const data = await checkSignatureRegistration(publicKeyBase64);
-        if (data && !data.error) {
-          welcomeElement.textContent = `Welcome back, ${data.contributor_name}!`;
-          welcomeElement.style.display = 'block';
-          statusElement.textContent = 'Signature verified successfully';
-          statusElement.className = 'status fade-in';
-          document.getElementById('shareButton').style.display = 'none';
-          document.getElementById('createNewButton').style.display = 'none';
-          document.getElementById('createNewButtonSecondary').style.display = 'inline-block';
-          document.getElementById('cashOutLink').style.display = 'block';
-          document.getElementById('inventoryLink').style.display = 'block';
-          document.getElementById('notarizeLink').style.display = 'block';
-          document.getElementById('actionHeader').style.display = 'block';
-          document.getElementById('separator').style.display = 'block';
-        }
       } catch (error) {
         statusElement.textContent = 'Error generating keys: ' + error;
         statusElement.className = 'error fade-in';
         welcomeElement.style.display = 'none';
       }
-    };
+    }
   </script>
   <script>
     if ('serviceWorker' in navigator) {
