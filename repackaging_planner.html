@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="description" content="Repackaging planner — load inventory by holder, add input lines with quantities and costs, optional conversion fee and producer suffix, preview suggested Currency name and cost per output unit (Main Ledger + playbook-aligned naming).">
+  <meta name="description" content="Repackaging planner — holder inventory, input lines, weight-allocated cost per output, one submit creates all new Currencies on the Main Ledger.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta property="og:title" content="Repackaging Planner - TrueSight DAO">
-  <meta property="og:description" content="Plan ledger repackaging: input inventory, conversion fee, producer suffix, suggested Currency name and unit cost.">
+  <meta property="og:description" content="Holder inventory, inputs, outputs, weight-based cost allocation, single submit to ledger.">
   <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
   <meta property="og:url" content="https://truesightdao.github.io/dapp/repackaging_planner.html">
   <meta property="og:type" content="website">
@@ -17,9 +17,19 @@
     body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 1rem; padding: 1rem; min-height: 100vh; box-sizing: border-box; background: #f5f5f5; }
     .container { max-width: 820px; width: 100%; background: #fff; padding: 1rem 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     h1 { font-size: 1.65rem; color: #333; margin: 0.5rem 0 0.75rem; text-align: center; }
+    h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
     .sub { color: #555; font-size: 0.95rem; line-height: 1.45; margin-bottom: 1rem; }
+    .form-row { margin: 1rem 0; text-align: left; }
+    .form-row > label { margin: 0 0 0.3rem 0; font-size: 1rem; font-weight: bold; display: block; }
+    .form-row select#holderSelect {
+      width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box;
+      border: 1px solid #ccc; border-radius: 5px; background: #fff;
+    }
+    .form-row select#holderSelect:hover { border-color: #007bff; }
+    .form-row select#holderSelect:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2); }
+    .help-text { font-size: 0.85rem; color: #666; margin-top: 0.25rem; }
     label { font-weight: bold; display: block; margin: 0.5rem 0 0.25rem; font-size: 0.95rem; }
-    input[type="text"], input[type="number"], select, textarea {
+    input[type="text"], input[type="number"], input[type="url"], input[type="password"], select, textarea {
       width: 100%; padding: 0.55rem; font-size: 1rem; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;
     }
     textarea { min-height: 5rem; font-family: monospace; font-size: 0.85rem; }
@@ -29,7 +39,8 @@
     button.primary { background: #007bff; color: #fff; border: none; padding: 0.55rem 1rem; border-radius: 6px; cursor: pointer; font-size: 1rem; }
     button.secondary { background: #6c757d; color: #fff; border: none; padding: 0.45rem 0.85rem; border-radius: 6px; cursor: pointer; font-size: 0.95rem; }
     button.danger { background: #dc3545; }
-    .input-card { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem; margin: 0.5rem 0; background: #fafafa; }
+    button.linklike { background: none; border: none; color: #007bff; padding: 0; font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
+    .input-card { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem; margin: 0.5rem 0; background: #fafafa; overflow: visible; }
     .input-card h4 { margin: 0 0 0.5rem; font-size: 1rem; color: #333; }
     .status { margin: 0.75rem 0; min-height: 1.25rem; font-size: 0.95rem; }
     .status.loading { color: #6c757d; }
@@ -37,11 +48,82 @@
     .status.ok { color: #1e7e34; }
     .breakdown { font-size: 0.9rem; color: #444; margin: 0.5rem 0; }
     .breakdown table { width: 100%; border-collapse: collapse; margin-top: 0.35rem; }
-    .breakdown th, .breakdown td { border: 1px solid #ddd; padding: 0.35rem 0.45rem; text-align: left; }
+    .breakdown th, .breakdown td { border: 1px solid #ddd; padding: 0.35rem 0.45rem; text-align: left; font-size: 0.88rem; }
+    .breakdown .warn { color: #a94442; }
+    .breakdown .muted { color: #777; font-style: italic; }
     .hint { font-size: 0.85rem; color: #666; margin-top: 0.2rem; }
+    .hint.ok { color: #1e7e34; }
+    .hint.warn { color: #a67010; }
     .err { color: #c82333; }
     hr.sep { border: 0; border-top: 1px solid #eee; margin: 1rem 0; }
     #logo { max-width: min(200px, 100%); height: auto; display: inline-block; vertical-align: middle; }
+    .currency-combo-wrap { position: relative; width: 100%; }
+    .currency-combo-trigger {
+      cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box;
+      border: 1px solid #ccc; background: #fff; border-radius: 6px; display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 0.5rem; min-height: 2.75rem;
+    }
+    .currency-combo-trigger:focus { outline: 2px solid rgba(0, 123, 255, 0.35); outline-offset: 1px; }
+    .currency-combo-display { flex: 1; text-align: left; word-break: break-word; line-height: 1.35; color: #333; }
+    .currency-combo-display.placeholder { color: #999; }
+    .currency-combo-chev { color: #666; flex-shrink: 0; line-height: 1.2; padding-top: 0.1rem; }
+    .currency-combo-dd {
+      display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: -1px;
+      background: #fff; border: 1px solid #ccc; z-index: 80; box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      border-radius: 0 0 6px 6px; overflow: hidden;
+    }
+    .currency-combo-search {
+      width: 100%; padding: 0.75rem 0.8rem; font-size: 1rem; box-sizing: border-box; border: none;
+      border-bottom: 1px solid #eee; outline: none;
+    }
+    .currency-combo-list { max-height: 240px; overflow-y: auto; }
+    .currency-combo-item { padding: 0.55rem 0.75rem; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.15s; }
+    .currency-combo-item:hover { background: #f5f5f5; }
+    .currency-combo-item-main { font-size: 0.92rem; word-break: break-word; line-height: 1.35; color: #222; }
+    .currency-combo-item-sub { font-size: 0.82rem; color: #666; margin-top: 0.2rem; }
+    .currency-combo-empty { padding: 0.65rem 0.75rem; color: #999; font-style: italic; font-size: 0.9rem; }
+    .output-panel { margin: 0.75rem 0; padding: 0.55rem 0.75rem 0.65rem; border: 1px solid #cfe0f7; border-radius: 8px; background: #f5f9ff; }
+    .output-row { margin: 0.5rem 0; padding: 0.45rem 0.5rem; background: #fff; border: 1px solid #e2ecf7; border-radius: 6px; }
+    .op-row-inner { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; }
+    .output-row .op-field label { font-size: 0.8rem; font-weight: bold; color: #444; display: block; margin-bottom: 0.2rem; }
+    .output-row .op-field input, .output-row .op-field select { width: 100%; box-sizing: border-box; padding: 0.45rem 0.5rem; font-size: 0.95rem; }
+    .op-field.grow { flex: 1 1 220px; min-width: 0; }
+    .op-field.units { flex: 0 0 5.5rem; }
+    .op-field.unit-type-col { flex: 0 0 7.25rem; }
+    .op-field.weight-amt { flex: 0 0 6.25rem; }
+    .op-field.weight-unit-sel { flex: 0 0 5.25rem; }
+    .op-unit-custom-wrap { margin-top: 0.35rem; }
+    .op-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-top: 0.35rem; }
+    .op-lead-hint { font-size: 0.78rem; color: #666; margin-top: 0.2rem; }
+    .paste-area {
+      border: 2px dashed #ccc; padding: 0.85rem; text-align: center; margin-top: 0.35rem;
+      border-radius: 6px; cursor: pointer; background: #f8f9fa; font-size: 0.95rem; color: #333;
+    }
+    .paste-area:hover { background: #e9ecef; }
+    .uc-marker { font-size: 0.75rem; margin-top: 0.2rem; color: #777; }
+    .uc-marker.api { color: #1e7e34; }
+    .uc-marker.edited { color: #a67010; }
+    .receipt { margin: 1rem 0 0; padding: 1rem; border: 1px solid #b8dbb8; border-radius: 8px; background: #f4fbf4; }
+    .receipt h3 { margin: 0 0 0.5rem; font-size: 1.1rem; color: #1e5e1e; }
+    .receipt .meta { font-size: 0.85rem; color: #444; margin-bottom: 0.6rem; line-height: 1.5; }
+    .receipt .meta a { color: #0b5ea8; word-break: break-all; }
+    .receipt .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+    @media (max-width: 640px) { .receipt .cols { grid-template-columns: 1fr; } }
+    .receipt .col-head { font-size: 0.8rem; font-weight: bold; color: #555; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.3rem; }
+    .receipt .line { background: #fff; border: 1px solid #dde6dd; border-radius: 6px; padding: 0.4rem 0.55rem; margin-bottom: 0.4rem; font-size: 0.9rem; line-height: 1.35; }
+    .receipt .line .big { font-weight: bold; color: #222; word-break: break-word; }
+    .receipt .line .sub { font-size: 0.82rem; color: #555; margin-top: 0.15rem; }
+    .receipt .totals { margin-top: 0.3rem; padding-top: 0.4rem; border-top: 1px dashed #cbd8cb; font-size: 0.88rem; color: #333; }
+    .receipt .stage { font-size: 0.85rem; color: #333; margin-top: 0.25rem; }
+    .receipt .stage .ok { color: #1e7e34; font-weight: bold; }
+    .receipt .stage .err { color: #c82333; font-weight: bold; }
+    @keyframes rp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    .fade-in { animation: rp-fade-in 0.25s ease-in; }
+    #signatureStatus { margin: 0.5rem 0 0.25rem; font-size: 0.95rem; text-align: center; }
+    #signatureStatus.loading { color: #6c757d; }
+    #signatureStatus.ok { color: #1e7e34; }
+    #signatureStatus.err { color: #c82333; }
+    #welcomeMsg { margin: 0 0 0.75rem; text-align: center; font-size: 0.95rem; color: #1e7e34; }
   </style>
 </head>
 <body>
@@ -52,131 +134,369 @@
       <img id="logo" src="https://raw.githubusercontent.com/TrueSightDAO/.github/main/assets/20240612_truesight_dao_logo_square.png" alt="TrueSight DAO Logo"/>
     </div>
     <h1>Repackaging planner</h1>
+
+    <p id="signatureStatus" class="status loading fade-in">Verifying your digital signature…</p>
+    <p id="welcomeMsg" style="display:none;"></p>
+
+    <div id="gatedContent" style="display:none;">
     <p class="sub">
-      Load <strong>offchain asset location</strong> lines for an inventory <strong>holder</strong>, add <strong>input</strong> lines (like Shipping Planner),
-      then preview a suggested <strong>Currency</strong> name and <strong>cost per output unit</strong>.
-      Use <strong>retail kraft pouch</strong> when bulk is packed into pouches (Alibaba ref + grams). Use <strong>bulk / processing</strong> when there is no pouch — e.g. almonds → nibs + tea at Santos: run the tool once per <em>output stock line</em> (77&nbsp;kg nibs and 23&nbsp;kg tea are two Currency strings / two calculations).
-      The holder is whoever holds stock on the Main Ledger. <strong>Producer / facility</strong> is the last segment of the suggested Currency string (preset or custom — use custom if you need a date or other tag there).
-      It uses the same inventory API as <a href="./report_inventory_movement.html">Inventory Movement</a>. When you <strong>choose a holder</strong>, inventory loads automatically: <strong>Main Ledger</strong> <code>offchain asset location</code> rows <strong>plus</strong> managed AGL <strong>Balance</strong> lines. Changing holder reloads the list.
+      Pick a <strong>holder</strong>, add <strong>input</strong> lines (qty + unit cost), then add one or more <strong>output</strong> lines (units M + weight per output).
+      Cost is allocated by weight: <em>total input cost ÷ total output weight = $ per gram</em>, then each output's unit cost = $/gram × per-unit weight.
+      Every output becomes its own row on the Main Ledger <code>Currencies</code> tab, each priced in USD.
     </p>
 
-    <label for="holderSelect">Inventory holder (Main Ledger location name)</label>
-    <select id="holderSelect"></select>
-    <div class="status" id="loadStatus"></div>
+    <div class="form-row">
+      <label for="holderComboTrigger">Inventory holder:</label>
+      <select id="holderSelect" style="display:none;" aria-hidden="true"></select>
+      <div class="currency-combo-wrap" id="holderComboWrap">
+        <div class="currency-combo-trigger" id="holderComboTrigger" role="button" tabindex="0" aria-expanded="false" aria-haspopup="listbox">
+          <span class="currency-combo-display placeholder" id="holderComboDisplay">Loading holders…</span>
+          <span class="currency-combo-chev" aria-hidden="true">▼</span>
+        </div>
+        <div class="currency-combo-dd" id="holderComboDd" style="display:none;">
+          <input type="text" class="currency-combo-search" id="holderComboSearch" placeholder="Type to search holders…" autocomplete="off" />
+          <div class="currency-combo-list" id="holderComboList"></div>
+        </div>
+      </div>
+      <div class="status" id="loadStatus"></div>
+      <div class="help-text">Main Ledger location — pick one, then add input lines below (same inventory API as <a href="./report_inventory_movement.html">Inventory Movement</a>).</div>
+    </div>
 
     <hr class="sep" />
-    <h2 style="font-size:1.15rem;margin:0 0 0.5rem;">Inputs (repeatable)</h2>
+    <h2>Inputs (repeatable)</h2>
     <div id="inputRows"></div>
     <div class="btn-row">
       <button type="button" class="secondary" id="btnAddFromList">+ Add row (pick from loaded list)</button>
       <button type="button" class="secondary" id="btnAddCustom">+ Add custom line (manual currency &amp; cost)</button>
     </div>
+    <p class="hint">Use <strong>+ Add custom line</strong> for third-party charges, producer/facility text, or anything else that should appear in the composite Currency string — each line is a manual currency string + qty + USD unit cost. All lines roll into the total.</p>
 
     <hr class="sep" />
-    <label for="templateKind">Currency string style</label>
-    <select id="templateKind">
-      <option value="retail_pouch">Retail — Kraft pouch (Alibaba ref + net grams per unit)</option>
-      <option value="bulk_custom">Bulk / processing — no pouch (you write the opening segment)</option>
-    </select>
-    <p class="hint" id="templateKindHint">Kraft pouch template matches DTC retail SKUs. Switch to bulk when the output is still bulk (nibs, tea, etc.).</p>
-
-    <div class="row2">
-      <div>
-        <label for="outCount">Number of output units (M)</label>
-        <input type="number" id="outCount" min="1" step="1" value="1" />
-      </div>
-      <div id="gramsFieldWrap">
-        <label for="outGrams">Net weight per output (grams)</label>
-        <input type="number" id="outGrams" min="1" step="1" value="200" />
-      </div>
-    </div>
-    <p class="hint">M is always the divisor for total cost (fee + inputs). Net grams appear in the retail pouch line only.</p>
-
-    <div id="retailPouchBlock">
-      <label for="pouchRef">Pouch supplier ref (Alibaba id after colon)</label>
-      <input type="text" id="pouchRef" value="269035810001023771" />
-    </div>
-
-    <div id="bulkLeadBlock" style="display:none;">
-      <label for="bulkOutputLead">Opening segment (before source | suffix)</label>
-      <input type="text" id="bulkOutputLead" placeholder="e.g. Bulk cacao nibs | 77 kg" />
-      <p class="hint">Describe product form and mass for this ledger line. For almonds → nibs + tea, use one run per output (nibs line vs tea line) and split inputs or reuse costs as you prefer.</p>
-    </div>
-    <label for="sourceDesc">Source descriptor (e.g. 8 Ounce Nibs CP340992735BR)</label>
-    <input type="text" id="sourceDesc" placeholder="Auto-filled from first input currency if empty" />
-    <label for="producerPreset">Producer / facility suffix (end of Currency name)</label>
-    <select id="producerPreset">
-      <option value="Kirsten">Kirsten</option>
-      <option value="Santos">Santos</option>
-      <option value="Martinus">Martinus</option>
-      <option value="CIC">CIC</option>
-      <option value="custom">Custom…</option>
-    </select>
-    <input type="text" id="producerCustom" placeholder="e.g. Kirsten 20260330 — anything after the source segment" style="margin-top:0.5rem;display:none;" />
-
-    <label for="convFee">Conversion service fee (USD, total — optional)</label>
-    <input type="number" id="convFee" min="0" step="0.01" value="0" />
-    <p class="hint">Added to input costs before dividing by M (e.g. Kirsten, Santos, Martinus, or CIC charges).</p>
-
-    <div class="btn-row">
-      <button type="button" class="primary" id="btnCalc">Calculate name &amp; cost</button>
-    </div>
+    <label>Proof of conversion (optional)</label>
+    <p class="hint" style="margin-top:0.15rem;">PDF receipt or screenshot — click to pick a file or paste (Ctrl+V), same pattern as <a href="./report_contribution.html">DAO Contribution Report</a>. Attached on submit (max ~500&nbsp;KB); stored in the GitHub composition JSON, not in Sheets.</p>
+    <div id="conversionProofPaste" class="paste-area" tabindex="0">Click to select image or PDF, or paste here</div>
+    <img id="conversionProofPreview" alt="Proof preview" style="display:none;max-width:100%;border:1px solid #ccc;margin:0.4rem auto;border-radius:6px;" />
+    <p class="hint" id="conversionProofName" style="min-height:1rem;"></p>
+    <button type="button" class="secondary" id="btnConversionProofClear" style="display:none;margin-bottom:0.25rem;">Clear proof file</button>
 
     <hr class="sep" />
-    <label>Suggested Currency (pipe template)</label>
-    <textarea id="outCurrency" readonly></textarea>
+    <div class="output-panel">
+      <h2 style="margin:0 0 0.35rem;">Outputs</h2>
+      <p class="hint" style="margin:0.25rem 0 0.5rem;">
+        Add one <strong>output line per new ledger Currency</strong> you want this batch to produce. Each row needs a <strong>label</strong> (auto-filled from your inputs — edit to override), <strong>units M</strong>, what each M is (each, kg, bag, …), and <strong>weight per output</strong> so the cost can be split by mass. A <code>| YYYYMMDD</code> suffix is added automatically if the label doesn't already contain today's date, so new Currencies don't collide with prior ones.
+      </p>
+      <div id="outputRows"></div>
+      <div class="btn-row" style="margin-top:0.35rem;">
+        <button type="button" class="secondary" id="btnAddOutput">+ Add output line</button>
+      </div>
+      <p class="hint" id="outputTotalsHint" style="margin-top:0.35rem;min-height:1rem;"></p>
+    </div>
+
     <div class="btn-row">
-      <button type="button" class="secondary" id="btnCopy">Copy Currency</button>
+      <button type="button" class="primary" id="btnPreview">Preview cost &amp; names</button>
     </div>
 
     <label>Cost summary</label>
-    <div class="breakdown" id="costBreakdown"></div>
+    <div class="breakdown" id="costBreakdown">
+      <p class="muted">Click <strong>Preview cost &amp; names</strong> to see the per-output breakdown.</p>
+    </div>
+
+    <hr class="sep" />
+    <div class="btn-row">
+      <button type="button" class="primary" id="btnSubmitLedger" title="Signs the batch and POSTs it to Edgar, same pattern as other DApp pages">Submit batch to Edgar</button>
+    </div>
+    <p class="status" id="submitStatus" style="min-height:1.25rem;"></p>
+
+    <div id="receiptPanel" style="display:none;"></div>
 
     <p class="hint" style="margin-top:1rem;">
-      <strong>API:</strong> unit costs come from the inventory endpoint when present; AGL Balance lines often return <code>null</code> — use custom lines or enter a manual unit cost override in each row.
+      <strong>API:</strong> unit costs come from the inventory endpoint when present; AGL Balance lines often return <code>null</code> — use custom lines or type a unit cost on each ledger row.
     </p>
     <p class="hint">
       Playbook: <code>agentic_ai_context/LEDGER_CONVERSION_AND_REPACKAGING.md</code>
     </p>
+    </div> <!-- /#gatedContent -->
   </div>
 
   <script>
 (function () {
   var INVENTORY_API = 'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec';
+  var SIGNATURE_API = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+  var EDGAR_SUBMIT_URL = 'https://edgar.truesight.me/dao/submit_contribution';
+  var COMPOSITION_RAW_BASE = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/currency-compositions/';
+  var PROOF_MAX_BYTES = 500000;
+
+  var currentPublicKey = '';
+  var contributorName = '';
+
   var holderSelect = document.getElementById('holderSelect');
   var loadStatus = document.getElementById('loadStatus');
   var inputRowsEl = document.getElementById('inputRows');
+  var outputRowsEl = document.getElementById('outputRows');
+  var receiptPanelEl = document.getElementById('receiptPanel');
+
   var inventoryByCurrency = {};
   var inventoryList = [];
+  var conversionProofFile = null;
+  var suppressOutputLeadInput = false;
+
+  /* ---------- utilities ---------- */
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function nextId() {
+    return 'r' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  }
 
   function setStatus(el, cls, msg) {
     el.className = 'status ' + (cls || '');
     el.textContent = msg || '';
   }
 
+  function todayYyyymmdd() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return '' + y + m + day;
+  }
+
+  /** true if a string already contains a YYYYMMDD token (any 8-digit yyyymmdd-looking run) */
+  function hasDateToken(s) {
+    if (!s) return false;
+    return /\b(19|20)\d{6}\b/.test(String(s));
+  }
+
+  function appendDateIfMissing(name) {
+    var n = (name || '').trim();
+    if (!n) return n;
+    if (hasDateToken(n)) return n;
+    return n + ' | ' + todayYyyymmdd();
+  }
+
+  function gramsFromAmountUnit(amount, unit) {
+    if (!(amount > 0) || !unit) return null;
+    switch (unit) {
+      case 'g': return amount;
+      case 'kg': return amount * 1000;
+      case 'lb': return amount * 453.59237;
+      case 'oz': return amount * 28.349523125;
+      default: return null;
+    }
+  }
+
+  /* ---------- crypto / signature ---------- */
+
+  function arrayBufferToBase64(buffer) {
+    return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
+  }
+
+  function base64ToArrayBuffer(b64) {
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  function signRequestText(text) {
+    var privB64 = localStorage.getItem('privateKey');
+    if (!privB64) return Promise.reject(new Error('No private key in this browser'));
+    return window.crypto.subtle
+      .importKey('pkcs8', base64ToArrayBuffer(privB64),
+        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
+      .then(function (key) {
+        return window.crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(text));
+      })
+      .then(function (sig) { return arrayBufferToBase64(sig); });
+  }
+
+  function verifySignatureGate() {
+    var statusEl = document.getElementById('signatureStatus');
+    var welcomeEl = document.getElementById('welcomeMsg');
+    var gate = document.getElementById('gatedContent');
+    var publicKey = localStorage.getItem('publicKey');
+    statusEl.textContent = 'Verifying your digital signature…';
+    statusEl.className = 'status loading fade-in';
+    if (!publicKey) {
+      var seconds = 2;
+      statusEl.textContent = 'No digital signature found. Redirecting to create one in ' + seconds + ' seconds…';
+      statusEl.className = 'status err fade-in';
+      var iv = setInterval(function () {
+        seconds--;
+        if (seconds > 0) {
+          statusEl.textContent = 'No digital signature found. Redirecting to create one in ' + seconds + ' seconds…';
+        } else {
+          clearInterval(iv);
+          window.location.href = './create_signature.html';
+        }
+      }, 1000);
+      return Promise.resolve(null);
+    }
+    return fetch(SIGNATURE_API + '?signature=' + encodeURIComponent(publicKey))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.error) {
+          if (String(data.error).indexOf('No matching') !== -1) {
+            statusEl.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+          } else {
+            statusEl.textContent = 'Error: ' + data.error;
+          }
+          statusEl.className = 'status err fade-in';
+          return null;
+        }
+        currentPublicKey = publicKey;
+        contributorName = (data && data.contributor_name) || '';
+        if (contributorName) {
+          welcomeEl.textContent = 'Welcome back, ' + contributorName + '!';
+          welcomeEl.style.display = 'block';
+        }
+        statusEl.textContent = 'Signature verified successfully.';
+        statusEl.className = 'status ok fade-in';
+        gate.style.display = 'block';
+        return { publicKey: publicKey, contributorName: contributorName };
+      })
+      .catch(function (e) {
+        statusEl.textContent = 'Signature verification failed: ' + (e && e.message ? e.message : String(e));
+        statusEl.className = 'status err fade-in';
+        return null;
+      });
+  }
+
+  function prettyKg(g) {
+    if (g == null) return '';
+    if (g >= 1000) return (g / 1000).toFixed(2) + ' kg';
+    return g.toFixed(1) + ' g';
+  }
+
+  /* ---------- holder + inventory fetch ---------- */
+
   function fetchManagers() {
     return fetch(INVENTORY_API + '?list=true').then(function (r) { return r.json(); });
   }
 
+  var holderList = [];
+
   function populateHolders() {
     setStatus(loadStatus, 'loading', 'Loading manager list…');
     return fetchManagers().then(function (list) {
+      holderList = Array.isArray(list) ? list.slice() : [];
       holderSelect.innerHTML = '';
       var ph = document.createElement('option');
       ph.value = '';
       ph.textContent = '— Select holder —';
       holderSelect.appendChild(ph);
-      (list || []).forEach(function (m) {
+      holderList.forEach(function (m) {
         var o = document.createElement('option');
         o.value = m.key;
         o.textContent = m.name;
         holderSelect.appendChild(o);
       });
+      paintHolderCombo('');
+      var display = document.getElementById('holderComboDisplay');
+      if (display && !holderSelect.value) {
+        display.textContent = '— Select holder —';
+        display.classList.add('placeholder');
+      }
       setStatus(loadStatus, 'ok', '');
     }).catch(function (e) {
       setStatus(loadStatus, 'err', 'Could not load managers: ' + e.message);
     });
   }
+
+  /* ---------- holder combobox (search/type/filter) ---------- */
+
+  function paintHolderCombo(filterText) {
+    var listDiv = document.getElementById('holderComboList');
+    if (!listDiv) return;
+    listDiv.innerHTML = '';
+    var ft = (filterText || '').trim().toLowerCase();
+    var rows = holderList.filter(function (m) {
+      if (!m || !m.name) return false;
+      if (!ft) return true;
+      return m.name.toLowerCase().indexOf(ft) !== -1;
+    });
+    if (!rows.length) {
+      var empty = document.createElement('div');
+      empty.className = 'currency-combo-empty';
+      empty.textContent = holderList.length ? 'No matching holders' : 'No holders loaded yet';
+      listDiv.appendChild(empty);
+      return;
+    }
+    rows.forEach(function (m) {
+      var rowEl = document.createElement('div');
+      rowEl.className = 'currency-combo-item';
+      var main = document.createElement('div');
+      main.className = 'currency-combo-item-main';
+      main.textContent = m.name;
+      rowEl.appendChild(main);
+      rowEl.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        selectHolderByKey(m.key, m.name);
+      });
+      listDiv.appendChild(rowEl);
+    });
+  }
+
+  function selectHolderByKey(key, name) {
+    var display = document.getElementById('holderComboDisplay');
+    var dd = document.getElementById('holderComboDd');
+    var trigger = document.getElementById('holderComboTrigger');
+    var search = document.getElementById('holderComboSearch');
+    holderSelect.value = key || '';
+    if (display) {
+      if (key) {
+        display.textContent = name || key;
+        display.classList.remove('placeholder');
+      } else {
+        display.textContent = '— Select holder —';
+        display.classList.add('placeholder');
+      }
+    }
+    if (dd) dd.style.display = 'none';
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    if (search) search.value = '';
+    holderSelect.dispatchEvent(new Event('change'));
+  }
+
+  function wireHolderCombo() {
+    var trigger = document.getElementById('holderComboTrigger');
+    var dd = document.getElementById('holderComboDd');
+    var search = document.getElementById('holderComboSearch');
+    if (!trigger || !dd || !search) return;
+
+    function openDd() {
+      document.querySelectorAll('.currency-combo-dd').forEach(function (el) { if (el !== dd) el.style.display = 'none'; });
+      document.querySelectorAll('.currency-combo-trigger').forEach(function (t) { if (t !== trigger) t.setAttribute('aria-expanded', 'false'); });
+      dd.style.display = 'block';
+      trigger.setAttribute('aria-expanded', 'true');
+      paintHolderCombo(search.value);
+      search.focus();
+      search.select();
+    }
+    trigger.addEventListener('click', function (e) {
+      if (e) e.stopPropagation();
+      if (dd.style.display === 'block') { dd.style.display = 'none'; trigger.setAttribute('aria-expanded', 'false'); }
+      else { openDd(); }
+    });
+    trigger.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trigger.click(); }
+    });
+    search.addEventListener('click', function (e) { e.stopPropagation(); });
+    search.addEventListener('input', function () { paintHolderCombo(search.value); });
+    search.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { dd.style.display = 'none'; trigger.setAttribute('aria-expanded', 'false'); trigger.focus(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var first = document.querySelector('#holderComboList .currency-combo-item');
+        if (first) first.click();
+      }
+    });
+  }
+
+  wireHolderCombo();
 
   function loadInventory() {
     var key = holderSelect.value;
@@ -184,50 +504,239 @@
       setStatus(loadStatus, 'err', 'Select an inventory holder first.');
       return;
     }
-    var q = '?manager=' + encodeURIComponent(key);
     setStatus(loadStatus, 'loading', 'Loading inventory…');
-    fetch(INVENTORY_API + q)
+    fetch(INVENTORY_API + '?manager=' + encodeURIComponent(key))
       .then(function (r) { return r.json(); })
       .then(function (rows) {
         inventoryList = Array.isArray(rows) ? rows : [];
         inventoryByCurrency = {};
         inventoryList.forEach(function (row) {
-          if (row.currency) inventoryByCurrency[row.currency] = row;
+          if (row && row.currency) inventoryByCurrency[row.currency] = row;
         });
         setStatus(loadStatus, 'ok', 'Loaded ' + inventoryList.length + ' lines for holder.');
+        refreshCurrencyCombos();
+        syncOutputLabelsFromInputs();
       })
       .catch(function (e) {
         setStatus(loadStatus, 'err', 'Load failed: ' + e.message);
       });
   }
 
-  function nextId() {
-    return 'r' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  /* ---------- currency combobox ---------- */
+
+  function formatCurrencySubline(it) {
+    if (!it) return '';
+    var parts = [];
+    if (it.amount != null && it.amount !== '') parts.push('On hand: ' + it.amount);
+    if (it.unit_cost != null && it.unit_cost !== '') parts.push('Unit cost: $' + it.unit_cost);
+    return parts.join(' · ');
   }
 
-  /** When picker matches a loaded inventory line, copy API unit_cost into override so it’s visible; clear when unknown or null. */
-  function syncOverrideFromCurrencyPicker(comboEl, overrideEl) {
+  function paintCurrencyComboList(listDiv, filterText) {
+    listDiv.innerHTML = '';
+    var ft = (filterText || '').trim().toLowerCase();
+    if (!inventoryList.length) {
+      var empty = document.createElement('div');
+      empty.className = 'currency-combo-empty';
+      empty.textContent = 'No inventory loaded — select a holder and wait for lines to load.';
+      listDiv.appendChild(empty);
+      return;
+    }
+    var rows = inventoryList.filter(function (it) {
+      if (!it || !it.currency) return false;
+      if (!ft) return true;
+      return it.currency.toLowerCase().indexOf(ft) !== -1;
+    });
+    if (!rows.length) {
+      var none = document.createElement('div');
+      none.className = 'currency-combo-empty';
+      none.textContent = 'No matching inventory lines';
+      listDiv.appendChild(none);
+      return;
+    }
+    rows.forEach(function (it) {
+      var rowEl = document.createElement('div');
+      rowEl.className = 'currency-combo-item';
+      var main = document.createElement('div');
+      main.className = 'currency-combo-item-main';
+      main.textContent = it.currency;
+      rowEl.appendChild(main);
+      var sub = formatCurrencySubline(it);
+      if (sub) {
+        var subEl = document.createElement('div');
+        subEl.className = 'currency-combo-item-sub';
+        subEl.textContent = sub;
+        rowEl.appendChild(subEl);
+      }
+      rowEl.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var wrap = rowEl.closest('.currency-combo-wrap');
+        if (!wrap) return;
+        var card = wrap.closest('.input-card');
+        var hidden = wrap.querySelector('.fld-select');
+        var display = wrap.querySelector('.currency-combo-display');
+        var dd = wrap.querySelector('.currency-combo-dd');
+        var searchInput = wrap.querySelector('.currency-combo-search');
+        var overrideEl = card ? card.querySelector('.fld-override') : null;
+        if (hidden) hidden.value = it.currency;
+        if (display) {
+          display.textContent = it.currency;
+          display.classList.remove('placeholder');
+          display.style.color = '#333';
+        }
+        if (searchInput) searchInput.value = '';
+        if (dd) dd.style.display = 'none';
+        var tr = wrap.querySelector('.currency-combo-trigger');
+        if (tr) tr.setAttribute('aria-expanded', 'false');
+        if (overrideEl && hidden) syncOverrideFromCurrencyPicker(hidden, overrideEl, true);
+        syncOutputLabelsFromInputs();
+      });
+      listDiv.appendChild(rowEl);
+    });
+  }
+
+  function wireCurrencyCombobox(wrap, dd, searchInput, listDiv) {
+    var trigger = wrap.querySelector('.currency-combo-trigger');
+    function setExpanded(on) { trigger.setAttribute('aria-expanded', on ? 'true' : 'false'); }
+    function openDd() {
+      document.querySelectorAll('.currency-combo-dd').forEach(function (el) { if (el !== dd) el.style.display = 'none'; });
+      document.querySelectorAll('.currency-combo-trigger').forEach(function (t) { if (t !== trigger) t.setAttribute('aria-expanded', 'false'); });
+      dd.style.display = 'block';
+      setExpanded(true);
+      paintCurrencyComboList(listDiv, searchInput.value);
+      searchInput.focus();
+      searchInput.select();
+    }
+    trigger.addEventListener('click', function (e) {
+      if (e) e.stopPropagation();
+      if (dd.style.display === 'block') { dd.style.display = 'none'; setExpanded(false); } else { openDd(); }
+    });
+    trigger.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trigger.click(); }
+    });
+    searchInput.addEventListener('click', function (e) { e.stopPropagation(); });
+    searchInput.addEventListener('input', function () { paintCurrencyComboList(listDiv, searchInput.value); });
+    searchInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { dd.style.display = 'none'; setExpanded(false); trigger.focus(); }
+    });
+  }
+
+  function refreshCurrencyCombos() {
+    inputRowsEl.querySelectorAll('.currency-combo-wrap').forEach(function (wrap) {
+      var dd = wrap.querySelector('.currency-combo-dd');
+      var listDiv = wrap.querySelector('.currency-combo-list');
+      var searchInput = wrap.querySelector('.currency-combo-search');
+      var hidden = wrap.querySelector('.fld-select');
+      var display = wrap.querySelector('.currency-combo-display');
+      var card = wrap.closest('.input-card');
+      var overrideEl = card ? card.querySelector('.fld-override') : null;
+
+      if (display && hidden && !hidden.value) {
+        display.textContent = inventoryList.length ? 'Click to search and pick a line…' : 'Select a holder and load inventory first…';
+        display.classList.add('placeholder');
+        display.style.color = '#999';
+      }
+      if (dd && dd.style.display === 'block' && listDiv && searchInput) {
+        paintCurrencyComboList(listDiv, searchInput.value);
+      }
+      if (hidden && overrideEl) syncOverrideFromCurrencyPicker(hidden, overrideEl, false);
+      if (hidden && display && hidden.value) {
+        display.textContent = hidden.value;
+        if (!inventoryByCurrency[hidden.value.trim()]) {
+          display.style.color = '#a94442';
+        } else {
+          display.style.color = '#333';
+          display.classList.remove('placeholder');
+        }
+      }
+    });
+  }
+
+  /** Fill unit cost from the API when the picker matches a loaded line. */
+  function syncOverrideFromCurrencyPicker(comboEl, overrideEl, freshPick) {
     var cur = comboEl.value.trim();
+    var card = overrideEl.closest('.input-card');
+    var markerEl = card ? card.querySelector('.uc-marker') : null;
+    function setMarker(cls, text) {
+      if (!markerEl) return;
+      markerEl.className = 'uc-marker ' + (cls || '');
+      markerEl.textContent = text || '';
+    }
     if (!cur) {
       overrideEl.value = '';
+      setMarker('', '');
       return;
     }
     var meta = inventoryByCurrency[cur];
     if (!meta) {
-      overrideEl.value = '';
+      if (freshPick) overrideEl.value = '';
+      setMarker('warn', 'Unknown to inventory API — enter the cost manually.');
       return;
     }
     if (meta.unit_cost != null && meta.unit_cost !== '') {
       var n = parseFloat(meta.unit_cost);
       if (!isNaN(n)) {
-        overrideEl.value = String(n);
+        if (freshPick || overrideEl.value === '') {
+          overrideEl.value = String(n);
+          overrideEl.dataset.apiValue = String(n);
+          setMarker('api', 'Auto-filled from ledger API ($' + n + ').');
+        } else if (overrideEl.dataset.apiValue && parseFloat(overrideEl.value) !== parseFloat(overrideEl.dataset.apiValue)) {
+          setMarker('edited', 'Overridden (API value was $' + overrideEl.dataset.apiValue + ').');
+        } else {
+          setMarker('api', 'Auto-filled from ledger API ($' + n + ').');
+        }
         return;
       }
     }
-    overrideEl.value = '';
+    if (freshPick) overrideEl.value = '';
+    setMarker('warn', 'Ledger line has no unit cost — enter it manually for this run.');
   }
 
-  function makeRow(opts) {
+  /* ---------- input rows ---------- */
+
+  /** Currency strings from each input card in DOM order. */
+  function collectInputCurrencyStringsInOrder() {
+    var out = [];
+    if (!inputRowsEl) return out;
+    inputRowsEl.querySelectorAll('.input-card').forEach(function (card) {
+      var fldCur = card.querySelector('.fld-currency');
+      var hidden = card.querySelector('.fld-select');
+      var cur = fldCur ? fldCur.value : (hidden ? hidden.value : '');
+      cur = (cur != null ? String(cur) : '').trim();
+      if (cur) out.push(cur);
+    });
+    return out;
+  }
+
+  function buildAutoOutputLabelFromInputs() {
+    var parts = collectInputCurrencyStringsInOrder();
+    if (!parts.length) return '';
+    var joined = parts.join(' | ');
+    if (joined.length > 400) joined = joined.slice(0, 397) + '…';
+    return joined;
+  }
+
+  function syncOutputLabelsFromInputs() {
+    if (!outputRowsEl) return;
+    var auto = buildAutoOutputLabelFromInputs();
+    suppressOutputLeadInput = true;
+    try {
+      outputRowsEl.querySelectorAll('.output-row').forEach(function (row) {
+        var lead = row.querySelector('.op-lead');
+        var resetBtn = row.querySelector('.op-reset-lead');
+        if (row.dataset.userEditedLead === '1') {
+          if (resetBtn) resetBtn.style.display = '';
+          return;
+        }
+        if (lead) lead.value = auto;
+        if (resetBtn) resetBtn.style.display = 'none';
+      });
+    } finally {
+      suppressOutputLeadInput = false;
+    }
+  }
+
+  function makeInputRow(opts) {
     opts = opts || {};
     var id = nextId();
     var card = document.createElement('div');
@@ -244,7 +753,7 @@
       var t1 = document.createElement('input');
       t1.type = 'text';
       t1.className = 'fld-currency';
-      t1.placeholder = 'e.g. [AGL13] Bulk nibs';
+      t1.placeholder = 'e.g. [AGL13] Bulk nibs — or "Santos conversion fee" + USD';
       card.appendChild(l1);
       card.appendChild(t1);
 
@@ -271,28 +780,64 @@
       card.appendChild(uc);
     } else {
       var ls = document.createElement('label');
-      ls.textContent = 'Currency (type to filter, then pick)';
-      var listId = 'invpick_' + id.replace(/[^a-zA-Z0-9_-]/g, '_');
-      var dl = document.createElement('datalist');
-      dl.id = listId;
-      inventoryList.forEach(function (it) {
-        var opt = document.createElement('option');
-        opt.value = it.currency;
-        var hint = '';
-        if (it.amount != null) hint += 'on hand: ' + it.amount;
-        if (it.unit_cost != null) hint += (hint ? ' · ' : '') + '$' + it.unit_cost;
-        if (hint) opt.label = hint;
-        dl.appendChild(opt);
-      });
-      var combo = document.createElement('input');
-      combo.type = 'text';
-      combo.className = 'fld-select';
-      combo.setAttribute('list', listId);
-      combo.placeholder = 'Type to filter — pick from list';
-      combo.setAttribute('autocomplete', 'off');
+      ls.textContent = 'Inventory line (Currency)';
       card.appendChild(ls);
-      card.appendChild(combo);
-      card.appendChild(dl);
+      var hintPick = document.createElement('p');
+      hintPick.className = 'hint';
+      hintPick.style.marginTop = '0.15rem';
+      hintPick.textContent = 'Open the list to search — each row shows on hand and unit cost.';
+      card.appendChild(hintPick);
+
+      var wrap = document.createElement('div');
+      wrap.className = 'currency-combo-wrap';
+
+      // Keep the hidden input INSIDE wrap so wrap.querySelector(.fld-select) resolves.
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.className = 'fld-select';
+      hidden.value = '';
+      wrap.appendChild(hidden);
+
+      var trigger = document.createElement('div');
+      trigger.className = 'currency-combo-trigger';
+      trigger.setAttribute('role', 'button');
+      trigger.setAttribute('tabindex', '0');
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.setAttribute('aria-haspopup', 'listbox');
+
+      var displaySpan = document.createElement('span');
+      displaySpan.className = 'currency-combo-display placeholder';
+      displaySpan.textContent = inventoryList.length ? 'Click to search and pick a line…' : 'Select a holder and load inventory first…';
+      displaySpan.style.color = '#999';
+
+      var chev = document.createElement('span');
+      chev.className = 'currency-combo-chev';
+      chev.textContent = '▼';
+      chev.setAttribute('aria-hidden', 'true');
+
+      trigger.appendChild(displaySpan);
+      trigger.appendChild(chev);
+
+      var dd = document.createElement('div');
+      dd.className = 'currency-combo-dd';
+      dd.style.display = 'none';
+
+      var searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.className = 'currency-combo-search';
+      searchInput.placeholder = 'Type to search inventory lines…';
+      searchInput.setAttribute('autocomplete', 'off');
+
+      var listDiv = document.createElement('div');
+      listDiv.className = 'currency-combo-list';
+
+      dd.appendChild(searchInput);
+      dd.appendChild(listDiv);
+      wrap.appendChild(trigger);
+      wrap.appendChild(dd);
+      card.appendChild(wrap);
+
+      wireCurrencyCombobox(wrap, dd, searchInput, listDiv);
 
       var lq = document.createElement('label');
       lq.textContent = 'Quantity used';
@@ -306,18 +851,30 @@
       card.appendChild(iq);
 
       var lo = document.createElement('label');
-      lo.textContent = 'Unit cost override (USD, optional)';
+      lo.textContent = 'Unit cost (USD)';
       var iu = document.createElement('input');
       iu.type = 'number';
       iu.className = 'fld-override';
       iu.min = '0';
       iu.step = 'any';
-      iu.placeholder = 'Filled from API when present; edit to override';
-      var syncCost = function () { syncOverrideFromCurrencyPicker(combo, iu); };
-      combo.addEventListener('change', syncCost);
-      combo.addEventListener('input', syncCost);
+      iu.placeholder = 'Choose a line above to fill from inventory';
+      iu.addEventListener('input', function () {
+        var marker = card.querySelector('.uc-marker');
+        if (!marker) return;
+        if (iu.dataset.apiValue && parseFloat(iu.value) !== parseFloat(iu.dataset.apiValue)) {
+          marker.className = 'uc-marker edited';
+          marker.textContent = 'Overridden (API value was $' + iu.dataset.apiValue + ').';
+        } else if (iu.dataset.apiValue) {
+          marker.className = 'uc-marker api';
+          marker.textContent = 'Auto-filled from ledger API ($' + iu.dataset.apiValue + ').';
+        }
+      });
       card.appendChild(lo);
       card.appendChild(iu);
+      var marker = document.createElement('p');
+      marker.className = 'uc-marker';
+      marker.textContent = '';
+      card.appendChild(marker);
     }
 
     var btnRm = document.createElement('button');
@@ -325,49 +882,283 @@
     btnRm.className = 'secondary danger';
     btnRm.textContent = 'Remove';
     btnRm.style.marginTop = '0.5rem';
-    btnRm.addEventListener('click', function () { card.remove(); });
+    btnRm.addEventListener('click', function () {
+      card.remove();
+      syncOutputLabelsFromInputs();
+    });
     card.appendChild(btnRm);
 
     inputRowsEl.appendChild(card);
+    syncOutputLabelsFromInputs();
+    return card;
   }
 
-  function producerSuffix() {
-    var pr = document.getElementById('producerPreset').value;
-    if (pr === 'custom') return document.getElementById('producerCustom').value.trim() || 'Custom';
-    return pr;
+  /* ---------- output rows ---------- */
+
+  function makeOutputRow() {
+    if (!outputRowsEl) return;
+    var row = document.createElement('div');
+    row.className = 'output-row';
+
+    var inner = document.createElement('div');
+    inner.className = 'op-row-inner';
+
+    // label
+    var f1 = document.createElement('div');
+    f1.className = 'op-field grow';
+    var l1 = document.createElement('label');
+    l1.textContent = 'Output label (auto from inputs; edit to override)';
+    var lead = document.createElement('input');
+    lead.type = 'text';
+    lead.className = 'op-lead';
+    lead.placeholder = 'Filled from input rows; edit to override';
+    f1.appendChild(l1);
+    f1.appendChild(lead);
+    var leadHint = document.createElement('p');
+    leadHint.className = 'op-lead-hint';
+    leadHint.textContent = 'A | YYYYMMDD suffix will be appended on submit if the label has no date yet.';
+    f1.appendChild(leadHint);
+    inner.appendChild(f1);
+
+    // units M
+    var f2 = document.createElement('div');
+    f2.className = 'op-field units';
+    var l2 = document.createElement('label');
+    l2.textContent = 'Units (M)';
+    var units = document.createElement('input');
+    units.type = 'number';
+    units.className = 'op-units';
+    units.min = '1';
+    units.step = '1';
+    units.value = '1';
+    f2.appendChild(l2);
+    f2.appendChild(units);
+    inner.appendChild(f2);
+
+    // unit kind
+    var fUnit = document.createElement('div');
+    fUnit.className = 'op-field unit-type-col';
+    var lUnit = document.createElement('label');
+    lUnit.textContent = 'Each M is a';
+    var unitKind = document.createElement('select');
+    unitKind.className = 'op-unit-kind';
+    [
+      ['each', 'Each / unit'],
+      ['kg', 'kg'],
+      ['g', 'g'],
+      ['lb', 'lb'],
+      ['oz', 'oz'],
+      ['bag', 'Bag'],
+      ['case', 'Case'],
+      ['pouch', 'Pouch'],
+      ['custom', 'Custom…'],
+    ].forEach(function (pair) {
+      var opt = document.createElement('option');
+      opt.value = pair[0];
+      opt.textContent = pair[1];
+      unitKind.appendChild(opt);
+    });
+    var customWrap = document.createElement('div');
+    customWrap.className = 'op-unit-custom-wrap';
+    customWrap.style.display = 'none';
+    var unitCustom = document.createElement('input');
+    unitCustom.type = 'text';
+    unitCustom.className = 'op-unit-custom';
+    unitCustom.placeholder = 'e.g. drum, tub';
+    customWrap.appendChild(unitCustom);
+    unitKind.addEventListener('change', function () {
+      customWrap.style.display = unitKind.value === 'custom' ? 'block' : 'none';
+    });
+    fUnit.appendChild(lUnit);
+    fUnit.appendChild(unitKind);
+    fUnit.appendChild(customWrap);
+    inner.appendChild(fUnit);
+
+    // weight per output
+    var fWamt = document.createElement('div');
+    fWamt.className = 'op-field weight-amt';
+    var lWamt = document.createElement('label');
+    lWamt.textContent = 'Weight per output';
+    var wAmt = document.createElement('input');
+    wAmt.type = 'number';
+    wAmt.className = 'op-out-weight';
+    wAmt.min = '0';
+    wAmt.step = 'any';
+    wAmt.placeholder = 'e.g. 200';
+    fWamt.appendChild(lWamt);
+    fWamt.appendChild(wAmt);
+    inner.appendChild(fWamt);
+
+    var fWunit = document.createElement('div');
+    fWunit.className = 'op-field weight-unit-sel';
+    var lWunit = document.createElement('label');
+    lWunit.textContent = 'Unit';
+    var wUnit = document.createElement('select');
+    wUnit.className = 'op-out-weight-unit';
+    [['g', 'g'], ['kg', 'kg'], ['lb', 'lb'], ['oz', 'oz']].forEach(function (pair) {
+      var o = document.createElement('option');
+      o.value = pair[0];
+      o.textContent = pair[1];
+      wUnit.appendChild(o);
+    });
+    fWunit.appendChild(lWunit);
+    fWunit.appendChild(wUnit);
+    inner.appendChild(fWunit);
+
+    row.appendChild(inner);
+
+    // actions
+    var actions = document.createElement('div');
+    actions.className = 'op-actions';
+    var btnResetLead = document.createElement('button');
+    btnResetLead.type = 'button';
+    btnResetLead.className = 'linklike op-reset-lead';
+    btnResetLead.textContent = 'Reset label to auto';
+    btnResetLead.style.display = 'none';
+    btnResetLead.addEventListener('click', function () {
+      row.dataset.userEditedLead = '';
+      syncOutputLabelsFromInputs();
+    });
+    var btnRm = document.createElement('button');
+    btnRm.type = 'button';
+    btnRm.className = 'secondary danger';
+    btnRm.textContent = 'Remove';
+    btnRm.addEventListener('click', function () {
+      row.remove();
+      if (!outputRowsEl.querySelector('.output-row')) makeOutputRow();
+      updateOutputTotalsHint();
+    });
+    actions.appendChild(btnResetLead);
+    actions.appendChild(btnRm);
+    row.appendChild(actions);
+
+    lead.addEventListener('input', function () {
+      if (suppressOutputLeadInput) return;
+      row.dataset.userEditedLead = '1';
+      btnResetLead.style.display = '';
+    });
+    units.addEventListener('input', updateOutputTotalsHint);
+    wAmt.addEventListener('input', updateOutputTotalsHint);
+    wUnit.addEventListener('change', updateOutputTotalsHint);
+    unitKind.addEventListener('change', updateOutputTotalsHint);
+    unitCustom.addEventListener('input', updateOutputTotalsHint);
+
+    outputRowsEl.appendChild(row);
+    syncOutputLabelsFromInputs();
+    updateOutputTotalsHint();
+    return row;
   }
 
-  function syncTemplateUi() {
-    var kind = document.getElementById('templateKind').value;
-    var retail = kind === 'retail_pouch';
-    document.getElementById('retailPouchBlock').style.display = retail ? 'block' : 'none';
-    document.getElementById('bulkLeadBlock').style.display = retail ? 'none' : 'block';
-    document.getElementById('gramsFieldWrap').style.opacity = retail ? '1' : '0.65';
-    var hint = document.getElementById('templateKindHint');
-    hint.textContent = retail
-      ? 'Includes Ceremonial Cacao Kraft Pouch, Alibaba ref, Cacao Mass, and net grams in the suggested Currency line.'
-      : 'No pouch line. Enter product form and mass (or any agreed prefix) for this output; suggested Currency is opening segment | source | producer suffix.';
-  }
-
-  function calc() {
-    var M = parseInt(document.getElementById('outCount').value, 10);
-    if (!M || M < 1) {
-      document.getElementById('costBreakdown').innerHTML = '<span class="err">Set output count M ≥ 1.</span>';
+  function updateOutputTotalsHint() {
+    var hint = document.getElementById('outputTotalsHint');
+    if (!hint || !outputRowsEl) return;
+    var rows = outputRowsEl.querySelectorAll('.output-row');
+    var totalG = 0;
+    var okRows = 0;
+    rows.forEach(function (row) {
+      var m = parseInt(row.querySelector('.op-units').value, 10);
+      var wa = parseFloat(row.querySelector('.op-out-weight').value);
+      var wu = row.querySelector('.op-out-weight-unit').value;
+      var g = gramsFromAmountUnit(wa, wu);
+      if (m > 0 && g != null) {
+        totalG += m * g;
+        okRows++;
+      }
+    });
+    if (!okRows) {
+      hint.textContent = 'Add output line(s) with units M and a weight per output so cost can be allocated by mass.';
+      hint.className = 'hint';
       return;
     }
-    var grams = parseInt(document.getElementById('outGrams').value, 10) || 200;
-    var pouchRef = document.getElementById('pouchRef').value.trim() || '269035810001023771';
-    var templateKind = document.getElementById('templateKind').value;
+    var msg = okRows + ' output line(s) · total finished weight ' + prettyKg(totalG);
+    if (totalG < 50) msg += ' — this looks low, double-check the weight unit.';
+    else if (totalG > 500 * 1000) msg += ' — this looks high, double-check the weight unit.';
+    hint.textContent = msg;
+    hint.className = (totalG < 50 || totalG > 500 * 1000) ? 'hint warn' : 'hint';
+  }
 
-    var cards = inputRowsEl.querySelectorAll('.input-card');
-    var lines = [];
-    var html = '<table><thead><tr><th>Currency</th><th>Qty</th><th>Unit cost</th><th>Extended</th></tr></thead><tbody>';
-    var inputTotal = 0;
+  /* ---------- conversion proof ---------- */
+
+  function handleConversionProofFile(file) {
+    var allowed = ['image/png', 'image/jpeg', 'image/gif', 'application/pdf'];
+    if (!file || allowed.indexOf(file.type) === -1) { window.alert('Please use PNG, JPEG, GIF, or PDF.'); return; }
+    if (file.size > PROOF_MAX_BYTES) { window.alert('File too large (max 500 KB).'); return; }
+    conversionProofFile = file;
+    var nameEl = document.getElementById('conversionProofName');
+    var prev = document.getElementById('conversionProofPreview');
+    var clr = document.getElementById('btnConversionProofClear');
+    if (nameEl) nameEl.textContent = file.name || '(pasted file)';
+    if (clr) clr.style.display = 'inline-block';
+    if (file.type.indexOf('image/') === 0 && prev) {
+      var reader = new FileReader();
+      reader.onload = function (e) { prev.src = e.target.result; prev.style.display = 'block'; };
+      reader.readAsDataURL(file);
+    } else if (prev) { prev.style.display = 'none'; prev.src = ''; }
+  }
+
+  function fileToProofPayload(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () {
+        var dataUrl = r.result;
+        var idx = typeof dataUrl === 'string' ? dataUrl.indexOf(',') : -1;
+        resolve({
+          filename: file.name || 'proof',
+          mime_type: file.type || 'application/octet-stream',
+          data_base64: idx >= 0 ? dataUrl.slice(idx + 1) : String(dataUrl),
+        });
+      };
+      r.onerror = function () { reject(new Error('read failed')); };
+      r.readAsDataURL(file);
+    });
+  }
+
+  (function wireConversionProof() {
+    var pasteEl = document.getElementById('conversionProofPaste');
+    var clr = document.getElementById('btnConversionProofClear');
+    function trigger() {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/png,image/jpeg,image/gif,application/pdf';
+      input.onchange = function (ev) { if (ev.target.files && ev.target.files[0]) handleConversionProofFile(ev.target.files[0]); };
+      input.click();
+    }
+    if (pasteEl) {
+      pasteEl.addEventListener('click', function (e) { e.preventDefault(); trigger(); });
+      pasteEl.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trigger(); } });
+      pasteEl.addEventListener('paste', function (e) {
+        var cd = e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData);
+        if (!cd || !cd.items) return;
+        var file = null;
+        for (var i = 0; i < cd.items.length; i++) {
+          if (cd.items[i].kind === 'file') { file = cd.items[i].getAsFile(); break; }
+        }
+        if (file) { e.preventDefault(); handleConversionProofFile(file); }
+      });
+    }
+    if (clr) {
+      clr.addEventListener('click', function () {
+        conversionProofFile = null;
+        var prev = document.getElementById('conversionProofPreview');
+        var nameEl = document.getElementById('conversionProofName');
+        if (prev) { prev.style.display = 'none'; prev.src = ''; }
+        if (nameEl) nameEl.textContent = '';
+        clr.style.display = 'none';
+      });
+    }
+  })();
+
+  /* ---------- plan compute + preview ---------- */
+
+  function collectInputs() {
+    var cards = inputRowsEl ? inputRowsEl.querySelectorAll('.input-card') : [];
+    var inputs = [];
     var missingCost = [];
-
+    var inputTotal = 0;
     cards.forEach(function (card) {
       var cur, qty, uc;
-      if (card.querySelector('.fld-currency')) {
+      var fromCustom = !!card.querySelector('.fld-currency');
+      if (fromCustom) {
         cur = card.querySelector('.fld-currency').value.trim();
         qty = parseFloat(card.querySelector('.fld-qty').value) || 0;
         uc = parseFloat(card.querySelector('.fld-unitcost').value);
@@ -376,95 +1167,520 @@
         qty = parseFloat(card.querySelector('.fld-qty').value) || 0;
         var ov = card.querySelector('.fld-override').value;
         var meta = inventoryByCurrency[cur];
-        uc = ov !== '' && !isNaN(parseFloat(ov)) ? parseFloat(ov) : (meta && meta.unit_cost != null ? parseFloat(meta.unit_cost) : NaN);
+        uc = (ov !== '' && !isNaN(parseFloat(ov)))
+          ? parseFloat(ov)
+          : (meta && meta.unit_cost != null ? parseFloat(meta.unit_cost) : NaN);
       }
       if (!cur || qty <= 0) return;
-      if (isNaN(uc)) {
-        missingCost.push(cur);
-        return;
-      }
+      if (isNaN(uc)) { missingCost.push(cur); return; }
       var ext = qty * uc;
       inputTotal += ext;
-      lines.push({ currency: cur, qty: qty, uc: uc, ext: ext });
-      html += '<tr><td>' + escapeHtml(cur.slice(0, 80)) + (cur.length > 80 ? '…' : '') + '</td><td>' + qty + '</td><td>$' + uc.toFixed(6) + '</td><td>$' + ext.toFixed(4) + '</td></tr>';
+      inputs.push({
+        line_kind: fromCustom ? 'custom' : 'from_holder_inventory',
+        currency: cur,
+        quantity: qty,
+        unit_cost_usd: uc,
+        extended_cost_usd: ext,
+      });
+    });
+    return { inputs: inputs, missingCost: missingCost, inputTotal: inputTotal };
+  }
+
+  function collectOutputs() {
+    var rows = outputRowsEl ? outputRowsEl.querySelectorAll('.output-row') : [];
+    var outputs = [];
+    var problems = [];
+    rows.forEach(function (row, idx) {
+      var label = (row.querySelector('.op-lead').value || '').trim();
+      var M = parseInt(row.querySelector('.op-units').value, 10);
+      var unitKind = row.querySelector('.op-unit-kind').value || 'each';
+      var unitCustom = (row.querySelector('.op-unit-custom').value || '').trim();
+      var wa = parseFloat(row.querySelector('.op-out-weight').value);
+      var wu = row.querySelector('.op-out-weight-unit').value || 'g';
+      var gPerUnit = gramsFromAmountUnit(wa, wu);
+      var problemsHere = [];
+      if (!label) problemsHere.push('missing label');
+      if (!(M >= 1)) problemsHere.push('units M must be ≥ 1');
+      if (gPerUnit == null) problemsHere.push('weight per output required');
+      if (problemsHere.length) {
+        problems.push({ index: idx + 1, label: label || '(row ' + (idx + 1) + ')', issues: problemsHere });
+      }
+      outputs.push({
+        index: idx,
+        label: label,
+        suggested_currency: appendDateIfMissing(label),
+        units: M > 0 ? M : 0,
+        unit_kind: unitKind,
+        unit_custom: unitKind === 'custom' ? unitCustom : '',
+        weight_per_unit_grams: gPerUnit,
+        weight_display: (wa > 0 && wu) ? { amount: wa, unit: wu } : null,
+        total_weight_grams: (M > 0 && gPerUnit != null) ? M * gPerUnit : null,
+        valid: problemsHere.length === 0,
+      });
+    });
+    return { outputs: outputs, problems: problems };
+  }
+
+  function computePlan() {
+    var inCollect = collectInputs();
+    var outCollect = collectOutputs();
+    var grand = inCollect.inputTotal;
+    var totalWeightG = 0;
+    outCollect.outputs.forEach(function (o) { if (o.valid) totalWeightG += o.total_weight_grams; });
+
+    var costPerGram = (totalWeightG > 0) ? grand / totalWeightG : 0;
+    outCollect.outputs.forEach(function (o) {
+      if (o.valid && costPerGram > 0) {
+        o.unit_cost_usd = costPerGram * o.weight_per_unit_grams;
+        o.line_total_usd = o.unit_cost_usd * o.units;
+      } else {
+        o.unit_cost_usd = null;
+        o.line_total_usd = null;
+      }
     });
 
-    var fee = parseFloat(document.getElementById('convFee').value) || 0;
-    var grand = inputTotal + fee;
-    var cpu = M > 0 ? grand / M : 0;
+    return {
+      inputs: inCollect.inputs,
+      missingCost: inCollect.missingCost,
+      inputTotal: inCollect.inputTotal,
+      grandTotal: grand,
+      outputs: outCollect.outputs,
+      outputProblems: outCollect.problems,
+      totalOutputWeightGrams: totalWeightG,
+      costPerGramUsd: costPerGram,
+      valid: inCollect.missingCost.length === 0 && outCollect.problems.length === 0 && totalWeightG > 0 && inCollect.inputs.length > 0,
+    };
+  }
 
+  function renderBreakdown(plan) {
+    var el = document.getElementById('costBreakdown');
+    if (!el) return;
+    if (!plan.inputs.length) {
+      el.innerHTML = '<p class="muted">Add at least one input line (from ledger or custom) with quantity and unit cost.</p>';
+      return;
+    }
+    var html = '';
+    html += '<h4 style="margin:0.25rem 0;">Inputs</h4>';
+    html += '<table><thead><tr><th>Currency</th><th>Qty</th><th>Unit $</th><th>Ext $</th></tr></thead><tbody>';
+    plan.inputs.forEach(function (r) {
+      var cur = r.currency;
+      html += '<tr><td>' + escapeHtml(cur.length > 80 ? cur.slice(0, 77) + '…' : cur) +
+        '</td><td>' + r.quantity + '</td><td>$' + r.unit_cost_usd.toFixed(4) +
+        '</td><td>$' + r.extended_cost_usd.toFixed(4) + '</td></tr>';
+    });
     html += '</tbody></table>';
-    if (missingCost.length) {
-      html += '<p class="err"><strong>Missing unit cost for:</strong> ' + escapeHtml(missingCost.join('; ')) + '</p>';
+    if (plan.missingCost.length) {
+      html += '<p class="err"><strong>Missing unit cost for:</strong> ' + escapeHtml(plan.missingCost.join('; ')) + '</p>';
     }
-    html += '<p><strong>Inputs subtotal:</strong> $' + inputTotal.toFixed(4) + '</p>';
-    html += '<p><strong>Conversion fee:</strong> $' + fee.toFixed(4) + '</p>';
-    html += '<p><strong>Grand total:</strong> $' + grand.toFixed(4) + '</p>';
-    html += '<p><strong>Cost per output unit (÷ ' + M + '):</strong> $' + cpu.toFixed(6) + '</p>';
+    html += '<p><strong>Inputs total:</strong> $' + plan.inputTotal.toFixed(4) + '</p>';
 
-    document.getElementById('costBreakdown').innerHTML = html;
-
-    var src = document.getElementById('sourceDesc').value.trim();
-    if (!src && lines.length) src = lines[0].currency;
-    if (!src) src = '<SOURCE_DESCRIPTOR>';
-
-    var suffix = producerSuffix();
-    var curOut;
-    if (templateKind === 'retail_pouch') {
-      curOut = 'Ceremonial Cacao Kraft Pouch - Alibaba:' + pouchRef + ' | Cacao Mass | ' + grams + ' grams | ' + src + ' | ' + suffix;
+    html += '<h4 style="margin:0.75rem 0 0.25rem;">Outputs</h4>';
+    if (!plan.outputs.length) {
+      html += '<p class="muted">Add one or more output lines above.</p>';
+    } else if (plan.totalOutputWeightGrams <= 0) {
+      html += '<p class="err">Total output weight is 0 — every output row needs a weight-per-output &gt; 0.</p>';
     } else {
-      var lead = document.getElementById('bulkOutputLead').value.trim();
-      if (!lead) lead = '<BULK_LINE>';
-      curOut = lead + ' | ' + src + ' | ' + suffix;
+      html += '<table><thead><tr><th>Output</th><th>M</th><th>g/unit</th><th>Unit $</th><th>Line $</th></tr></thead><tbody>';
+      plan.outputs.forEach(function (o) {
+        var nm = o.suggested_currency || o.label || '(empty)';
+        var unitStr = o.unit_cost_usd != null ? '$' + o.unit_cost_usd.toFixed(4) : '—';
+        var lineStr = o.line_total_usd != null ? '$' + o.line_total_usd.toFixed(4) : '—';
+        var gStr = o.weight_per_unit_grams != null ? o.weight_per_unit_grams.toFixed(2) : '—';
+        html += '<tr' + (o.valid ? '' : ' class="warn"') + '><td>' + escapeHtml(nm.length > 80 ? nm.slice(0, 77) + '…' : nm) +
+          '</td><td>' + (o.units || '—') + '</td><td>' + gStr +
+          '</td><td>' + unitStr + '</td><td>' + lineStr + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      html += '<p><strong>Total output weight:</strong> ' + prettyKg(plan.totalOutputWeightGrams) + ' · ';
+      html += '<strong>Cost per gram:</strong> $' + plan.costPerGramUsd.toFixed(6) + '</p>';
     }
-    document.getElementById('outCurrency').value = curOut;
+    if (plan.outputProblems.length) {
+      html += '<p class="err"><strong>Problems:</strong> ' + plan.outputProblems.map(function (p) {
+        return escapeHtml(p.label) + ' (' + p.issues.join(', ') + ')';
+      }).join('; ') + '</p>';
+    }
+    if (plan.totalOutputWeightGrams > 0 && plan.totalOutputWeightGrams < 50) {
+      html += '<p class="hint warn">Total finished weight is under 50 g — double-check your weight units.</p>';
+    } else if (plan.totalOutputWeightGrams > 500 * 1000) {
+      html += '<p class="hint warn">Total finished weight is over 500 kg — double-check your weight units.</p>';
+    }
+    el.innerHTML = html;
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function preview() {
+    var plan = computePlan();
+    renderBreakdown(plan);
+    return plan;
   }
 
-  document.getElementById('producerPreset').addEventListener('change', function () {
-    document.getElementById('producerCustom').style.display = this.value === 'custom' ? 'block' : 'none';
-  });
-  document.getElementById('templateKind').addEventListener('change', syncTemplateUi);
-  syncTemplateUi();
+  /* ---------- Edgar-compatible request text (signed, event-tagged, base64 payload) ---------- */
+
+  function utf8ToBase64(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+
+  /**
+   * Human-readable + parseable text for the [REPACKAGING BATCH EVENT] tag.
+   * Matches the shape other DApp pages use: event tag, bullet lines, ends with `--------`.
+   * Embeds a base64-encoded JSON composition at the end so the downstream GAS can
+   * deserialize the exact structured payload without fragile line-by-line parsing.
+   */
+  function buildRequestText(plan, holderKey, holderLabel, requestId, composition, attachedFilename) {
+    var lines = [];
+    lines.push('[REPACKAGING BATCH EVENT]');
+    lines.push('- Request ID: ' + requestId);
+    lines.push('- Holder: ' + (holderLabel || '(unset)') + (holderKey && holderKey !== holderLabel ? ' (' + holderKey + ')' : ''));
+    lines.push('- Inputs:');
+    plan.inputs.forEach(function (r) {
+      var tag = r.line_kind === 'custom' ? ' [custom]' : '';
+      lines.push('  * ' + r.currency + tag + ' (qty ' + r.quantity + ' × $' + r.unit_cost_usd.toFixed(4) + ' = $' + r.extended_cost_usd.toFixed(4) + ')');
+    });
+    lines.push('- Outputs:');
+    plan.outputs.forEach(function (o) {
+      if (!o.valid) return;
+      var wd = o.weight_display ? (o.weight_display.amount + ' ' + o.weight_display.unit) : (o.weight_per_unit_grams + ' g');
+      lines.push('  * ' + o.suggested_currency + ' (' + o.units + ' × ' + wd +
+        ' → $' + o.unit_cost_usd.toFixed(4) + '/unit, line $' + o.line_total_usd.toFixed(4) + ')');
+    });
+    lines.push('- Inputs total (USD): $' + plan.inputTotal.toFixed(4));
+    lines.push('- Total finished weight: ' + prettyKg(plan.totalOutputWeightGrams));
+    lines.push('- Cost per gram (USD): $' + plan.costPerGramUsd.toFixed(6));
+    lines.push('- Attached Filename: ' + (attachedFilename || 'None'));
+    lines.push('- Submission Source: ' + window.location.href);
+    lines.push('- Batch Payload (base64 JSON): ' + utf8ToBase64(JSON.stringify(composition)));
+    lines.push('--------');
+    return lines.join('\n');
+  }
+
+  /* ---------- submit ---------- */
+
+  function newRequestId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  }
+
+  /**
+   * Receipt panel for the Edgar submission flow.
+   * Synchronous success means Edgar accepted the text; the repackaging GAS processes the row
+   * asynchronously via webhook trigger. The expected composition JSON URL is shown
+   * so the operator can verify the GAS run finished later.
+   */
+  function showReceipt(plan, holderLabel, requestId, requestText, httpStatus, edgarResp, errMsg) {
+    if (!receiptPanelEl) return;
+    var ok = httpStatus >= 200 && httpStatus < 300;
+    var sigVerif = edgarResp && edgarResp.signature_verification ? edgarResp.signature_verification : null;
+    var stageLines = [];
+    stageLines.push('<span class="ok">✓</span> Signed request.');
+    if (ok) {
+      stageLines.push('<span class="ok">✓</span> POST to Edgar accepted (HTTP ' + httpStatus + ').');
+      if (sigVerif === 'success') stageLines.push('<span class="ok">✓</span> Edgar verified signature.');
+      else if (sigVerif) stageLines.push('<span class="err">✗</span> Edgar signature check: ' + escapeHtml(sigVerif));
+      stageLines.push('<span class="ok">✓</span> Row appended to Telegram Chat Logs.');
+      stageLines.push('⏱ GAS processing is async (triggered by Edgar); check the composition JSON link in ~10&ndash;60 s.');
+    } else {
+      stageLines.push('<span class="err">✗</span> ' + escapeHtml(errMsg || ('HTTP ' + httpStatus)));
+    }
+
+    var compUrl = COMPOSITION_RAW_BASE + encodeURIComponent(requestId) + '.json';
+
+    var html = '<div class="receipt">';
+    html += '<h3>' + (ok ? '✓ Sent to Edgar' : '✗ Submission problem') + '</h3>';
+    html += '<div class="meta">';
+    html += '<div>Request: <code>' + escapeHtml(requestId) + '</code> · ' + escapeHtml(new Date().toLocaleString()) + '</div>';
+    html += '<div>Holder: ' + escapeHtml(holderLabel || '(unset)') + '</div>';
+    if (contributorName) html += '<div>Contributor: ' + escapeHtml(contributorName) + '</div>';
+    html += '<div>Raw log: <a href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank" rel="noopener noreferrer">https://truesight.me/submissions/raw-telegram-chatlogs</a></div>';
+    html += '<div>Expected composition JSON (populates after GAS run): <a href="' + escapeHtml(compUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(compUrl) + '</a></div>';
+    html += '</div>';
+
+    html += '<div class="cols">';
+    html += '<div><div class="col-head">Inputs consumed</div>';
+    plan.inputs.forEach(function (r) {
+      html += '<div class="line"><div class="big">' + escapeHtml(r.currency) + (r.line_kind === 'custom' ? ' <em>(custom)</em>' : '') + '</div>';
+      html += '<div class="sub">' + r.quantity + ' × $' + r.unit_cost_usd.toFixed(4) + ' = <strong>$' + r.extended_cost_usd.toFixed(4) + '</strong></div></div>';
+    });
+    html += '<div class="totals"><strong>Inputs total:</strong> $' + plan.inputTotal.toFixed(4) + '</div>';
+    html += '</div>';
+
+    html += '<div><div class="col-head">Outputs created</div>';
+    plan.outputs.forEach(function (o) {
+      if (!o.valid) return;
+      var wd = o.weight_display ? (o.weight_display.amount + ' ' + o.weight_display.unit) : (o.weight_per_unit_grams + ' g');
+      html += '<div class="line"><div class="big">' + escapeHtml(o.suggested_currency) + '</div>';
+      html += '<div class="sub">' + o.units + ' × ' + wd + ' → <strong>$' + o.unit_cost_usd.toFixed(4) + ' / unit</strong> · line $' + o.line_total_usd.toFixed(4) + '</div></div>';
+    });
+    html += '<div class="totals">Σ weight: ' + prettyKg(plan.totalOutputWeightGrams) + ' · $/gram: $' + plan.costPerGramUsd.toFixed(6) + '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="stage">' + stageLines.map(function (s) { return '<div>' + s + '</div>'; }).join('') + '</div>';
+
+    html += '<div class="btn-row" style="margin-top:0.75rem;">';
+    html += '<button type="button" class="secondary" id="btnCopyReceipt">Copy request text</button>';
+    html += '<button type="button" class="primary" id="btnAnotherBatch">Start another batch (keeps holder)</button>';
+    html += '</div>';
+
+    html += '</div>';
+
+    receiptPanelEl.innerHTML = html;
+    receiptPanelEl.style.display = 'block';
+    receiptPanelEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    document.getElementById('btnCopyReceipt').addEventListener('click', function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(requestText).catch(function () { /* ignore */ });
+      }
+    });
+    document.getElementById('btnAnotherBatch').addEventListener('click', function () {
+      resetBatchForReuse();
+    });
+  }
+
+  function resetBatchForReuse() {
+    inputRowsEl.innerHTML = '';
+    outputRowsEl.innerHTML = '';
+    makeInputRow({ custom: false });
+    makeOutputRow();
+    conversionProofFile = null;
+    var prev = document.getElementById('conversionProofPreview');
+    var nameEl = document.getElementById('conversionProofName');
+    var clr = document.getElementById('btnConversionProofClear');
+    if (prev) { prev.style.display = 'none'; prev.src = ''; }
+    if (nameEl) nameEl.textContent = '';
+    if (clr) clr.style.display = 'none';
+    document.getElementById('costBreakdown').innerHTML = '<p class="muted">Click <strong>Preview cost &amp; names</strong> to see the per-output breakdown.</p>';
+    var subEl = document.getElementById('submitStatus');
+    if (subEl) { subEl.textContent = ''; subEl.className = 'status'; }
+    receiptPanelEl.style.display = 'none';
+    receiptPanelEl.innerHTML = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ---------- wiring ---------- */
 
   holderSelect.addEventListener('change', function () {
+    var hasLedgerRows = false;
+    inputRowsEl.querySelectorAll('.input-card').forEach(function (card) {
+      var sel = card.querySelector('.fld-select');
+      if (sel && sel.value) hasLedgerRows = true;
+    });
+    if (hasLedgerRows) {
+      var ok = window.confirm('Switch holder? Existing ledger-picked rows will clear (custom rows stay).');
+      if (!ok) {
+        // Revert select + combobox display without re-firing change.
+        var target = holderSelect.dataset.prevValue || '';
+        holderSelect.value = target;
+        var display = document.getElementById('holderComboDisplay');
+        if (display) {
+          if (target) {
+            var prevOpt = null;
+            for (var i = 0; i < holderSelect.options.length; i++) {
+              if (holderSelect.options[i].value === target) { prevOpt = holderSelect.options[i]; break; }
+            }
+            display.textContent = prevOpt ? prevOpt.textContent : target;
+            display.classList.remove('placeholder');
+          } else {
+            display.textContent = '— Select holder —';
+            display.classList.add('placeholder');
+          }
+        }
+        return;
+      }
+      inputRowsEl.querySelectorAll('.input-card').forEach(function (card) {
+        if (card.querySelector('.fld-select')) card.remove();
+      });
+      if (!inputRowsEl.querySelector('.input-card')) makeInputRow({ custom: false });
+    }
+    holderSelect.dataset.prevValue = holderSelect.value;
     if (!holderSelect.value) {
       inventoryList = [];
       inventoryByCurrency = {};
       setStatus(loadStatus, 'ok', 'Select an inventory holder.');
+      refreshCurrencyCombos();
       return;
     }
     loadInventory();
   });
-  document.getElementById('btnAddFromList').addEventListener('click', function () {
-    if (!inventoryList.length) {
-      alert('Select a holder and wait for inventory to load.');
-      return;
-    }
-    makeRow({ custom: false });
-  });
-  document.getElementById('btnAddCustom').addEventListener('click', function () { makeRow({ custom: true }); });
-  document.getElementById('btnCalc').addEventListener('click', calc);
-  document.getElementById('btnCopy').addEventListener('click', function () {
-    var text = document.getElementById('outCurrency').value;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(function () {
-        var t = document.getElementById('outCurrency');
-        t.select();
-        document.execCommand('copy');
-      });
-    } else {
-      var t2 = document.getElementById('outCurrency');
-      t2.select();
-      document.execCommand('copy');
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.currency-combo-wrap')) {
+      document.querySelectorAll('.currency-combo-dd').forEach(function (el) { el.style.display = 'none'; });
+      document.querySelectorAll('.currency-combo-trigger').forEach(function (t) { t.setAttribute('aria-expanded', 'false'); });
     }
   });
 
-  populateHolders();
+  if (inputRowsEl) {
+    inputRowsEl.addEventListener('input', function (e) {
+      if (e.target && e.target.closest && e.target.closest('.input-card')) syncOutputLabelsFromInputs();
+    });
+    inputRowsEl.addEventListener('change', function (e) {
+      if (e.target && e.target.closest && e.target.closest('.input-card')) syncOutputLabelsFromInputs();
+    });
+  }
+
+  document.getElementById('btnAddFromList').addEventListener('click', function () {
+    if (!inventoryList.length) { alert('Select a holder and wait for inventory to load.'); return; }
+    makeInputRow({ custom: false });
+  });
+  document.getElementById('btnAddCustom').addEventListener('click', function () { makeInputRow({ custom: true }); });
+  document.getElementById('btnAddOutput').addEventListener('click', function () { makeOutputRow(); });
+  document.getElementById('btnPreview').addEventListener('click', preview);
+
+  function setSubmitStatus(cls, msg) {
+    var el = document.getElementById('submitStatus');
+    if (!el) return;
+    el.className = 'status ' + (cls || '');
+    el.textContent = msg || '';
+  }
+
+  document.getElementById('btnSubmitLedger').addEventListener('click', function () {
+    setSubmitStatus('', '');
+    var plan = preview();
+    if (!plan.valid) {
+      setSubmitStatus('err', 'Fix the problems in the Cost summary before submitting.');
+      return;
+    }
+    if (!currentPublicKey) {
+      setSubmitStatus('err', 'No verified digital signature — reload the page and complete the signature gate first.');
+      return;
+    }
+
+    var holderKey = holderSelect.value || '';
+    var holderLabel = '';
+    if (holderKey) {
+      var opt = holderSelect.options[holderSelect.selectedIndex];
+      holderLabel = opt ? opt.textContent : holderKey;
+    }
+    var reqId = newRequestId();
+
+    var outputsForWire = plan.outputs.filter(function (o) { return o.valid; }).map(function (o) {
+      return {
+        label: o.label,
+        suggested_currency: o.suggested_currency,
+        units: o.units,
+        unit_kind: o.unit_kind,
+        unit_custom: o.unit_custom || null,
+        weight_per_unit_grams: o.weight_per_unit_grams,
+        weight_display: o.weight_display || null,
+        total_weight_grams: o.total_weight_grams,
+        unit_cost_usd: o.unit_cost_usd,
+        line_total_usd: o.line_total_usd,
+      };
+    });
+
+    var composition = {
+      schema_version: 2,
+      request_id: reqId,
+      client_generated_at: new Date().toISOString(),
+      holder: { key: holderKey || null, label: holderLabel || null },
+      contributor: { public_key: currentPublicKey, name: contributorName || null },
+      inputs: plan.inputs,
+      outputs: outputsForWire,
+      totals: {
+        inputs_subtotal_usd: plan.inputTotal,
+        grand_total_usd: plan.grandTotal,
+        total_output_weight_grams: plan.totalOutputWeightGrams,
+        cost_per_gram_usd: plan.costPerGramUsd,
+      },
+    };
+
+    var attachedFilename = conversionProofFile ? (conversionProofFile.name || 'proof') : null;
+    var requestText = buildRequestText(plan, holderKey, holderLabel, reqId, composition, attachedFilename);
+
+    function finishSend(shareText, fileOrNull) {
+      setSubmitStatus('loading', 'Submitting to Edgar…');
+      var formData = new FormData();
+      formData.append('text', shareText);
+      if (fileOrNull) formData.append('attachment', fileOrNull, fileOrNull.name || 'proof');
+      fetch(EDGAR_SUBMIT_URL, { method: 'POST', body: formData })
+        .then(function (r) { return r.text().then(function (t) { return { ok: r.ok, status: r.status, text: t }; }); })
+        .then(function (res) {
+          var j = null;
+          try { j = JSON.parse(res.text); } catch (e) { /* non-JSON response */ }
+          if (res.ok) {
+            setSubmitStatus('ok', 'Sent to Edgar. GAS will pick up the record from the Telegram Chat Logs.');
+            showReceipt(plan, holderLabel, reqId, requestText, res.status, j, null);
+            return;
+          }
+          var errMsg = (j && j.error) ? j.error : ('HTTP ' + res.status + ' ' + (res.text || '').slice(0, 200));
+          setSubmitStatus('err', errMsg);
+          showReceipt(plan, holderLabel, reqId, requestText, res.status, j, errMsg);
+        })
+        .catch(function (e) {
+          console.error('Edgar submit failed', e);
+          setSubmitStatus('err', 'Request to Edgar failed: ' + (e && e.message ? e.message : String(e)));
+          showReceipt(plan, holderLabel, reqId, requestText, 0, null, e && e.message ? e.message : String(e));
+        });
+    }
+
+    setSubmitStatus('loading', 'Signing request…');
+    signRequestText(requestText).then(function (requestHash) {
+      var shareText = requestText + '\n\nMy Digital Signature: ' + currentPublicKey +
+        '\n\nRequest Transaction ID: ' + requestHash +
+        '\n\nThis submission was generated using ' + window.location.href +
+        '\n\nVerify submission here: https://dapp.truesight.me/verify_request.html';
+
+      if (!conversionProofFile) { finishSend(shareText, null); return; }
+      if (conversionProofFile.size > PROOF_MAX_BYTES) {
+        setSubmitStatus('err', 'Proof file too large (max 500 KB).');
+        return;
+      }
+      finishSend(shareText, conversionProofFile);
+    }).catch(function (e) {
+      console.error('Signing failed', e);
+      setSubmitStatus('err', 'Signing failed: ' + (e && e.message ? e.message : String(e)) +
+        ' — re-register your signature at create_signature.html.');
+    });
+  });
+
+  /* ---------- bootstrap (gated by signature verification) ---------- */
+
+  verifySignatureGate().then(function (result) {
+    if (!result) return;   // user is being redirected or verification failed
+    if (inputRowsEl && !inputRowsEl.querySelector('.input-card')) makeInputRow({ custom: false });
+    if (outputRowsEl && !outputRowsEl.querySelector('.output-row')) makeOutputRow();
+    populateHolders();
+  });
 })();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js', { scope: './' })
+        .then(function (reg) { console.log('Service Worker registered with scope:', reg.scope); })
+        .catch(function (err) { console.warn('Service Worker registration failed:', err); });
+    }
+  </script>
+  <script>
+    (function () {
+      var div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.marginTop = '1rem';
+      var url = new URL(window.location.href);
+      url.searchParams.set('reload', 'true');
+      var a = document.createElement('a');
+      a.href = url.toString();
+      a.textContent = 'Reload Latest Version';
+      a.style.fontSize = '0.8rem';
+      a.style.color = '#007bff';
+      a.style.textDecoration = 'none';
+      div.appendChild(a);
+      document.body.appendChild(div);
+    })();
+  </script>
+  <script>
+    (function () {
+      var div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.marginTop = '1rem';
+      var a = document.createElement('a');
+      a.href = 'https://github.com/TrueSightDAO/dapp/blob/main/repackaging_planner.html';
+      a.textContent = 'View Source Code';
+      a.style.fontSize = '0.8rem';
+      a.style.color = '#007bff';
+      a.style.textDecoration = 'none';
+      div.appendChild(a);
+      document.body.appendChild(div);
+    })();
   </script>
 </body>
 </html>
