@@ -3,7 +3,7 @@
 # Local server script for serving the dapp
 # This allows Google Places API to work (requires http:// not file://)
 
-PORT=${1:-8000}
+PORT=${1:-8081}
 
 # Function to check if port is in use
 check_port() {
