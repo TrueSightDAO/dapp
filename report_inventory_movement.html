@@ -1512,24 +1512,124 @@
         }
 
 
+        // --- Treasury cache (pre-computed inventory snapshot) ---
+        //
+        // Reads the nightly-ish snapshot committed to
+        // github.com/TrueSightDAO/treasury-cache/main (refreshed on every
+        // [INVENTORY MOVEMENT] batch + 30-min safety-net cron) so the three
+        // slow GAS fetches below can be skipped. If the fetch fails or the
+        // JSON is malformed, every consumer falls back to the existing GAS.
+        //
+        // Schema: https://github.com/TrueSightDAO/treasury-cache/blob/main/README.md
+        const TREASURY_CACHE_BASE_URL = 'https://raw.githubusercontent.com/TrueSightDAO/treasury-cache/main/dao_offchain_treasury.json';
+        const TREASURY_CACHE_SESSION_BUST = Date.now(); // freshen per page load, memoize within session
+        let _treasuryCachePromise = null;
+
+        async function getTreasuryCache() {
+            if (_treasuryCachePromise) return _treasuryCachePromise;
+            _treasuryCachePromise = (async () => {
+                try {
+                    const url = `${TREASURY_CACHE_BASE_URL}?t=${TREASURY_CACHE_SESSION_BUST}`;
+                    const res = await fetch(url, { cache: 'no-store' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json || !Array.isArray(json.items) || !Array.isArray(json.managers)) {
+                        throw new Error('malformed treasury-cache JSON');
+                    }
+                    console.log('[treasury-cache] loaded', {
+                        generated_at: json.generated_at,
+                        trigger: json.trigger,
+                        item_types: json.totals && json.totals.item_types,
+                        managers: json.totals && json.totals.managers_count
+                    });
+                    return json;
+                } catch (err) {
+                    console.warn('[treasury-cache] load failed, will fall back to GAS:', err);
+                    return null;
+                }
+            })();
+            return _treasuryCachePromise;
+        }
+
+        async function getManagersFromTreasuryCache() {
+            const snap = await getTreasuryCache();
+            if (!snap) return null;
+            return snap.managers.map(m => ({ key: m.manager_key, name: m.manager_name }));
+        }
+
+        async function getAllCurrenciesFromTreasuryCache() {
+            const snap = await getTreasuryCache();
+            if (!snap) return null;
+            // Translate treasury-cache items[] to the ?all_currencies=true shape the
+            // DApp already knows how to render. "Main Ledger" is excluded from
+            // ledger_quantities to match the GAS response exactly (it only exposes
+            // external AGL ledgers there).
+            return snap.items.map(it => {
+                const ledgerQuantities = {};
+                Object.entries(it.ledgers || {}).forEach(([name, qty]) => {
+                    if (name !== 'Main Ledger') ledgerQuantities[name] = qty;
+                });
+                return {
+                    product_name: it.currency,
+                    product_image: '',
+                    landing_page: '',
+                    ledger: '',
+                    farm_name: '',
+                    state: '',
+                    country: '',
+                    year: '',
+                    unit_weight_g: it.unit_weight_g != null ? it.unit_weight_g : null,
+                    total_quantity: it.total_quantity,
+                    ledger_quantities: ledgerQuantities
+                };
+            });
+        }
+
+        async function getManagerAssetsFromTreasuryCache(managerKey) {
+            const snap = await getTreasuryCache();
+            if (!snap) return null;
+            const manager = snap.managers.find(m => m.manager_key === managerKey);
+            if (!manager) return []; // known manager-set, just has no assets
+            return manager.items.map(itm => {
+                const out = { currency: itm.currency, amount: itm.amount };
+                if (itm.unit_cost_usd != null) out.unit_cost = itm.unit_cost_usd;
+                if (itm.total_value_usd != null) out.total_value = itm.total_value_usd;
+                if (itm.ledger) out.ledger = itm.ledger;
+                return out;
+            });
+        }
+        // --- end treasury cache ---
+
         let managersList = [];
 
         async function loadManagers() {
+            let managers = null;
+            let source = 'treasury-cache';
             try {
-                const res = await fetch(`${DAO_FORMS_BASE}?list=true`);
-                const managers = await res.json();
-                // Sort managers alphabetically by name
-                managersList = managers.sort((a, b) => a.name.localeCompare(b.name));
-                
-                const display = document.getElementById('managerSelectDisplay');
-                if (display) {
-                    display.textContent = 'Select a manager';
-                    display.style.color = '#999';
-                }
+                managers = await getManagersFromTreasuryCache();
             } catch (err) {
-                console.error('Error loading managers:', err);
-                document.getElementById('reportOutput').textContent = 'Failed to load managers: ' + err.message;
-                document.getElementById('reportOutput').className = 'error';
+                console.warn('[treasury-cache] getManagersFromTreasuryCache failed:', err);
+            }
+            if (!managers) {
+                source = 'gas';
+                try {
+                    const res = await fetch(`${DAO_FORMS_BASE}?list=true`);
+                    managers = await res.json();
+                } catch (err) {
+                    console.error('Error loading managers:', err);
+                    document.getElementById('reportOutput').textContent = 'Failed to load managers: ' + err.message;
+                    document.getElementById('reportOutput').className = 'error';
+                    return;
+                }
+            }
+            // Sort managers alphabetically by name
+            managersList = managers.sort((a, b) => a.name.localeCompare(b.name));
+            console.log(`[managers] loaded ${managersList.length} via ${source}`);
+
+            const display = document.getElementById('managerSelectDisplay');
+            if (display) {
+                display.textContent = 'Select a manager';
+                display.style.color = '#999';
             }
         }
         
@@ -1775,20 +1875,25 @@
         }
 
         async function loadAllCurrencies() {
+            // Prefer the pre-computed treasury-cache; fall back to the GAS
+            // ?all_currencies=true endpoint on any failure.
+            try {
+                const cached = await getAllCurrenciesFromTreasuryCache();
+                if (cached) {
+                    allCurrencies = cached;
+                    console.log(`[all_currencies] loaded ${allCurrencies.length} via treasury-cache`);
+                    return;
+                }
+            } catch (err) {
+                console.warn('[treasury-cache] getAllCurrenciesFromTreasuryCache failed:', err);
+            }
             try {
                 const res = await fetch(`${DAO_FORMS_BASE}?all_currencies=true`);
                 const data = await res.json();
                 if (data.status === 'success') {
                     // The listAllCurrenciesAcrossLedgers function returns currencies array
                     allCurrencies = data.data.currencies || [];
-                    console.log('Loaded all currencies across ledgers:', allCurrencies.length, allCurrencies);
-                    if (allCurrencies.length > 0) {
-                        console.log('First currency type:', typeof allCurrencies[0]);
-                        console.log('First currency object:', allCurrencies[0]);
-                        console.log('Product name:', allCurrencies[0].product_name);
-                        console.log('Ledger URL:', allCurrencies[0].ledger);
-                        console.log('Ledger quantities:', allCurrencies[0].ledger_quantities);
-                    }
+                    console.log(`[all_currencies] loaded ${allCurrencies.length} via gas`);
                 } else {
                     console.error('Error from listAllCurrenciesAcrossLedgers:', data.message);
                     allCurrencies = [];
@@ -1991,15 +2096,25 @@
                 showItemSelectLoading();
                 
                 try {
-                    // Load manager assets
-                    const res = await fetch(`${DAO_FORMS_BASE}?manager=${encodeURIComponent(managerKey)}`);
-                    assets = await res.json();
-                    console.log('Loaded manager assets:', assets.length, assets);
-                    console.log('All currencies available:', allCurrencies.length, allCurrencies);
-                    
+                    // Load manager assets — prefer treasury-cache; fall back to GAS on miss
+                    let cachedAssets = null;
+                    try {
+                        cachedAssets = await getManagerAssetsFromTreasuryCache(managerKey);
+                    } catch (cacheErr) {
+                        console.warn('[treasury-cache] getManagerAssetsFromTreasuryCache failed:', cacheErr);
+                    }
+                    if (cachedAssets) {
+                        assets = cachedAssets;
+                        console.log(`[manager_assets] loaded ${assets.length} via treasury-cache`);
+                    } else {
+                        const res = await fetch(`${DAO_FORMS_BASE}?manager=${encodeURIComponent(managerKey)}`);
+                        assets = await res.json();
+                        console.log(`[manager_assets] loaded ${assets.length} via gas`);
+                    }
+
                     // Clear loading state
                     clearItemSelectLoading();
-                    
+
                     // Populate item select with cached data
                     populateItemSelectFromManagerAssets();
                 } catch (err) {
