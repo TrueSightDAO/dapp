@@ -15,6 +15,7 @@
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./routes.js"></script>
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
 
@@ -293,7 +294,8 @@
 
     <script>
         // Configuration - Google Apps Script web app URL
-        const WEB_APP_URL = 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
+        const WEB_APP_URL = (window.Routes && window.Routes.gas && window.Routes.gas.proposals)
+            || 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
         
         let proposals = [];
 

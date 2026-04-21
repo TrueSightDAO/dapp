@@ -15,6 +15,7 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
   
+  <script src="./routes.js"></script>
   <script src="./menu.js"></script>
   <script src="./tdg_balance.js"></script>
   <script src="./scripts/edgar_payload_helper.js"></script>
@@ -403,7 +404,7 @@
         }
         return 'http://localhost:3000';
       }
-      return 'https://edgar.truesight.me';
+      return (window.Routes && window.Routes.edgar && window.Routes.edgar.base) || 'https://edgar.truesight.me';
     })();
     const EDGAR_SUBMIT_URL = `${EDGAR_BASE}/dao/submit_contribution`;
     const EDGAR_CHECK_SIGNATURE_URL = `${EDGAR_BASE}/dao/check_digital_signature`;

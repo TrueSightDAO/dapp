@@ -15,6 +15,7 @@
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./routes.js"></script>
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
     <style>
@@ -575,8 +576,12 @@
 
     <script>
         // Configuration - Google Apps Script web app URL
-        const WEB_APP_URL = 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
-        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const WEB_APP_URL = (window.Routes && window.Routes.gas && window.Routes.gas.proposals)
+            || 'https://script.google.com/a/macros/agroverse.shop/s/AKfycbzgNstwRX1dWo17Dxny0t1ipJ6yLX02bTD_cKRuHr5RPJPemNVTj25mFhKo4UmR5Z7BIg/exec';
+        const API_ENDPOINT = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
+            || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
+            || 'https://edgar.truesight.me/dao/submit_contribution';
         
         let proposal = null;
         let currentVote = null;
@@ -912,7 +917,7 @@ Verify submission here: https://dapp.truesight.me/verify_request.html`;
                 const formData = new FormData();
                 formData.append('text', shareText);
 
-                const response = await fetch('https://edgar.truesight.me/dao/submit_contribution', {
+                const response = await fetch(EDGAR_SUBMIT, {
                     method: 'POST',
                     body: formData
                 });

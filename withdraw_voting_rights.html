@@ -14,6 +14,7 @@
   <meta property="og:type" content="website">
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">    
+  <script src="./routes.js"></script>
   <script src="./menu.js"></script>
   <script src="./tdg_balance.js"></script>
   <style>
@@ -465,7 +466,8 @@
   </div>
 
   <script>
-    const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+    const API_ENDPOINT = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
+        || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
     const LEDGER_OFFCHAIN_BALANCE_URL = 'https://docs.google.com/spreadsheets/d/1GE7PUq-UT6x2rBN-Q2ksogbWpgyuh2SaxJyG_uEK6PU/edit?gid=2083442561';
     const BLOG_AUM_URL = 'https://truesight.me/blog/posts/understanding-assets-under-management-aum-truesight-dao-comprehensive-asset-tracking.html';
     let maxVotingRights = 0;
