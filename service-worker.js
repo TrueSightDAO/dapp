@@ -1,4 +1,6 @@
-const CACHE_NAME = 'qr-scanner-cache-v2';
+importScripts('./routes.js');
+
+const CACHE_NAME = 'qr-scanner-cache-v3';
 const URLS_TO_CACHE = [
   // HTML pages
   './',
@@ -13,19 +15,21 @@ const URLS_TO_CACHE = [
   './report_sales.html',
   './report_tree_planting.html',
   './scanner.html',
+  './submit_feedback.html',
   './verify_request.html',
   './withdraw_voting_rights.html',
   // Scripts
   './menu.js',
+  './routes.js',
   './service-worker.js',
   // External libraries
   'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js',
   // Assets
   './assets/brazil.png',
   './assets/usa.png',
-  // Google Apps Script API endpoints (dynamic data)                                                                 
-  'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec',
-  'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec'
+  // Google Apps Script API endpoints — sourced from Routes for a single source of truth
+  self.Routes.gas.assetVerify,
+  self.Routes.gas.daoForms
 ];
 
 // Install event: cache essential assets
@@ -60,8 +64,11 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
-  // Handle Google Apps Script API calls: network-first with cache fallback
-  if (url.origin === 'https://script.google.com' && url.pathname.startsWith('/macros/s/')) {
+  // Handle Google Apps Script API calls: network-first with cache fallback.
+  // Matches both '/macros/s/<id>/exec' and the workspace-scoped
+  // '/a/macros/<domain>/s/<id>/exec' variant used by the Proposals GAS.
+  if (url.origin === 'https://script.google.com'
+      && (url.pathname.startsWith('/macros/s/') || url.pathname.startsWith('/a/macros/'))) {
     event.respondWith(
       fetch(request)
         .then(response => {
