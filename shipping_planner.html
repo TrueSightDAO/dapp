@@ -55,6 +55,7 @@
     <script src="./routes.js"></script>
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
+    <script src="./js/treasury_cache.js"></script>
     
     <style>
         body {
@@ -1078,13 +1079,19 @@
                 const statusEl = document.getElementById('status');
                 statusEl.textContent = 'Loading managers...';
                 statusEl.className = 'loading';
-                
-                const url = API_BASE_URL + '?action=list_managers';
-                const response = await fetch(url);
-                const data = await response.json();
-                
+
+                let data = null;
+                try { data = await TreasuryCache.getManagersForShipping(); } catch (_) {}
+                let source = 'treasury-cache';
+                if (!data) {
+                    source = 'gas';
+                    const response = await fetch(API_BASE_URL + '?action=list_managers');
+                    data = await response.json();
+                }
+
                 if (data.status === 'success' && data.data.managers) {
                     managersList = data.data.managers;
+                    console.log(`[managers] loaded ${managersList.length} via ${source}`);
                     populateManagerSelect();
                     statusEl.textContent = 'Ready';
                     statusEl.className = 'status';
@@ -1210,13 +1217,20 @@
             try {
                 document.getElementById('status').textContent = 'Loading inventory...';
                 document.getElementById('status').className = 'loading';
-                
-                const url = API_BASE_URL + '?action=get_inventory&manager=' + encodeURIComponent(managerKey);
-                const response = await fetch(url);
-                const data = await response.json();
-                
+
+                let data = null;
+                try { data = await TreasuryCache.getManagerInventoryForShipping(managerKey); } catch (_) {}
+                let source = 'treasury-cache';
+                if (!data) {
+                    source = 'gas';
+                    const url = API_BASE_URL + '?action=get_inventory&manager=' + encodeURIComponent(managerKey);
+                    const response = await fetch(url);
+                    data = await response.json();
+                }
+
                 if (data.status === 'success' && data.data.inventory) {
                     inventoryList = data.data.inventory;
+                    console.log(`[get_inventory] loaded ${inventoryList.length} via ${source}`);
                     populateInventoryList();
                     document.getElementById('status').textContent = 'Ready';
                     document.getElementById('status').className = 'status';
