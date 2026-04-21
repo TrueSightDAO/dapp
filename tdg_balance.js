@@ -9,7 +9,8 @@
  * See DAPP_PAGE_CONVENTIONS.md and UX_CONVENTIONS.md.
  */
 (function() {
-  const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+  const API_ENDPOINT = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
+      || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
 
   function formatRights(n) {
     if (n >= 1000000) return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
