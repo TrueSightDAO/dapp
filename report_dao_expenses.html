@@ -19,6 +19,7 @@
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
     <script src="./expense-form-utils.js"></script>
+    <script src="./js/treasury_cache.js"></script>
 
     <style>
         body {
@@ -601,8 +602,15 @@
         async function loadMembers() {
             const memberInput = document.getElementById('memberInput');
             try {
-                const res = await fetch(`${DAO_FORMS_BASE}?list=true`);
-                const members = await res.json();
+                let members = null;
+                try { members = await TreasuryCache.getManagers(); } catch (_) {}
+                let source = 'treasury-cache';
+                if (!members) {
+                    source = 'gas';
+                    const res = await fetch(`${DAO_FORMS_BASE}?list=true`);
+                    members = await res.json();
+                }
+                console.log(`[members] loaded ${members && members.length} via ${source}`);
                 allMembers = members || [];
                 const memberOptions = document.getElementById('memberOptions');
                 memberOptions.innerHTML = '';
@@ -633,8 +641,15 @@
         async function loadLedgers() {
             const ledgerInput = document.getElementById('ledgerInput');
             try {
-                const res = await fetch(`${DAO_FORMS_BASE}?ledgers=true`);
-                const ledgers = await res.json();
+                let ledgers = null;
+                try { ledgers = await TreasuryCache.getLedgers(); } catch (_) {}
+                let source = 'treasury-cache';
+                if (!ledgers) {
+                    source = 'gas';
+                    const res = await fetch(`${DAO_FORMS_BASE}?ledgers=true`);
+                    ledgers = await res.json();
+                }
+                console.log(`[ledgers] loaded ${ledgers && ledgers.length} via ${source}`);
                 allLedgers = ledgers || [];
                 const ledgerOptions = document.getElementById('ledgerOptions');
                 ledgerOptions.innerHTML = '';
@@ -1030,9 +1045,17 @@
             }
             
             try {
-                const res = await fetch(`${DAO_FORMS_BASE}?manager=${encodeURIComponent(memberKey)}`);
-                resources = await res.json();
-                console.log('Loaded member resources:', resources.length, resources);
+                let cachedResources = null;
+                try { cachedResources = await TreasuryCache.getManagerAssets(memberKey); } catch (_) {}
+                let source = 'treasury-cache';
+                if (cachedResources) {
+                    resources = cachedResources;
+                } else {
+                    source = 'gas';
+                    const res = await fetch(`${DAO_FORMS_BASE}?manager=${encodeURIComponent(memberKey)}`);
+                    resources = await res.json();
+                }
+                console.log(`[member_resources] loaded ${resources.length} via ${source}`);
                 console.log('All currencies available:', allCurrencies.length, allCurrencies);
                 
                 // Store all options with metadata for lookup (before filtering)
@@ -1154,13 +1177,19 @@
 
         async function loadAllCurrencies() {
             try {
-                const res = await fetch(`${DAO_FORMS_BASE}?all_currencies=true`);
-                const data = await res.json();
-                if (data.status === 'success') {
+                let data = null;
+                try { data = await TreasuryCache.getAllCurrencies(); } catch (_) {}
+                let source = 'treasury-cache';
+                if (!data) {
+                    source = 'gas';
+                    const res = await fetch(`${DAO_FORMS_BASE}?all_currencies=true`);
+                    data = await res.json();
+                }
+                if (data && data.status === 'success') {
                     allCurrencies = data.data.currencies || [];
-                    console.log('Loaded all currencies across ledgers:', allCurrencies.length, allCurrencies);
+                    console.log(`[all_currencies] loaded ${allCurrencies.length} via ${source}`);
                 } else {
-                    console.error('Error from listAllCurrenciesAcrossLedgers:', data.message);
+                    console.error('Error from listAllCurrenciesAcrossLedgers:', data && data.message);
                     allCurrencies = [];
                 }
             } catch (err) {
