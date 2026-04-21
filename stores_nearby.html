@@ -2056,6 +2056,17 @@
             return url.toString();
         }
 
+        /** Deep link to Store Interaction History (same ?store= / ?shop= keys as this page). */
+        function buildStoreInteractionHistoryUrl(store) {
+            const key = String((store && (store.storeKey || createStoreKey(store))) || '').trim();
+            const shop = String((store && store.name) || '').trim();
+            const params = new URLSearchParams();
+            if (key) params.set('store', key);
+            if (shop) params.set('shop', shop);
+            const qs = params.toString();
+            return './store_interaction_history.html' + (qs ? '?' + qs : '');
+        }
+
         function buildStoreShareText(store, options = {}) {
             const includeLink = options.includeLink !== false;
             const lines = [];
@@ -2656,6 +2667,7 @@
                 const mapsUrl = mapsQuery
                     ? `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`
                     : `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`;
+                const historyUrl = buildStoreInteractionHistoryUrl(store);
 
                 const marker = L.marker([store.latitude, store.longitude], {
                     icon: createNumberedIcon(storeMarkers.length + 1, mapMarkerColorForStore(store))
@@ -2668,6 +2680,7 @@
                     <strong>Distance:</strong> ${store.distance ? store.distance.toFixed(1) : 'N/A'} miles<br>
                     <a href="${mapsUrl}" target="_blank" style="color: #007bff; text-decoration: none; margin-right: 0.5rem;">📍 View on Google Maps</a>
                     ${store.instagram ? `<a href="${escapeHtml(store.instagram)}" target="_blank" style="color: #E4405F; text-decoration: none;">📷 View Instagram</a>` : ''}
+                    <br><a href="${escapeHtml(historyUrl)}" style="color: #0d6efd; text-decoration: none; font-weight: 600;">🗂️ Interaction history &amp; full edit</a>
                 `);
 
                 storeMarkers.push(marker);
@@ -3355,6 +3368,7 @@
                     const mapsUrl = mapsQuery
                         ? `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`
                         : `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`;
+                    const historyUrl = buildStoreInteractionHistoryUrl(store);
 
                     const marker = L.marker([store.latitude, store.longitude], {
                         icon: createNumberedIcon(store.routeOrder, mapMarkerColorForStore(store))
@@ -3368,6 +3382,7 @@
                         <strong>Distance from you:</strong> ${store.distance} miles<br>                                                                         
                         <a href="${mapsUrl}" target="_blank" style="color: #007bff; text-decoration: none; margin-right: 0.5rem;">📍 View on Google Maps</a>
                         ${store.instagram ? `<a href="${escapeHtml(store.instagram)}" target="_blank" style="color: #E4405F; text-decoration: none;">📷 View Instagram</a>` : ''}
+                        <br><a href="${escapeHtml(historyUrl)}" style="color: #0d6efd; text-decoration: none; font-weight: 600;">🗂️ Interaction history &amp; full edit</a>
                     `);
 
                     storeMarkers.push(marker);
@@ -6134,6 +6149,7 @@
                 ? `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`
                 : `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`;
             const fullAddress = `${escapeHtml(store.address || '')}${store.city ? ', ' + escapeHtml(store.city) : ''}${store.state ? ', ' + escapeHtml(store.state) : ''}`.trim();
+            const interactionHistoryUrl = escapeHtml(buildStoreInteractionHistoryUrl(store));
             
             let html = '';
             if (isStorePermanentlyClosed(store)) {
@@ -6146,6 +6162,16 @@
                     </div>
                 `;
             }
+            html += `
+                <div class="store-details-section">
+                    <div class="store-details-title">🗂️ Hit list workspace</div>
+                    <div class="store-details-content">
+                        <a href="${interactionHistoryUrl}" class="store-details-link" style="font-weight: 600;">Open interaction history</a>
+                        <span style="color: #555; font-size: 0.9rem;"> — full notes, email-agent context, and status updates without refreshing this list.</span>
+                    </div>
+                </div>
+            `;
+
             html += `
                 <div class="store-details-section">
                     <div class="store-details-title">📍 Location</div>
@@ -6712,14 +6738,8 @@
                                 }
                             }
                         }
-                        
-                        // Refresh the stores list after a short delay to show updated status
-                        setTimeout(() => {
-                            if (currentLat && currentLng) {
-                                // Re-search to get updated data from the sheet
-                                searchStores();
-                            }
-                        }, 1500);
+                        // Do not re-run searchStores() here: reloading the whole list felt disruptive after a small edit.
+                        // Open <store_interaction_history.html> for sheet-aligned context; use "Find Nearby Stores" to refresh from the sheet.
                     } else {
                         messageElement.innerHTML = `<span style="color: #dc3545;">❌ Error: ${data.error || data.message || 'Unknown error'}</span>`;
                         // Re-enable all inputs on error
