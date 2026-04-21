@@ -395,7 +395,7 @@
             <details id="updateSectionDetails" class="update-collapsible">
                 <summary>Update Status &amp; Shop Type <span class="update-collapsible-hint">— click to expand</span></summary>
                 <div class="update-collapsible-body">
-            <p class="help-text">Same endpoint as <strong>Stores Nearby</strong> (<code>action=update_status</code>). Requires verified signature.</p>
+            <p class="help-text">Same endpoint as <strong>Stores Nearby</strong> (<code>action=update_status</code>, Google Apps Script → Hit List sheet). Requires verified signature. <strong>Photo attachments</strong> (e.g. business card front/back) are not supported yet: the API is a GET with text fields only; adding images needs a POST path plus storage (e.g. Drive) in that script. This flow does not go through Edgar.</p>
 
             <label for="editStatus">Status</label>
             <select id="editStatus" data-requires-signature="true">
