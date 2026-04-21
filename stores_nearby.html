@@ -6655,7 +6655,13 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        messageElement.innerHTML = `<span style="color: #28a745;">✅ ${data.message}</span>`;
+                        const historyUrl = buildStoreInteractionHistoryUrl(store);
+                        messageElement.innerHTML =
+                            `<span style="color: #28a745;">✅ ${escapeHtml(data.message || 'Updated')}</span>` +
+                            `<div style="margin-top:0.5rem;font-size:0.9rem;line-height:1.4;">` +
+                            `<a href="${historyUrl}" style="color:#0d6efd;font-weight:600;">Open interaction history</a> ` +
+                            `to review or edit details in one place (this list is not re-fetched so your scroll position stays put).` +
+                            `</div>`;
                         
                         // Update the store data
                         window.storesData[index].status = newStatus;

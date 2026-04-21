@@ -395,7 +395,7 @@
             <details id="updateSectionDetails" class="update-collapsible">
                 <summary>Update Status &amp; Shop Type <span class="update-collapsible-hint">— click to expand</span></summary>
                 <div class="update-collapsible-body">
-            <p class="help-text">Same endpoint as <strong>Stores Nearby</strong> (<code>action=update_status</code>, Google Apps Script → Hit List sheet). Requires verified signature. <strong>Photo attachments</strong> (e.g. business card front/back) are not supported yet: the API is a GET with text fields only; adding images needs a POST path plus storage (e.g. Drive) in that script. This flow does not go through Edgar.</p>
+            <p class="help-text">Same endpoint as <strong>Stores Nearby</strong> (<code>action=update_status</code>, Google Apps Script → Hit List sheet). Requires verified signature. <strong>Photo attachments</strong> (e.g. business card front/back, multiple images) are not supported yet: the browser currently calls the web app with query parameters only; binary uploads need a <code>POST</code> handler plus durable storage (for example Google Drive) and new Hit List columns or an attachments log for file links. <strong>Edgar</strong> (<code>sentiment_importer</code>) is not on this path today, so “smart” OCR or filing from images would be a separate integration if you want it later.</p>
 
             <label for="editStatus">Status</label>
             <select id="editStatus" data-requires-signature="true">
