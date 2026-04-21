@@ -14,6 +14,7 @@
     <meta property="og:site_name" content="TrueSight DAO">
 
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./routes.js"></script>
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
 
@@ -324,7 +325,8 @@
 
     <script>
 (function () {
-    var API_BASE_URL = 'https://script.google.com/macros/s/AKfycbwoBqZnDS4JRRdFkxSXdlGt-qIn-RauMcORuDHeWs29oQ2CpJ3L4A10uM8se9anL108/exec';
+    var API_BASE_URL = (window.Routes && window.Routes.gas && window.Routes.gas.storesHitList)
+        || 'https://script.google.com/macros/s/AKfycbwoBqZnDS4JRRdFkxSXdlGt-qIn-RauMcORuDHeWs29oQ2CpJ3L4A10uM8se9anL108/exec';
     var API_TOKEN = '';
 
     var STATUS_OPTIONS = [

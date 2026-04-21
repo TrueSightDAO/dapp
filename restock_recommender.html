@@ -23,6 +23,7 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
 
+    <script src="./routes.js"></script>
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
     <style>
@@ -140,7 +141,8 @@
 
     <script>
         (function() {
-            const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz5Tt_vz1X26i82yqlGUSI_OtCUEO31jImZH2tXfNaxMbfmJ01dkwUIEZDjsnd10xMbcg/exec';
+            const API_BASE_URL = (window.Routes && window.Routes.gas && window.Routes.gas.shipping)
+                || 'https://script.google.com/macros/s/AKfycbz5Tt_vz1X26i82yqlGUSI_OtCUEO31jImZH2tXfNaxMbfmJ01dkwUIEZDjsnd10xMbcg/exec';
             const partnerSelect = document.getElementById('partnerSelect');
             const productSelect = document.getElementById('productSelect');
             const getBtn = document.getElementById('getBtn');

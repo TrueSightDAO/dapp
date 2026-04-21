@@ -10,6 +10,7 @@
   <meta property="og:url" content="https://truesightdao.github.io/dapp/repackaging_planner.html">
   <meta property="og:type" content="website">
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/TrueSightDAO/.github/main/assets/20240612_truesight_dao_logo_square.png">
+  <script src="./routes.js"></script>
   <script src="./menu.js"></script>
   <script src="./tdg_balance.js"></script>
   <title>Repackaging Planner - TrueSight DAO</title>
@@ -220,9 +221,12 @@
 
   <script>
 (function () {
-  var INVENTORY_API = 'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec';
-  var SIGNATURE_API = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
-  var EDGAR_SUBMIT_URL = 'https://edgar.truesight.me/dao/submit_contribution';
+  var INVENTORY_API = (window.Routes && window.Routes.gas && window.Routes.gas.daoForms)
+      || 'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec';
+  var SIGNATURE_API = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
+      || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+  var EDGAR_SUBMIT_URL = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
+      || 'https://edgar.truesight.me/dao/submit_contribution';
   var COMPOSITION_RAW_BASE = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/currency-compositions/';
   var PROOF_MAX_BYTES = 500000;
 

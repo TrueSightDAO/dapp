@@ -19,6 +19,7 @@
     <meta name="twitter:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
 
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./routes.js"></script>
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
 
@@ -487,17 +488,20 @@
     <script>
 (function () {
     /** Read-only history API (holistic_hit_list_store_history). */
-    var API_BASE_URL = 'https://script.google.com/macros/s/AKfycbwoBqZnDS4JRRdFkxSXdlGt-qIn-RauMcORuDHeWs29oQ2CpJ3L4A10uM8se9anL108/exec';
+    var API_BASE_URL = (window.Routes && window.Routes.gas && window.Routes.gas.storesHitList)
+        || 'https://script.google.com/macros/s/AKfycbwoBqZnDS4JRRdFkxSXdlGt-qIn-RauMcORuDHeWs29oQ2CpJ3L4A10uM8se9anL108/exec';
     var API_TOKEN = '';
 
     /**
      * Hit List read/write API — must match stores_nearby.html API_URL
      * (action=update_status, shop_name, new_status, …).
      */
-    var STORES_NEARBY_API_URL = 'https://script.google.com/macros/s/AKfycbwB2zqNV9nMCMWs2hSa8FecjA36Oh-mSVuz3pk8TpXrXcy9dvqOqgbWIirNka2LmacgPw/exec';
+    var STORES_NEARBY_API_URL = (window.Routes && window.Routes.gas && window.Routes.gas.stores)
+        || 'https://script.google.com/macros/s/AKfycbwB2zqNV9nMCMWs2hSa8FecjA36Oh-mSVuz3pk8TpXrXcy9dvqOqgbWIirNka2LmacgPw/exec';
 
     /** Same as stores_nearby.html SIGNATURE_VERIFY_API */
-    var SIGNATURE_VERIFY_API = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+    var SIGNATURE_VERIFY_API = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
+        || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
 
     var searchInput = document.getElementById('storeSearch');
     var suggestPanel = document.getElementById('suggestPanel');
