@@ -15,6 +15,7 @@
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./routes.js"></script>
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
     <script src="./scripts/edgar_payload_helper.js"></script>
@@ -381,11 +382,15 @@
     </div>
 
     <script>
-        const API_ENDPOINT = 'https://edgar.truesight.me/dao/submit_contribution';
-        const VERIFY_ENDPOINT = 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
-        const MEMBERS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec?list_with_members=true';
-        const QR_CODE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec?list_all=true';
-        const LOOKUP_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec';
+        const API_ENDPOINT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
+            || 'https://edgar.truesight.me/dao/submit_contribution';
+        const VERIFY_ENDPOINT = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
+            || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const QR_CODE_BASE = (window.Routes && window.Routes.gas && window.Routes.gas.qrCodes)
+            || 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec';
+        const MEMBERS_ENDPOINT = `${QR_CODE_BASE}?list_with_members=true`;
+        const QR_CODE_ENDPOINT = `${QR_CODE_BASE}?list_all=true`;
+        const LOOKUP_ENDPOINT = QR_CODE_BASE;
 
         let qrCodes = [];
         let filteredQrCodes = [];

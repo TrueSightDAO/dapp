@@ -52,6 +52,7 @@
         };
     </script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS5tz9sp9mWG6d_glVO19UUk8ZyZ3LdbQ&callback=onGoogleMapsReady&v=weekly&loading=async&libraries=places"></script>
+    <script src="./routes.js"></script>
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
     
@@ -582,7 +583,8 @@
     
     <script>
         // Configuration - Google Apps Script deployment URL
-        const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbz5Tt_vz1X26i82yqlGUSI_OtCUEO31jImZH2tXfNaxMbfmJ01dkwUIEZDjsnd10xMbcg/exec';
+        const API_BASE_URL = (window.Routes && window.Routes.gas && window.Routes.gas.shipping)
+            || 'https://script.google.com/macros/s/AKfycbz5Tt_vz1X26i82yqlGUSI_OtCUEO31jImZH2tXfNaxMbfmJ01dkwUIEZDjsnd10xMbcg/exec';
         // Freight lane registry (TrueSightDAO/agroverse-freight-audit)
         const FREIGHT_LANES_INDEX_URL = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-freight-audit/main/pointers/freight_lanes.json';
         
