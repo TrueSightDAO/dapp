@@ -17,6 +17,7 @@
   
   <script src="./routes.js"></script>
   <script src="./menu.js"></script>
+  <script src="./scripts/dao_members_cache.js"></script>
   <script src="./tdg_balance.js"></script>
   <script src="./scripts/edgar_payload_helper.js"></script>
   <style>
@@ -821,6 +822,27 @@
           verifyBtn.click();
         }, 0);
         return;
+      }
+
+      // Optimistic first render from the GitHub-raw dao_members.json cache
+      // (CDN ~50–150ms) while Edgar's check_digital_signature call is in
+      // flight (~300–800ms warm, more if the route is cold). If the cache
+      // shows the key as ACTIVE we render "Welcome back" immediately; the
+      // subsequent Edgar response either refines it with the registered
+      // email (via applyRegisteredUi below) or, in the rare stale-cache
+      // case, overrides it with the authoritative unregistered / pending
+      // UI. On any cache miss / fetch error we silently skip — the Edgar
+      // path below renders the correct UI regardless.
+      let optimisticRegisteredApplied = false;
+      if (window.DaoMembersCache && window.DaoMembersCache.findByPublicKey) {
+        window.DaoMembersCache.findByPublicKey(publicKey)
+          .then((hit) => {
+            if (!hit || !hit.contributor || !hit.key) return;
+            if (String(hit.key.status || '').toUpperCase() !== 'ACTIVE') return;
+            optimisticRegisteredApplied = true;
+            applyRegisteredUi({ contributor_name: hit.contributor.name, contributor_email: '' });
+          })
+          .catch(() => { /* cache unavailable — Edgar path is canonical */ });
       }
 
       const data = await checkSignatureRegistration(publicKey);
