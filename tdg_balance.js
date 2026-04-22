@@ -79,37 +79,50 @@
   }
 
   function fetchFromCache(publicKey) {
-    return fetch(CACHE_URL, { cache: 'no-cache' })
-      .then(function(r) {
-        if (!r.ok) throw new Error('cache HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function(snapshot) {
-        // DAO-wide ratio used to turn voting_rights into USD. Must live at the
-        // snapshot root (it's not per-contributor). If missing, treat the whole
-        // cache hit as incomplete and fall back to GAS — keeps the badge honest
-        // while the publisher is being upgraded.
-        var daoTotals = (snapshot && snapshot.dao_totals) || {};
-        var assetPerRight = parseFloat(daoTotals.asset_per_circulated_voting_right);
-        if (!isFinite(assetPerRight)) throw new Error('cache missing dao_totals.asset_per_circulated_voting_right');
+    // Prefer the shared DaoMembersCache helper (session-memoized across
+    // components on the page). Fall back to an inline fetch so tdg_balance.js
+    // keeps working on pages that don't load scripts/dao_members_cache.js.
+    const fetcher = (window.DaoMembersCache && window.DaoMembersCache.findByPublicKey)
+      ? window.DaoMembersCache.findByPublicKey(publicKey).then(function(hit) {
+          if (!hit || !hit.contributor) throw new Error('cache miss: public key not found in snapshot');
+          const daoTotals = hit.daoTotals || {};
+          const assetPerRight = parseFloat(daoTotals.asset_per_circulated_voting_right);
+          if (!isFinite(assetPerRight)) throw new Error('cache missing dao_totals.asset_per_circulated_voting_right');
+          return {
+            contributor_name: hit.contributor.name,
+            voting_rights: hit.contributor.voting_rights,
+            asset_per_circulated_voting_right: assetPerRight,
+            _source: 'github_cache'
+          };
+        })
+      : fetch(CACHE_URL, { cache: 'no-cache' })
+          .then(function(r) {
+            if (!r.ok) throw new Error('cache HTTP ' + r.status);
+            return r.json();
+          })
+          .then(function(snapshot) {
+            var daoTotals = (snapshot && snapshot.dao_totals) || {};
+            var assetPerRight = parseFloat(daoTotals.asset_per_circulated_voting_right);
+            if (!isFinite(assetPerRight)) throw new Error('cache missing dao_totals.asset_per_circulated_voting_right');
 
-        var contributors = (snapshot && snapshot.contributors) || [];
-        for (var i = 0; i < contributors.length; i++) {
-          var c = contributors[i];
-          var keys = (c && c.public_keys) || [];
-          for (var j = 0; j < keys.length; j++) {
-            if (keys[j] && keys[j].public_key === publicKey) {
-              return {
-                contributor_name: c.name,
-                voting_rights: c.voting_rights,
-                asset_per_circulated_voting_right: assetPerRight,
-                _source: 'github_cache'
-              };
+            var contributors = (snapshot && snapshot.contributors) || [];
+            for (var i = 0; i < contributors.length; i++) {
+              var c = contributors[i];
+              var keys = (c && c.public_keys) || [];
+              for (var j = 0; j < keys.length; j++) {
+                if (keys[j] && keys[j].public_key === publicKey) {
+                  return {
+                    contributor_name: c.name,
+                    voting_rights: c.voting_rights,
+                    asset_per_circulated_voting_right: assetPerRight,
+                    _source: 'github_cache_inline'
+                  };
+                }
+              }
             }
-          }
-        }
-        throw new Error('cache miss: public key not found in snapshot');
-      });
+            throw new Error('cache miss: public key not found in snapshot');
+          });
+    return fetcher;
   }
 
   function fetchFromGas(publicKey) {
