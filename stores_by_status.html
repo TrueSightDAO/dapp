@@ -329,6 +329,9 @@
         || 'https://script.google.com/macros/s/AKfycbwoBqZnDS4JRRdFkxSXdlGt-qIn-RauMcORuDHeWs29oQ2CpJ3L4A10uM8se9anL108/exec';
     var API_TOKEN = '';
 
+    /** Bypass HTTP cache for live GAS JSON (aligned with service-worker GAS policy). */
+    var GAS_FETCH_INIT = { cache: 'no-store' };
+
     var STATUS_OPTIONS = [
         'Research',
         'AI: Shortlisted',
@@ -624,7 +627,7 @@
         if (pipelineMeta) pipelineMeta.textContent = '';
         try {
             var url = API_BASE_URL + '?action=listStatusSummary' + tokenQs();
-            var res = await fetch(url);
+            var res = await fetch(url, GAS_FETCH_INIT);
             var json = await res.json();
             if (json.status !== 'success') {
                 var m = (json.message || '').toString();
@@ -712,7 +715,7 @@
         setLoadingUi(true);
         try {
             var url = buildListUrl();
-            var res = await fetch(url);
+            var res = await fetch(url, GAS_FETCH_INIT);
             var json = await res.json();
             if (json.status !== 'success') {
                 setStatus(json.message || 'Request failed', 'error');
