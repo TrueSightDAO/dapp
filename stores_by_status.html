@@ -202,12 +202,12 @@
         .pipeline-row {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
-            gap: 0.35rem 0.5rem;
-            align-items: center;
+            gap: 0.2rem 0.5rem;
+            align-items: start;
             text-align: left;
             border: 1px solid #e8e8e8;
             border-radius: 6px;
-            padding: 0.35rem 0.5rem;
+            padding: 0.4rem 0.55rem 0.45rem;
             background: #fff;
             cursor: pointer;
             font: inherit;
@@ -234,19 +234,48 @@
             font-weight: 700;
             color: #007bff;
             white-space: nowrap;
+            line-height: 1.2;
+            padding-top: 0.05rem;
         }
-        .pipeline-bar-wrap {
+        .pipeline-touch-stack {
             grid-column: 1 / -1;
-            height: 6px;
-            background: #eee;
+            display: flex;
+            flex-direction: column;
+            gap: 0.22rem;
+            margin-top: 0.1rem;
+        }
+        .pipeline-touch-line {
+            display: grid;
+            grid-template-columns: 1.65rem 1fr;
+            gap: 0.3rem;
+            align-items: center;
+        }
+        .pipeline-touch-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #555;
+            letter-spacing: 0.02em;
+        }
+        .pipeline-stacked-wrap {
+            display: flex;
+            height: 8px;
             border-radius: 4px;
             overflow: hidden;
+            background: #e9ecef;
+            min-width: 0;
         }
-        .pipeline-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #5a9fd4, #007bff);
-            border-radius: 4px;
-            min-width: 2px;
+        .pipeline-stacked-wrap .seg { min-width: 2px; }
+        .seg-wu0 { background: #dee2e6; }
+        .seg-wu1 { background: #9ec5fe; }
+        .seg-wu2 { background: #0d6efd; }
+        .seg-fu0 { background: #e9ecef; }
+        .seg-fu1 { background: #ffc078; }
+        .seg-fu2 { background: #e8590c; }
+        .pipeline-touch-nums {
+            grid-column: 1 / -1;
+            font-size: 0.68rem;
+            color: #666;
+            line-height: 1.25;
         }
         .pipeline-shop .pipeline-row { padding: 0.3rem 0.45rem; }
         .pipeline-shop .pipeline-label { font-size: 0.78rem; }
@@ -266,12 +295,12 @@
             .pipeline-body-inner { grid-template-columns: 1fr; }
         }
         .pipeline-block .pipeline-rows {
-            max-height: 400px;
+            max-height: 520px;
             overflow-y: auto;
             padding-right: 0.15rem;
         }
         .pipeline-rows-shop {
-            max-height: 260px;
+            max-height: 340px;
         }
     </style>
 </head>
@@ -296,8 +325,8 @@
         <div id="pipelineOverview" aria-live="polite">
             <h2>Pipeline overview</h2>
             <p class="pipeline-sub">
-                Counts come from the <strong>Hit List</strong>. Click a row under <strong>Stores by status</strong> or <strong>Stores by shop type</strong> to apply that filter to the table below (same idea as the
-                <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=1606881029#gid=1606881029" target="_blank" rel="noopener noreferrer">Pipeline Dashboard</a> sheet). Use <strong>Clear filters</strong> under the buttons to reset.
+                Counts come from the <strong>Hit List</strong>. Each row shows total stores in that bucket, then <strong>WU</strong> / <strong>FU</strong> stacked bars: warm-up sends (column AU) and follow-up sends (AV) split into <strong>0</strong> / <strong>1</strong> / <strong>2+</strong> completed sends. Click a row to filter the table. Same workbook as the
+                <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=1606881029#gid=1606881029" target="_blank" rel="noopener noreferrer">Pipeline Dashboard</a> sheet. Use <strong>Clear filters</strong> to reset.
             </p>
             <div id="pipelineBody" class="pipeline-body-inner"></div>
             <p id="pipelineMeta" class="pipeline-meta"></p>
@@ -483,24 +512,56 @@
         });
     }
 
-    function maxCount(items) {
-        return items.reduce(function (m, x) {
-            var c = x && typeof x.count === 'number' ? x.count : 0;
-            return Math.max(m, c);
-        }, 0) || 1;
+    function segFlex_(cls, n, tip) {
+        var c = typeof n === 'number' ? n : parseInt(n, 10);
+        if (isNaN(c) || c <= 0) return '';
+        return '<span class="seg ' + cls + '" style="flex:' + c + ' 1 0;min-width:2px" title="' + escapeHtml(tip + ': ' + c) + '"></span>';
     }
 
-    function renderPipelineRows(items, kind, maxVal) {
+    function touchNumsLine_(axis, b) {
+        if (!b) return '';
+        var z = typeof b.none === 'number' ? b.none : 0;
+        var o = typeof b.once === 'number' ? b.once : 0;
+        var r = typeof b.repeat === 'number' ? b.repeat : 0;
+        return axis + ' 0·1·2+: ' + z + ' · ' + o + ' · ' + r;
+    }
+
+    function renderTouchStacks_(item) {
+        var w = item.warmup;
+        var f = item.followup;
+        if (!w || !f) return '';
+        var total = typeof item.count === 'number' ? item.count : 0;
+        if (total <= 0) return '';
+        var wSum = (w.none || 0) + (w.once || 0) + (w.repeat || 0);
+        var fSum = (f.none || 0) + (f.once || 0) + (f.repeat || 0);
+        if (!wSum && !fSum) return '';
+        var h = '<div class="pipeline-touch-stack">';
+        h += '<div class="pipeline-touch-line"><span class="pipeline-touch-tag"><abbr title="Warm-up emails sent (Hit List AU)">WU</abbr></span><div class="pipeline-stacked-wrap" role="presentation">';
+        h += segFlex_('seg-wu0', w.none, 'WU — 0 sends');
+        h += segFlex_('seg-wu1', w.once, 'WU — exactly 1 send');
+        h += segFlex_('seg-wu2', w.repeat, 'WU — 2+ sends');
+        h += '</div></div>';
+        h += '<div class="pipeline-touch-line"><span class="pipeline-touch-tag"><abbr title="Follow-up emails sent (Hit List AV)">FU</abbr></span><div class="pipeline-stacked-wrap" role="presentation">';
+        h += segFlex_('seg-fu0', f.none, 'FU — 0 sends');
+        h += segFlex_('seg-fu1', f.once, 'FU — exactly 1 send');
+        h += segFlex_('seg-fu2', f.repeat, 'FU — 2+ sends');
+        h += '</div></div>';
+        h += '<div class="pipeline-touch-nums">' + escapeHtml(touchNumsLine_('WU', w) + '  ·  ' + touchNumsLine_('FU', f)) + '</div>';
+        h += '</div>';
+        return h;
+    }
+
+    function renderPipelineRows(items, kind) {
         return (items || []).map(function (item) {
             var label = kind === 'status' ? item.status : item.shop_type;
             var count = typeof item.count === 'number' ? item.count : 0;
-            var pct = Math.round((count / maxVal) * 100);
             var enc = encodeURIComponent(label || '');
             var cls = 'pipeline-row' + (kind === 'shop' ? ' pipeline-shop' : '');
+            var stacks = renderTouchStacks_(item);
             return '<button type="button" class="' + cls + '" data-kind="' + kind + '" data-value="' + enc + '">' +
                 '<span class="pipeline-label">' + escapeHtml(label) + '</span>' +
                 '<span class="pipeline-count">' + count + '</span>' +
-                '<span class="pipeline-bar-wrap"><span class="pipeline-bar" style="width:' + pct + '%"></span></span>' +
+                stacks +
                 '</button>';
         }).join('');
     }
@@ -509,25 +570,64 @@
      * Build status/shop-type counts from the rows already loaded (up to API limit).
      * Used when listStatusSummary is not deployed yet.
      */
+    function makeEmptyTouchAgg_() {
+        return { count: 0, wu0: 0, wu1: 0, wu2p: 0, fu0: 0, fu1: 0, fu2p: 0 };
+    }
+
+    function bumpTouchFromCounts_(agg, wu, fu) {
+        agg.count++;
+        var w = typeof wu === 'number' ? wu : parseInt(wu, 10);
+        var f = typeof fu === 'number' ? fu : parseInt(fu, 10);
+        if (isNaN(w)) w = 0;
+        if (isNaN(f)) f = 0;
+        if (w <= 0) agg.wu0++;
+        else if (w === 1) agg.wu1++;
+        else agg.wu2p++;
+        if (f <= 0) agg.fu0++;
+        else if (f === 1) agg.fu1++;
+        else agg.fu2p++;
+    }
+
+    function aggToPipelineItem_(keyName, keyVal, agg, touchOk) {
+        var o = {};
+        o[keyName] = keyVal;
+        o.count = agg.count;
+        if (touchOk) {
+            o.warmup = { none: agg.wu0, once: agg.wu1, repeat: agg.wu2p };
+            o.followup = { none: agg.fu0, once: agg.fu1, repeat: agg.fu2p };
+        }
+        return o;
+    }
+
     function buildPipelineDataFromRows(rows) {
         var st = {};
         var sh = {};
-        (rows || []).forEach(function (r) {
-            var s = ((r && r.status) || '').toString().trim() || '(blank status)';
-            st[s] = (st[s] || 0) + 1;
-            var t = ((r && r.shop_type) || '').toString().trim() || '(blank shop type)';
-            sh[t] = (sh[t] || 0) + 1;
+        var touchOk = (rows || []).some(function (r) {
+            return r && typeof r.warmup_sent === 'number' && typeof r.followup_sent === 'number';
         });
-        function toPairs(obj, keyName) {
-            return Object.keys(obj).map(function (k) {
-                var o = { count: obj[k] };
-                o[keyName] = k;
-                return o;
+        (rows || []).forEach(function (r) {
+            var wu = touchOk ? (typeof r.warmup_sent === 'number' ? r.warmup_sent : 0) : null;
+            var fu = touchOk ? (typeof r.followup_sent === 'number' ? r.followup_sent : 0) : null;
+
+            var s = ((r && r.status) || '').toString().trim() || '(blank status)';
+            if (!st[s]) st[s] = makeEmptyTouchAgg_();
+            if (touchOk) bumpTouchFromCounts_(st[s], wu, fu);
+            else st[s].count++;
+
+            var t = ((r && r.shop_type) || '').toString().trim() || '(blank shop type)';
+            if (!sh[t]) sh[t] = makeEmptyTouchAgg_();
+            if (touchOk) bumpTouchFromCounts_(sh[t], wu, fu);
+            else sh[t].count++;
+        });
+        function toPairs(map, keyName) {
+            return Object.keys(map).map(function (k) {
+                return aggToPipelineItem_(keyName, k, map[k], touchOk);
             }).sort(function (a, b) { return b.count - a.count; });
         }
         return {
             by_status: toPairs(st, 'status'),
             by_shop_type: toPairs(sh, 'shop_type'),
+            touch_metrics_available: touchOk,
         };
     }
 
@@ -535,14 +635,12 @@
         if (!pipelineBody) return;
         var byStatus = data.by_status || [];
         var byShop = data.by_shop_type || [];
-        var maxS = maxCount(byStatus);
-        var maxSh = maxCount(byShop);
         pipelineBody.innerHTML =
             '<div class="pipeline-block"><h3>Stores by status</h3><div class="pipeline-rows">' +
-            renderPipelineRows(byStatus, 'status', maxS) +
+            renderPipelineRows(byStatus, 'status') +
             '</div></div>' +
             '<div class="pipeline-block pipeline-shop"><h3>Stores by shop type</h3><div class="pipeline-rows pipeline-rows-shop">' +
-            renderPipelineRows(byShop, 'shop', maxSh) +
+            renderPipelineRows(byShop, 'shop') +
             '</div></div>';
 
         var parts = [];
@@ -554,6 +652,9 @@
         }
         if (typeof data.blank_shop_type === 'number' && data.blank_shop_type > 0) {
             parts.push('blank shop type: ' + data.blank_shop_type);
+        }
+        if (data.touch_metrics_available) {
+            parts.push('Bars = share of stores with 0 vs 1 vs 2+ sends (AU warm-up / AV follow-up)');
         }
         if (pipelineMeta) {
             var extra = (data && data._client_note) ? ' ' + data._client_note : '';
@@ -585,6 +686,8 @@
         if (col === 'status') return (r.status || '').toString();
         if (col === 'citystate') return [r.city, r.state].filter(Boolean).join(', ');
         if (col === 'shop_type') return (r.shop_type || '').toString();
+        if (col === 'wu') return typeof r.warmup_sent === 'number' ? r.warmup_sent : -1;
+        if (col === 'fu') return typeof r.followup_sent === 'number' ? r.followup_sent : -1;
         return '';
     }
 
@@ -598,6 +701,13 @@
         var mult = sortDir === 'desc' ? -1 : 1;
         var out = rows.slice();
         out.sort(function (a, b) {
+            if (col === 'wu' || col === 'fu') {
+                var na = Number(rowSortKey(col, a));
+                var nb = Number(rowSortKey(col, b));
+                if (isNaN(na)) na = -1;
+                if (isNaN(nb)) nb = -1;
+                return mult * (na - nb);
+            }
             return mult * compareRowsLocale(rowSortKey(col, a), rowSortKey(col, b));
         });
         return out;
@@ -617,6 +727,8 @@
         if (col === 'shop_type') return 'Shop type';
         if (col === 'shop') return 'Shop';
         if (col === 'status') return 'Status';
+        if (col === 'wu') return 'WU (warm-up sends)';
+        if (col === 'fu') return 'FU (follow-up sends)';
         return col || '';
     }
 
@@ -658,6 +770,8 @@
         var html = '<table class="stores-by-status-table"><thead><tr>';
         html += sortHeaderHtml('shop', 'Shop');
         html += sortHeaderHtml('status', 'Status');
+        html += sortHeaderHtml('wu', 'WU');
+        html += sortHeaderHtml('fu', 'FU');
         html += sortHeaderHtml('citystate', 'City / State');
         html += sortHeaderHtml('shop_type', 'Shop type');
         html += '<th scope="col">Open</th>';
@@ -668,6 +782,10 @@
             html += '<tr>';
             html += '<td>' + label + (key ? '<div class="meta">Key: ' + escapeHtml(key) + '</div>' : '') + '</td>';
             html += '<td>' + escapeHtml(r.status || '') + '</td>';
+            html += '<td title="Warm-up emails sent (Hit List AU)">' +
+                (typeof r.warmup_sent === 'number' ? escapeHtml(String(r.warmup_sent)) : '—') + '</td>';
+            html += '<td title="Follow-up emails sent (Hit List AV)">' +
+                (typeof r.followup_sent === 'number' ? escapeHtml(String(r.followup_sent)) : '—') + '</td>';
             html += '<td>' + escapeHtml([r.city, r.state].filter(Boolean).join(', ')) + '</td>';
             html += '<td>' + escapeHtml(r.shop_type || '') + '</td>';
             html += '<td><a href="#" class="store-details-link row-open" data-key="' + escapeHtml(key) + '" data-shop="' + escapeHtml(r.shop_name || '') + '">History</a></td>';
