@@ -2683,7 +2683,7 @@
                     <strong>Distance:</strong> ${store.distance ? store.distance.toFixed(1) : 'N/A'} miles<br>
                     <a href="${mapsUrl}" target="_blank" style="color: #007bff; text-decoration: none; margin-right: 0.5rem;">📍 View on Google Maps</a>
                     ${store.instagram ? `<a href="${escapeHtml(store.instagram)}" target="_blank" style="color: #E4405F; text-decoration: none;">📷 View Instagram</a>` : ''}
-                    <br><a href="${escapeHtml(historyUrl)}" style="color: #0d6efd; text-decoration: none; font-weight: 600;">🗂️ Interaction history &amp; full edit</a>
+                    <br><a href="${escapeHtml(historyUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0d6efd; text-decoration: none; font-weight: 600;">🗂️ Interaction history &amp; full edit</a>
                 `);
 
                 storeMarkers.push(marker);
@@ -3385,7 +3385,7 @@
                         <strong>Distance from you:</strong> ${store.distance} miles<br>                                                                         
                         <a href="${mapsUrl}" target="_blank" style="color: #007bff; text-decoration: none; margin-right: 0.5rem;">📍 View on Google Maps</a>
                         ${store.instagram ? `<a href="${escapeHtml(store.instagram)}" target="_blank" style="color: #E4405F; text-decoration: none;">📷 View Instagram</a>` : ''}
-                        <br><a href="${escapeHtml(historyUrl)}" style="color: #0d6efd; text-decoration: none; font-weight: 600;">🗂️ Interaction history &amp; full edit</a>
+                        <br><a href="${escapeHtml(historyUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0d6efd; text-decoration: none; font-weight: 600;">🗂️ Interaction history &amp; full edit</a>
                     `);
 
                     storeMarkers.push(marker);
@@ -6170,7 +6170,7 @@
                 <div class="store-details-section">
                     <div class="store-details-title">🗂️ Hit list workspace</div>
                     <div class="store-details-content">
-                        <a href="${interactionHistoryUrl}" class="store-details-link" style="font-weight: 600;">Open interaction history</a>
+                        <a href="${interactionHistoryUrl}" target="_blank" rel="noopener noreferrer" class="store-details-link" style="font-weight: 600;">Open interaction history</a>
                         <span style="color: #555; font-size: 0.9rem;"> — full notes, email-agent context, and status updates without refreshing this list.</span>
                     </div>
                 </div>
