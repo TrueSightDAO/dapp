@@ -1,6 +1,26 @@
 importScripts('./routes.js');
 
-const CACHE_NAME = 'qr-scanner-cache-v3';
+const CACHE_NAME = 'qr-scanner-cache-v4';
+
+/**
+ * Apps Script web apps + Edgar GAS proxy — must not use the Cache API or HTTP cache
+ * for JSON list responses. exec URLs redirect to script.googleusercontent.com; those
+ * hops were previously handled by the default fetch handler and could serve stale data.
+ */
+function isGasOrProxyGasUrl(url) {
+  const host = url.hostname;
+  const path = url.pathname;
+  if (host === 'script.google.com' && (path.startsWith('/macros/s/') || path.startsWith('/a/macros/'))) {
+    return true;
+  }
+  if (host === 'script.googleusercontent.com' && path.includes('/macros/')) {
+    return true;
+  }
+  if (host === 'edgar.truesight.me' && path.startsWith('/proxy/gas/')) {
+    return true;
+  }
+  return false;
+}
 const URLS_TO_CACHE = [
   // HTML pages
   './',
@@ -41,9 +61,20 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activate event: take control immediately
+// Activate event: drop older qr-scanner-cache-* entries so stale GAS responses are not kept.
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k.startsWith('qr-scanner-cache-') && k !== CACHE_NAME)
+            .map((k) => caches.delete(k))
+        )
+      )
+      .then(() => self.clients.claim())
+  );
 });
 
 // Fetch event: serve from cache, update on network; support reload param
@@ -64,20 +95,10 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
-  // Handle Google Apps Script API calls: network-first with cache fallback.
-  // Matches both '/macros/s/<id>/exec' and the workspace-scoped
-  // '/a/macros/<domain>/s/<id>/exec' variant used by the Proposals GAS.
-  if (url.origin === 'https://script.google.com'
-      && (url.pathname.startsWith('/macros/s/') || url.pathname.startsWith('/a/macros/'))) {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, responseClone));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
+  // Google Apps Script + Edgar /proxy/gas: network-only, never Cache-API or disk cache.
+  // (Stores nearby and other live lists must always hit the wire.)
+  if (isGasOrProxyGasUrl(url)) {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
   // Default: network-first strategy for all other requests, fallback to cache if offline

@@ -1441,7 +1441,10 @@
         const API_URL = (window.Routes && window.Routes.gas && window.Routes.gas.stores)
             || 'https://script.google.com/macros/s/AKfycbwB2zqNV9nMCMWs2hSa8FecjA36Oh-mSVuz3pk8TpXrXcy9dvqOqgbWIirNka2LmacgPw/exec';
         const SIGNATURE_VERIFY_API = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
-            || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';        
+            || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+
+        /** Bypass HTTP cache for live GAS JSON (matches service worker network-only GAS policy). */
+        const GAS_FETCH_INIT = { cache: 'no-store' };
 
         const stateNameLookup = {
             'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR',
@@ -2542,7 +2545,7 @@
                 maybeAttachFieldAgentLocationParams(params);
                 maybeAttachOpenNowParams(params);
                 
-                const response = await fetch(`${API_URL}?${params.toString()}`);
+                const response = await fetch(`${API_URL}?${params.toString()}`, GAS_FETCH_INIT);
                 const data = await response.json();
                 applyFieldAgentLocationResponse(data);
                 
@@ -3516,7 +3519,8 @@
                 const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
                 
                 const response = await fetch(`${SIGNATURE_VERIFY_API}?signature=${encodeURIComponent(publicKey)}`, {
-                    signal: controller.signal
+                    signal: controller.signal,
+                    cache: 'no-store'
                 });
                 clearTimeout(timeoutId);
                 
@@ -4844,7 +4848,7 @@
             maybeAttachOpenNowParams(params);
 
             // Fetch stores
-            fetch(`${API_URL}?${params.toString()}`)
+            fetch(`${API_URL}?${params.toString()}`, GAS_FETCH_INIT)
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('searchBtn').disabled = false;
@@ -6089,7 +6093,7 @@
             if (submitBtn) submitBtn.disabled = true;
 
             try {
-                const response = await fetch(`${API_URL}?${params.toString()}`);
+                const response = await fetch(`${API_URL}?${params.toString()}`, GAS_FETCH_INIT);
                 const data = await response.json();
                 if (data.success) {
                     if (messageEl) {
@@ -6651,7 +6655,7 @@
             }
 
             // Call API to update status
-            fetch(`${API_URL}?${params.toString()}`)
+            fetch(`${API_URL}?${params.toString()}`, GAS_FETCH_INIT)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {

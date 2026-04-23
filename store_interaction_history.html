@@ -483,6 +483,12 @@
         </div>
 
         <div id="results"></div>
+
+        <p style="text-align: center; font-size: 0.95rem; margin: 1.5rem 0 0.25rem;">
+            <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=1606881029#gid=1606881029" target="_blank" rel="noopener noreferrer" class="store-details-link">Pipeline Dashboard (sheet) ↗</a>
+            ·
+            <a href="./stores_by_status.html" class="store-details-link">Stores by Status ↗</a>
+        </p>
     </div>
 
     <script>
@@ -502,6 +508,9 @@
     /** Same as stores_nearby.html SIGNATURE_VERIFY_API */
     var SIGNATURE_VERIFY_API = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
         || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+
+    /** Bypass HTTP cache for live GAS JSON (aligned with service-worker GAS policy). */
+    var GAS_FETCH_INIT = { cache: 'no-store' };
 
     var searchInput = document.getElementById('storeSearch');
     var suggestPanel = document.getElementById('suggestPanel');
@@ -1051,7 +1060,7 @@
     async function fetchSuggestions(q) {
         if (!apiConfigured()) return;
         var url = API_BASE_URL + '?action=suggestStores&q=' + encodeURIComponent(q) + tokenQs();
-        var r = await fetch(url);
+        var r = await fetch(url, GAS_FETCH_INIT);
         var j = await r.json();
         if (j.status !== 'success') throw new Error(j.message || 'Suggest failed');
         return j.data.suggestions || [];
@@ -1061,7 +1070,7 @@
         if (!apiConfigured()) throw new Error('API URL not configured.');
         var url = API_BASE_URL + '?action=getStoreHistory&store_key=' + encodeURIComponent(storeKey || '') +
             '&shop=' + encodeURIComponent(shop || '') + tokenQs();
-        var r = await fetch(url);
+        var r = await fetch(url, GAS_FETCH_INIT);
         var j = await r.json();
         if (j.status !== 'success') throw new Error(j.message || 'History failed');
         return j.data;
@@ -1260,7 +1269,7 @@
             params.append('submitted_by', publicKey);
         }
 
-        fetch(STORES_NEARBY_API_URL + '?' + params.toString())
+        fetch(STORES_NEARBY_API_URL + '?' + params.toString(), GAS_FETCH_INIT)
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
@@ -1298,7 +1307,10 @@
 
             var controller = new AbortController();
             var to = setTimeout(function () { controller.abort(); }, 10000);
-            var response = await fetch(SIGNATURE_VERIFY_API + '?signature=' + encodeURIComponent(publicKey), { signal: controller.signal });
+            var response = await fetch(SIGNATURE_VERIFY_API + '?signature=' + encodeURIComponent(publicKey), {
+                signal: controller.signal,
+                cache: 'no-store'
+            });
             clearTimeout(to);
 
             if (!response.ok) {
