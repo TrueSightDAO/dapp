@@ -200,28 +200,37 @@
         }
         .pipeline-rows { display: flex; flex-direction: column; gap: 0.35rem; }
         .pipeline-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 0.2rem 0.5rem;
-            align-items: start;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
             text-align: left;
             border: 1px solid #e8e8e8;
             border-radius: 6px;
             padding: 0.4rem 0.55rem 0.45rem;
             background: #fff;
-            cursor: pointer;
-            font: inherit;
-            color: inherit;
             width: 100%;
             box-sizing: border-box;
         }
-        .pipeline-row:hover {
-            border-color: #007bff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        .pipeline-row:hover { border-color: #c5d4e8; }
+        .pipeline-row-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.2rem 0.5rem;
+            align-items: start;
+            width: 100%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font: inherit;
+            color: inherit;
+            padding: 0;
+            text-align: left;
         }
-        .pipeline-row:focus {
+        .pipeline-row-header:hover .pipeline-label { color: #007bff; }
+        .pipeline-row-header:focus {
             outline: 2px solid #007bff;
-            outline-offset: 1px;
+            outline-offset: 2px;
+            border-radius: 4px;
         }
         .pipeline-label {
             font-size: 0.82rem;
@@ -258,19 +267,48 @@
         }
         .pipeline-stacked-wrap {
             display: flex;
-            height: 8px;
+            height: 10px;
             border-radius: 4px;
-            overflow: hidden;
+            overflow: visible;
             background: #e9ecef;
             min-width: 0;
         }
-        .pipeline-stacked-wrap .seg { min-width: 2px; }
-        .seg-wu0 { background: #dee2e6; }
-        .seg-wu1 { background: #9ec5fe; }
-        .seg-wu2 { background: #0d6efd; }
-        .seg-fu0 { background: #e9ecef; }
-        .seg-fu1 { background: #ffc078; }
-        .seg-fu2 { background: #e8590c; }
+        .pipeline-touch-seg {
+            border: none;
+            padding: 0;
+            margin: 0;
+            cursor: pointer;
+            min-width: 2px;
+            height: 100%;
+            flex: 1 1 0;
+            display: block;
+            border-radius: 0;
+        }
+        .pipeline-touch-seg:hover { filter: brightness(0.92); }
+        .pipeline-touch-seg:focus-visible {
+            outline: 2px solid #007bff;
+            outline-offset: 1px;
+            z-index: 1;
+            position: relative;
+        }
+        /* WU (AU): neutral → blue by depth */
+        .seg-wu-bk--0 { background: #dee2e6; }
+        .seg-wu-bk--1 { background: #cfe2ff; }
+        .seg-wu-bk--2 { background: #9ec5fe; }
+        .seg-wu-bk--3 { background: #6ea8fe; }
+        .seg-wu-bk--4 { background: #4dabf7; }
+        .seg-wu-bk--5 { background: #339af0; }
+        .seg-wu-bk--6 { background: #1971c2; }
+        .seg-wu-bk--7 { background: #052c65; }
+        /* FU (AV): neutral → orange by depth */
+        .seg-fu-bk--0 { background: #e9ecef; }
+        .seg-fu-bk--1 { background: #ffe8cc; }
+        .seg-fu-bk--2 { background: #ffc078; }
+        .seg-fu-bk--3 { background: #ffa94d; }
+        .seg-fu-bk--4 { background: #fd7e14; }
+        .seg-fu-bk--5 { background: #f76707; }
+        .seg-fu-bk--6 { background: #e8590c; }
+        .seg-fu-bk--7 { background: #5c2e0c; }
         .pipeline-touch-nums {
             grid-column: 1 / -1;
             font-size: 0.68rem;
@@ -325,8 +363,8 @@
         <div id="pipelineOverview" aria-live="polite">
             <h2>Pipeline overview</h2>
             <p class="pipeline-sub">
-                Counts come from the <strong>Hit List</strong>. Each row shows total stores in that bucket, then <strong>WU</strong> / <strong>FU</strong> stacked bars: warm-up sends (column AU) and follow-up sends (AV) split into <strong>0</strong> / <strong>1</strong> / <strong>2+</strong> completed sends. Click a row to filter the table. Same workbook as the
-                <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=1606881029#gid=1606881029" target="_blank" rel="noopener noreferrer">Pipeline Dashboard</a> sheet. Use <strong>Clear filters</strong> to reset.
+                Counts come from the <strong>Hit List</strong>. Each row shows total stores, then <strong>WU</strong> / <strong>FU</strong> stacked bars: warm-up sends (AU) and follow-up sends (AV) split into the same <strong>eight depth buckets</strong> as the Pipeline Dashboard sheet (<strong>0</strong>, <strong>1</strong>–<strong>6</strong>, then <strong>7+</strong> sends). Click the <strong>row title</strong> to filter by status or shop type only. Click a <strong>bar segment</strong> to filter the table to stores in that bucket (zoom in on what is working or stalled). Same workbook as the
+                <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=1606881029#gid=1606881029" target="_blank" rel="noopener noreferrer">Pipeline Dashboard</a>. Use <strong>Clear filters</strong> to reset.
             </p>
             <div id="pipelineBody" class="pipeline-body-inner"></div>
             <p id="pipelineMeta" class="pipeline-meta"></p>
@@ -423,6 +461,33 @@
     /** True when server rejected listStatusSummary (stale web app deployment). */
     var pipelineSummaryServerMissing = false;
 
+    /** Send-depth buckets: 0, 1…6, then 7+ (matches Pipeline Dashboard F:M). */
+    var TOUCH_BUCKET_LEN = 8;
+    var TOUCH_TAIL_MIN = 7;
+    /** Optional listStoresByFilter drill-down (set when user clicks a bar segment). */
+    var warmupBucketFilter = null;
+    var followupBucketFilter = null;
+
+    function touchBucketIndex_(n) {
+        var x = typeof n === 'number' ? n : parseInt(n, 10);
+        if (isNaN(x) || x < 0) x = 0;
+        x = Math.floor(x);
+        if (x <= 0) return 0;
+        if (x >= TOUCH_TAIL_MIN) return TOUCH_BUCKET_LEN - 1;
+        return Math.min(x, TOUCH_TAIL_MIN - 1);
+    }
+
+    function touchBucketAxisLabel_(i) {
+        if (i <= 0) return '0 sends';
+        if (i >= TOUCH_BUCKET_LEN - 1) return TOUCH_TAIL_MIN + '+ sends';
+        return i === 1 ? '1 send' : i + ' sends';
+    }
+
+    function clearTouchBucketFilters_() {
+        warmupBucketFilter = null;
+        followupBucketFilter = null;
+    }
+
     function tokenQs() {
         return API_TOKEN ? '&token=' + encodeURIComponent(API_TOKEN) : '';
     }
@@ -465,6 +530,12 @@
         params.set('offset', '0');
         selectedValues(statusSelect).forEach(function (s) { params.append('status', s); });
         selectedValues(shopTypeSelect).forEach(function (s) { params.append('shop_type', s); });
+        if (warmupBucketFilter !== null && warmupBucketFilter !== undefined) {
+            params.set('warmup_bucket', String(warmupBucketFilter));
+        }
+        if (followupBucketFilter !== null && followupBucketFilter !== undefined) {
+            params.set('followup_bucket', String(followupBucketFilter));
+        }
         return API_BASE_URL + '?' + params.toString() + tokenQs();
     }
 
@@ -512,41 +583,74 @@
         });
     }
 
-    function segFlex_(cls, n, tip) {
-        var c = typeof n === 'number' ? n : parseInt(n, 10);
-        if (isNaN(c) || c <= 0) return '';
-        return '<span class="seg ' + cls + '" style="flex:' + c + ' 1 0;min-width:2px" title="' + escapeHtml(tip + ': ' + c) + '"></span>';
+    function normalizeTouchBuckets_(b) {
+        if (Array.isArray(b) && b.length >= TOUCH_BUCKET_LEN) {
+            var out = [];
+            var i;
+            for (i = 0; i < TOUCH_BUCKET_LEN; i++) {
+                var v = typeof b[i] === 'number' ? b[i] : parseInt(b[i], 10);
+                out.push(isNaN(v) ? 0 : v);
+            }
+            return out;
+        }
+        if (b && typeof b.none === 'number') {
+            var a = [0, 0, 0, 0, 0, 0, 0, 0];
+            a[0] = b.none;
+            a[1] = typeof b.once === 'number' ? b.once : 0;
+            var r = typeof b.repeat === 'number' ? b.repeat : 0;
+            a[TOUCH_BUCKET_LEN - 1] += r;
+            return a;
+        }
+        return null;
     }
 
-    function touchNumsLine_(axis, b) {
-        if (!b) return '';
-        var z = typeof b.none === 'number' ? b.none : 0;
-        var o = typeof b.once === 'number' ? b.once : 0;
-        var r = typeof b.repeat === 'number' ? b.repeat : 0;
-        return axis + ' 0·1·2+: ' + z + ' · ' + o + ' · ' + r;
+    function segButtonHtml_(axisPrefix, bucketIdx, count, axisName, kind, encLabel) {
+        var c = typeof count === 'number' ? count : parseInt(count, 10);
+        if (isNaN(c) || c <= 0) return '';
+        var tip = axisName + ' — ' + touchBucketAxisLabel_(bucketIdx);
+        var cls = axisPrefix + '-bk--' + bucketIdx;
+        var flex = c + ' 1 0';
+        return '<button type="button" class="pipeline-touch-seg ' + axisPrefix + '-bk ' + cls + '" style="flex:' + flex + ';min-width:2px" ' +
+            'data-kind="' + kind + '" data-value="' + encLabel + '" data-axis="' + (axisPrefix === 'seg-wu' ? 'wu' : 'fu') + '" data-bucket="' + bucketIdx + '" ' +
+            'title="' + escapeHtml(tip + ': ' + c + ' store(s)') + '" aria-label="' + escapeHtml(tip + ', ' + c + ' stores') + '"></button>';
+    }
+
+    function touchNumsLineFromArr_(axis, arr) {
+        if (!arr || arr.length < TOUCH_BUCKET_LEN) return '';
+        return axis + ' 0…7+: ' + arr.slice(0, TOUCH_BUCKET_LEN).join('·');
     }
 
     function renderTouchStacks_(item) {
-        var w = item.warmup;
-        var f = item.followup;
+        var w = normalizeTouchBuckets_(item.warmup);
+        var f = normalizeTouchBuckets_(item.followup);
         if (!w || !f) return '';
         var total = typeof item.count === 'number' ? item.count : 0;
         if (total <= 0) return '';
-        var wSum = (w.none || 0) + (w.once || 0) + (w.repeat || 0);
-        var fSum = (f.none || 0) + (f.once || 0) + (f.repeat || 0);
+        var wSum = 0;
+        var fSum = 0;
+        var i;
+        for (i = 0; i < TOUCH_BUCKET_LEN; i++) {
+            wSum += w[i];
+            fSum += f[i];
+        }
         if (!wSum && !fSum) return '';
+
+        var label = item.status !== undefined ? item.status : item.shop_type;
+        var enc = encodeURIComponent((label || '').toString());
+        var kind = item.status !== undefined ? 'status' : 'shop';
+
         var h = '<div class="pipeline-touch-stack">';
-        h += '<div class="pipeline-touch-line"><span class="pipeline-touch-tag"><abbr title="Warm-up emails sent (Hit List AU)">WU</abbr></span><div class="pipeline-stacked-wrap" role="presentation">';
-        h += segFlex_('seg-wu0', w.none, 'WU — 0 sends');
-        h += segFlex_('seg-wu1', w.once, 'WU — exactly 1 send');
-        h += segFlex_('seg-wu2', w.repeat, 'WU — 2+ sends');
+        h += '<div class="pipeline-touch-line"><span class="pipeline-touch-tag"><abbr title="Warm-up emails sent (Hit List AU)">WU</abbr></span><div class="pipeline-stacked-wrap" role="group" aria-label="Warm-up depth buckets">';
+        for (i = 0; i < TOUCH_BUCKET_LEN; i++) {
+            h += segButtonHtml_('seg-wu', i, w[i], 'WU', kind, enc);
+        }
         h += '</div></div>';
-        h += '<div class="pipeline-touch-line"><span class="pipeline-touch-tag"><abbr title="Follow-up emails sent (Hit List AV)">FU</abbr></span><div class="pipeline-stacked-wrap" role="presentation">';
-        h += segFlex_('seg-fu0', f.none, 'FU — 0 sends');
-        h += segFlex_('seg-fu1', f.once, 'FU — exactly 1 send');
-        h += segFlex_('seg-fu2', f.repeat, 'FU — 2+ sends');
+        h += '<div class="pipeline-touch-line"><span class="pipeline-touch-tag"><abbr title="Follow-up emails sent (Hit List AV)">FU</abbr></span><div class="pipeline-stacked-wrap" role="group" aria-label="Follow-up depth buckets">';
+        for (i = 0; i < TOUCH_BUCKET_LEN; i++) {
+            h += segButtonHtml_('seg-fu', i, f[i], 'FU', kind, enc);
+        }
         h += '</div></div>';
-        h += '<div class="pipeline-touch-nums">' + escapeHtml(touchNumsLine_('WU', w) + '  ·  ' + touchNumsLine_('FU', f)) + '</div>';
+        h += '<div class="pipeline-touch-nums">' + escapeHtml(touchNumsLineFromArr_('WU', w) + '  ·  ' + touchNumsLineFromArr_('FU', f)) + '</div>';
         h += '</div>';
         return h;
     }
@@ -558,11 +662,13 @@
             var enc = encodeURIComponent(label || '');
             var cls = 'pipeline-row' + (kind === 'shop' ? ' pipeline-shop' : '');
             var stacks = renderTouchStacks_(item);
-            return '<button type="button" class="' + cls + '" data-kind="' + kind + '" data-value="' + enc + '">' +
+            return '<div class="' + cls + '" data-kind="' + kind + '" data-value="' + enc + '">' +
+                '<button type="button" class="pipeline-row-header">' +
                 '<span class="pipeline-label">' + escapeHtml(label) + '</span>' +
                 '<span class="pipeline-count">' + count + '</span>' +
+                '</button>' +
                 stacks +
-                '</button>';
+                '</div>';
         }).join('');
     }
 
@@ -571,7 +677,7 @@
      * Used when listStatusSummary is not deployed yet.
      */
     function makeEmptyTouchAgg_() {
-        return { count: 0, wu0: 0, wu1: 0, wu2p: 0, fu0: 0, fu1: 0, fu2p: 0 };
+        return { count: 0, wu: [0, 0, 0, 0, 0, 0, 0, 0], fu: [0, 0, 0, 0, 0, 0, 0, 0] };
     }
 
     function bumpTouchFromCounts_(agg, wu, fu) {
@@ -580,12 +686,8 @@
         var f = typeof fu === 'number' ? fu : parseInt(fu, 10);
         if (isNaN(w)) w = 0;
         if (isNaN(f)) f = 0;
-        if (w <= 0) agg.wu0++;
-        else if (w === 1) agg.wu1++;
-        else agg.wu2p++;
-        if (f <= 0) agg.fu0++;
-        else if (f === 1) agg.fu1++;
-        else agg.fu2p++;
+        agg.wu[touchBucketIndex_(w)]++;
+        agg.fu[touchBucketIndex_(f)]++;
     }
 
     function aggToPipelineItem_(keyName, keyVal, agg, touchOk) {
@@ -593,8 +695,8 @@
         o[keyName] = keyVal;
         o.count = agg.count;
         if (touchOk) {
-            o.warmup = { none: agg.wu0, once: agg.wu1, repeat: agg.wu2p };
-            o.followup = { none: agg.fu0, once: agg.fu1, repeat: agg.fu2p };
+            o.warmup = agg.wu.slice();
+            o.followup = agg.fu.slice();
         }
         return o;
     }
@@ -654,7 +756,7 @@
             parts.push('blank shop type: ' + data.blank_shop_type);
         }
         if (data.touch_metrics_available) {
-            parts.push('Bars = share of stores with 0 vs 1 vs 2+ sends (AU warm-up / AV follow-up)');
+            parts.push('Bars = depth buckets 0–7+ sends (AU warm-up / AV follow-up), same as Pipeline Dashboard');
         }
         if (pipelineMeta) {
             var extra = (data && data._client_note) ? ' ' + data._client_note : '';
@@ -847,8 +949,21 @@
             var total = typeof d.total === 'number' ? d.total : rows.length;
             renderTable(rows, total);
             maybeFillPipelineFromTableRows();
-            setStatus('Loaded ' + rows.length + ' row(s).', 'ok');
-            lastFetchMeta.textContent = 'Last fetch: ' + new Date().toLocaleString() + ' · total matching ' + total;
+            var fx = [];
+            if (warmupBucketFilter !== null && warmupBucketFilter !== undefined) {
+                fx.push('WU depth ' + warmupBucketFilter + ' — ' + touchBucketAxisLabel_(warmupBucketFilter));
+            }
+            if (followupBucketFilter !== null && followupBucketFilter !== undefined) {
+                fx.push('FU depth ' + followupBucketFilter + ' — ' + touchBucketAxisLabel_(followupBucketFilter));
+            }
+            setStatus(
+                'Loaded ' + rows.length + ' row(s)' + (fx.length ? ' · ' + fx.join(' · ') : '') + '.',
+                'ok'
+            );
+            lastFetchMeta.textContent =
+                'Last fetch: ' + new Date().toLocaleString() +
+                ' · total matching ' + total +
+                (fx.length ? ' · filter: ' + fx.join('; ') : '');
         } catch (err) {
             console.error(err);
             setStatus('Error: ' + (err && err.message ? err.message : String(err)), 'error');
@@ -871,28 +986,58 @@
     clearFiltersBtn.addEventListener('click', function () {
         clearSelect(statusSelect);
         clearSelect(shopTypeSelect);
+        clearTouchBucketFilters_();
         fetchList();
     });
 
     if (pipelineBody) {
         pipelineBody.addEventListener('click', function (e) {
-            var btn = e.target && e.target.closest ? e.target.closest('.pipeline-row') : null;
-            if (!btn) return;
-            var kind = (btn.getAttribute('data-kind') || '').trim();
-            var raw = btn.getAttribute('data-value') || '';
-            var value = '';
-            try { value = decodeURIComponent(raw); } catch (err) { value = raw; }
-            if (!value) return;
-            if (kind === 'status') {
+            var seg = e.target && e.target.closest ? e.target.closest('.pipeline-touch-seg') : null;
+            var hdr = e.target && e.target.closest ? e.target.closest('.pipeline-row-header') : null;
+            var wrap = e.target && e.target.closest ? e.target.closest('.pipeline-row') : null;
+            if (seg) {
+                e.preventDefault();
+                var kind = (seg.getAttribute('data-kind') || '').trim();
+                var raw = seg.getAttribute('data-value') || '';
+                var axis = (seg.getAttribute('data-axis') || '').trim();
+                var bk = parseInt(seg.getAttribute('data-bucket') || '', 10);
+                var value = '';
+                try { value = decodeURIComponent(raw); } catch (err) { value = raw; }
+                if (!value || (axis !== 'wu' && axis !== 'fu') || isNaN(bk)) return;
+                clearTouchBucketFilters_();
+                if (axis === 'wu') warmupBucketFilter = bk;
+                else followupBucketFilter = bk;
+                if (kind === 'status') {
+                    clearSelect(shopTypeSelect);
+                    clearSelect(statusSelect);
+                    ensureOption(statusSelect, value);
+                    selectOnly(statusSelect, value);
+                } else if (kind === 'shop') {
+                    clearSelect(statusSelect);
+                    clearSelect(shopTypeSelect);
+                    ensureOption(shopTypeSelect, value);
+                    selectOnly(shopTypeSelect, value);
+                }
+                fetchList();
+                return;
+            }
+            if (!hdr || !wrap) return;
+            var kind2 = (wrap.getAttribute('data-kind') || '').trim();
+            var raw2 = wrap.getAttribute('data-value') || '';
+            var value2 = '';
+            try { value2 = decodeURIComponent(raw2); } catch (err2) { value2 = raw2; }
+            if (!value2) return;
+            clearTouchBucketFilters_();
+            if (kind2 === 'status') {
                 clearSelect(shopTypeSelect);
                 clearSelect(statusSelect);
-                ensureOption(statusSelect, value);
-                selectOnly(statusSelect, value);
-            } else if (kind === 'shop') {
+                ensureOption(statusSelect, value2);
+                selectOnly(statusSelect, value2);
+            } else if (kind2 === 'shop') {
                 clearSelect(statusSelect);
                 clearSelect(shopTypeSelect);
-                ensureOption(shopTypeSelect, value);
-                selectOnly(shopTypeSelect, value);
+                ensureOption(shopTypeSelect, value2);
+                selectOnly(shopTypeSelect, value2);
             }
             fetchList();
         });
