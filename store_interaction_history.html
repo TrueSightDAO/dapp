@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="description" content="Look up a store from the holistic wellness hit list and review DApp remarks, follow-up log, and email agent suggestions before sending.">
+    <meta name="description" content="Look up a store from the holistic wellness hit list and review DApp remarks, follow-up log, and email agent drafts before sending.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Store Interaction History - TrueSight DAO</title>
 
@@ -482,13 +482,13 @@
             </details>
         </div>
 
-        <div id="results"></div>
-
-        <p style="text-align: center; font-size: 0.95rem; margin: 1.5rem 0 0.25rem;">
+        <p id="hitListQuickLinks" style="text-align: center; font-size: 0.95rem; margin: 1.25rem 0 0.75rem;">
             <a href="https://docs.google.com/spreadsheets/d/1eiqZr3LW-qEI6Hmy0Vrur_8flbRwxwA7jXVrbUnHbvc/edit?gid=1606881029#gid=1606881029" target="_blank" rel="noopener noreferrer" class="store-details-link">Pipeline Dashboard (sheet) ↗</a>
-            ·
+            <span aria-hidden="true"> · </span>
             <a href="./stores_by_status.html" class="store-details-link">Stores by Status ↗</a>
         </p>
+
+        <div id="results"></div>
     </div>
 
     <script>
@@ -933,7 +933,7 @@
 
         pushRows(data.dapp_remarks, 'DApp Remarks', 'cat-dapp-remarks');
         pushRows(data.email_agent_follow_up, 'Email Follow-up', 'cat-email-followup');
-        pushRows(data.email_agent_suggestions, 'Email Agent Suggestions', 'cat-email-suggestions');
+        pushRows(data.email_agent_drafts, 'Email Agent Drafts', 'cat-email-suggestions');
 
         merged.sort(function (a, b) {
             if (b.sortTime !== a.sortTime) {
@@ -976,11 +976,11 @@
         html += '<div class="history-legend" aria-label="History source colors">';
         html += '<span class="legend-item legend-remarks">DApp Remarks</span>';
         html += '<span class="legend-item legend-followup">Email Follow-up</span>';
-        html += '<span class="legend-item legend-suggestions">Email Agent Suggestions</span>';
+        html += '<span class="legend-item legend-suggestions">Email Agent Drafts</span>';
         html += '</div>';
 
         if (!timeline.length) {
-            html += '<p class="help-text">No remarks, follow-up, or suggestion rows matched this store.</p>';
+            html += '<p class="help-text">No remarks, follow-up, or draft-registry rows matched this store.</p>';
         } else {
             timeline.forEach(function (entry, idx) {
                 var dateStr = entry.sortTime ? formatTimelineDate(entry.sortTime) : '';
