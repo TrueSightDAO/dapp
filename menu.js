@@ -68,28 +68,9 @@
         parent.appendChild(option);
       });
     });
-    function selectOptionMatchingCurrentPage() {
-      var currentPage = location.pathname.split('/').pop();
-      var isProposalPage = currentPage === 'review_proposal.html' || currentPage === 'create_proposal.html';
-      for (var i = 0; i < select.options.length; i++) {
-        var opt = select.options[i];
-        var itemPage = (opt.value || '').split('/').pop();
-        var isDAOProposalManagement = opt.textContent === 'DAO Proposal Management';
-        if (itemPage === currentPage || (isProposalPage && isDAOProposalManagement)) {
-          select.selectedIndex = i;
-          return;
-        }
-      }
-    }
     select.addEventListener('change', function () {
       var url = this.value;
       if (!url) return;
-      var isHistory = url.indexOf('store_interaction_history.html') !== -1;
-      if (isHistory) {
-        window.open(new URL(url, window.location.href).href, '_blank', 'noopener,noreferrer');
-        selectOptionMatchingCurrentPage();
-        return;
-      }
       location.href = url;
     });
     container.appendChild(select);
