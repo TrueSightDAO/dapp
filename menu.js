@@ -24,6 +24,7 @@
     { title: 'Voting Rights Cash Out', url: './withdraw_voting_rights.html', section: 'Identity & Governance' },
     { title: 'Notarize Official Document', url: './notarize.html', section: 'Identity & Governance' },
     { title: 'Verify Signed Request', url: './verify_request.html', section: 'Identity & Governance' },
+    { title: 'Governor Chat', url: './chat.html', section: 'Identity & Governance' },
     { title: 'DAO Proposal Management', url: './view_open_proposals.html', section: 'Identity & Governance' },
     { title: 'Create Proposal', url: './create_proposal.html', section: 'Identity & Governance' },
     { title: 'Review & Vote on Proposal', url: './review_proposal.html', section: 'Identity & Governance' }
