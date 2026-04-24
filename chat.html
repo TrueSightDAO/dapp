@@ -25,6 +25,7 @@
     <script src="./menu.js"></script>
     <script src="./tdg_balance.js"></script>
     <script src="./scripts/edgar_payload_helper.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
         body {
@@ -131,6 +132,57 @@
             font-family: monospace;
             font-size: 0.9em;
         }
+        .message .text h1, .message .text h2, .message .text h3,
+        .message .text h4, .message .text h5, .message .text h6 {
+            margin: 0.75rem 0 0.4rem;
+            font-weight: bold;
+            color: inherit;
+        }
+        .message .text h1 { font-size: 1.3em; }
+        .message .text h2 { font-size: 1.15em; }
+        .message .text h3 { font-size: 1.05em; }
+        .message .text ul, .message .text ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        .message .text li {
+            margin-bottom: 0.25rem;
+        }
+        .message .text a {
+            color: #007bff;
+            text-decoration: underline;
+        }
+        .message .text blockquote {
+            margin: 0.5rem 0;
+            padding-left: 0.75rem;
+            border-left: 3px solid rgba(0,0,0,0.2);
+            color: inherit;
+            opacity: 0.85;
+        }
+        .message .text table {
+            border-collapse: collapse;
+            margin: 0.5rem 0;
+            font-size: 0.9em;
+        }
+        .message .text th, .message .text td {
+            border: 1px solid #ddd;
+            padding: 0.3rem 0.5rem;
+            text-align: left;
+        }
+        .message .text th {
+            background: rgba(0,0,0,0.05);
+            font-weight: bold;
+        }
+        .message .text p {
+            margin: 0.4rem 0;
+        }
+        .message .text hr {
+            border: none;
+            border-top: 1px solid rgba(0,0,0,0.15);
+            margin: 0.75rem 0;
+        }
+        .message .text strong { font-weight: bold; }
+        .message .text em { font-style: italic; }
 
         #chat-input-area {
             display: flex;
@@ -274,13 +326,18 @@
 
             const textDiv = document.createElement('div');
             textDiv.className = 'text';
-            // Simple markdown-ish: code blocks and inline code
-            let html = text
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
-                .replace(/`([^`]+)`/g, '<code>$1</code>')
-                .replace(/\n/g, '<br>');
-            textDiv.innerHTML = html;
+            // Use marked.js for full Markdown rendering if available
+            if (typeof marked !== 'undefined') {
+                textDiv.innerHTML = marked.parse(text);
+            } else {
+                // Fallback: simple line-break + code formatting
+                let html = text
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+                    .replace(/`([^`]+)`/g, '<code>$1</code>')
+                    .replace(/\n/g, '<br>');
+                textDiv.innerHTML = html;
+            }
 
             div.appendChild(senderDiv);
             div.appendChild(textDiv);
