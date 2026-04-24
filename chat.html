@@ -348,7 +348,22 @@
 
                 if (!res.ok) {
                     const errText = await res.text();
-                    setStatus('Error: ' + (errText || res.statusText), 'error');
+                    let displayErr = errText || res.statusText;
+                    try {
+                        const parsed = JSON.parse(displayErr);
+                        if (parsed.error) displayErr = parsed.error;
+                    } catch (e) {}
+
+                    if (res.status === 403) {
+                        setStatus('Access restricted', 'warning');
+                        appendMessage('System', displayErr, false);
+                        sendBtn.disabled = true;
+                        inputEl.disabled = true;
+                        inputEl.placeholder = 'Access restricted — check back later.';
+                        return;
+                    }
+
+                    setStatus('Error: ' + displayErr, 'error');
                     appendMessage('System', 'Failed to get a response. Please try again.', false);
                     return;
                 }
