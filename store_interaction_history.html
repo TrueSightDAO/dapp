@@ -512,6 +512,72 @@
     /** Bypass HTTP cache for live GAS JSON (aligned with service-worker GAS policy). */
     var GAS_FETCH_INIT = { cache: 'no-store' };
 
+    /* ------------------------------------------------------------------ */
+    /*  Edgar [RETAIL FIELD REPORT EVENT] helpers                        */
+    /* ------------------------------------------------------------------ */
+    function arrayBufferToBase64(buffer) {
+        return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    }
+    function base64ToArrayBuffer(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes.buffer;
+    }
+    async function submitRetailFieldReportToEdgar(fields) {
+        var EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
+            || 'https://edgar.truesight.me/dao/submit_contribution';
+        var publicKey = localStorage.getItem('publicKey');
+        var privateKey = localStorage.getItem('privateKey');
+        if (!publicKey || !privateKey) return { ok: false, error: 'No signature keys' };
+
+        var requestText = '[RETAIL FIELD REPORT EVENT]\n' +
+            (fields.shop_name ? 'Shop Name: ' + fields.shop_name + '\n' : '') +
+            (fields.store_key ? 'Store Key: ' + fields.store_key + '\n' : '') +
+            (fields.new_status ? 'New Status: ' + fields.new_status + '\n' : '') +
+            (fields.previous_status ? 'Previous Status: ' + fields.previous_status + '\n' : '') +
+            (fields.shop_type ? 'Shop Type: ' + fields.shop_type + '\n' : '') +
+            (fields.owner_name ? 'Owner Name: ' + fields.owner_name + '\n' : '') +
+            (fields.contact_person ? 'Contact Person: ' + fields.contact_person + '\n' : '') +
+            (fields.email ? 'Email: ' + fields.email + '\n' : '') +
+            (fields.phone ? 'Phone: ' + fields.phone + '\n' : '') +
+            (fields.cell_phone ? 'Cell Phone: ' + fields.cell_phone + '\n' : '') +
+            (fields.website ? 'Website: ' + fields.website + '\n' : '') +
+            (fields.instagram ? 'Instagram: ' + fields.instagram + '\n' : '') +
+            (fields.visit_date ? 'Visit Date: ' + fields.visit_date + '\n' : '') +
+            (fields.contact_date ? 'Contact Date: ' + fields.contact_date + '\n' : '') +
+            (fields.follow_up_date ? 'Follow Up Date: ' + fields.follow_up_date + '\n' : '') +
+            (fields.contact_method ? 'Contact Method: ' + fields.contact_method + '\n' : '') +
+            (fields.remarks ? 'Remarks: ' + fields.remarks + '\n' : '') +
+            '--------';
+
+        var privateKeyObj = await window.crypto.subtle.importKey(
+            "pkcs8",
+            base64ToArrayBuffer(privateKey),
+            { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+            false,
+            ["sign"]
+        );
+        var encoder = new TextEncoder();
+        var signature = await window.crypto.subtle.sign(
+            "RSASSA-PKCS1-v1_5",
+            privateKeyObj,
+            encoder.encode(requestText)
+        );
+        var requestHash = arrayBufferToBase64(signature);
+        var shareText = requestText + '\n\nMy Digital Signature: ' + publicKey +
+            '\n\nRequest Transaction ID: ' + requestHash +
+            '\n\nThis submission was generated using ' + window.location.href +
+            '\n\nVerify submission here: https://dapp.truesight.me/verify_request.html';
+
+        var formData = new FormData();
+        formData.append('text', shareText);
+
+        var resp = await fetch(EDGAR_SUBMIT, { method: 'POST', body: formData });
+        if (!resp.ok) throw new Error(await resp.text());
+        return { ok: true, result: await resp.json() };
+    }
+
     var searchInput = document.getElementById('storeSearch');
     var suggestPanel = document.getElementById('suggestPanel');
     var searchHelp = document.getElementById('searchHelp');
@@ -1274,6 +1340,28 @@
             .then(function (data) {
                 if (data.success) {
                     updateStoreMessage.innerHTML = '<span class="status">✅ ' + escapeHtml(data.message || 'Updated') + '</span>';
+
+                    // Fire-and-forget: archive to Edgar for audit trail + oracle visibility
+                    submitRetailFieldReportToEdgar({
+                        shop_name: shopName,
+                        store_key: (lastHistoryContext && lastHistoryContext.store_key) || '',
+                        new_status: newStatus,
+                        previous_status: curStatus,
+                        shop_type: newShopType,
+                        owner_name: newOwnerName,
+                        contact_person: newContactPerson,
+                        email: newEmail,
+                        phone: newPhone,
+                        cell_phone: newCellPhone,
+                        website: newWebsite,
+                        instagram: newInstagram,
+                        visit_date: newVisitDate,
+                        contact_date: newContactDate,
+                        follow_up_date: newFollowUpDate,
+                        contact_method: newContactMethod,
+                        remarks: remarks
+                    }).catch(function (err) { console.warn('Edgar retail field report failed:', err); });
+
                     loadHistory();
                 } else {
                     updateStoreMessage.innerHTML = '<span class="error">❌ ' + escapeHtml(data.error || data.message || 'Unknown error') + '</span>';
