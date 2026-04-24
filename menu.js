@@ -1,8 +1,9 @@
 // navigation menu shared across all individual pages
-// Section order in dropdown follows first occurrence: Home, Community, Inventory, Retail (field), Sunmint, Identity
+// Section order in dropdown follows first occurrence: Home, Governor, Community, Inventory, Retail (field), Sunmint, Identity
 (function() {
   window.menuItems = [
     { title: 'Home', url: './index.html', section: '' },
+    { title: 'Governor Chat', url: './chat.html', section: '' },
     { title: 'DAO Contribution Reporter', url: './report_contribution.html', section: 'Community Contributions' },
     { title: 'Content Feedback Submission', url: './submit_feedback.html', section: 'Community Contributions' },
     { title: 'Capital Injection Reporter', url: './report_capital_injection.html', section: 'Inventory & ledger' },
@@ -24,7 +25,6 @@
     { title: 'Voting Rights Cash Out', url: './withdraw_voting_rights.html', section: 'Identity & Governance' },
     { title: 'Notarize Official Document', url: './notarize.html', section: 'Identity & Governance' },
     { title: 'Verify Signed Request', url: './verify_request.html', section: 'Identity & Governance' },
-    { title: 'Governor Chat', url: './chat.html', section: 'Identity & Governance' },
     { title: 'DAO Proposal Management', url: './view_open_proposals.html', section: 'Identity & Governance' },
     { title: 'Create Proposal', url: './create_proposal.html', section: 'Identity & Governance' },
     { title: 'Review & Vote on Proposal', url: './review_proposal.html', section: 'Identity & Governance' }
