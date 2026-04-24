@@ -35,7 +35,8 @@
             align-items: center;
             margin: 0;
             padding: 0.5rem;
-            height: 100vh;
+            min-height: 100vh; /* fallback */
+            min-height: 100dvh; /* mobile-aware: excludes toolbars/address bar */
             box-sizing: border-box;
             background-color: #f5f5f5;
             overflow: hidden;
@@ -52,6 +53,48 @@
             height: 100%;
             overflow: hidden;
             box-sizing: border-box;
+        }
+        #logo {
+            max-width: 100%;
+            height: auto;
+            max-height: 120px;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 0.25rem;
+            }
+            .container {
+                padding: 0.5rem;
+                border-radius: 0;
+            }
+            #logo {
+                max-height: 80px;
+            }
+            h1 {
+                font-size: 1.3rem;
+                margin: 0.25rem 0 0.5rem;
+            }
+            #description {
+                font-size: 0.85rem;
+                margin: 0.4rem 0;
+            }
+            #chat-messages {
+                padding: 0.5rem;
+                margin-bottom: 0.5rem;
+            }
+            .message {
+                max-width: 95%;
+                padding: 0.5rem 0.75rem;
+            }
+            #chat-input {
+                min-height: 44px;
+                font-size: 16px; /* prevents iOS zoom */
+                padding: 0.6rem;
+            }
+            .btn {
+                padding: 0.6rem 1rem;
+                font-size: 1rem;
+            }
         }
         h1 {
             font-size: 1.8rem;
@@ -273,7 +316,7 @@
         <div id="navDropdown" style="margin:0.5rem 0; text-align:center;"></div>
         <div id="tdgBalanceBadge"></div>
         <div style="text-align: center;">
-            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+            <img id="logo" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>
         <h1>Governor Chat</h1>
         <p id="description">Ask the DAO assistant anything about TrueSight, Agroverse, codebases, or governance. Phase 1: read-only Q&amp;A. Phase 2: DAO submission compilation coming soon.</p>
