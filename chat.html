@@ -32,8 +32,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 1rem;
-            padding: 1rem;
+            margin: 0;
+            padding: 0.5rem;
             min-height: 100vh;
             box-sizing: border-box;
             background-color: #f5f5f5;
@@ -47,7 +47,8 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 4rem);
+            height: calc(100vh - 1rem);
+            overflow: hidden;
         }
         h1 {
             font-size: 1.8rem;
@@ -230,7 +231,7 @@
             <p><a href="./create_signature.html">Create Digital Signature &rarr;</a></p>
         </div>
 
-        <div id="chat-ui" style="display:none; flex-direction:column; flex:1;">
+        <div id="chat-ui" style="display:none; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
             <div id="chat-messages"></div>
             <div id="chat-input-area">
                 <textarea id="chat-input" placeholder="Ask about the DAO, Agroverse, codebases, or governance..." rows="2"></textarea>
