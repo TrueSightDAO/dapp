@@ -9,6 +9,7 @@
     { title: 'Capital Injection Reporter', url: './report_capital_injection.html', section: 'Inventory & ledger' },
     { title: 'Inventory Expense Reporter', url: './report_dao_expenses.html', section: 'Inventory & ledger' },
     { title: 'Inventory Movement Reporter', url: './report_inventory_movement.html', section: 'Inventory & ledger' },
+    { title: 'Inventory Holdings by Manager', url: './view_inventory_holdings.html', section: 'Inventory & ledger' },
     { title: 'Batch QR Code Generator', url: './batch_qr_generator.html', section: 'Inventory & ledger' },
     { title: 'Update QR Code', url: './update_qr_code.html', section: 'Inventory & ledger' },
     { title: 'Repackaging Planner', url: './repackaging_planner.html', section: 'Inventory & ledger' },

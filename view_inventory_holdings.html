@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Look up DAO inventory held by a warehouse manager—copy-friendly list for admin work.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Holdings by Manager</title>
+
+    <meta property="og:title" content="Inventory Holdings by Manager">
+    <meta property="og:description" content="Select a warehouse manager and view copy-friendly inventory lines and QR assignments.">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/view_inventory_holdings.html">
+    <meta property="og:type" content="website">
+
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./routes.js"></script>
+    <script src="./menu.js"></script>
+    <script src="./tdg_balance.js"></script>
+    <script src="./js/treasury_cache.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 920px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .status { color: #28a745; }
+        .error { color: #dc3545; }
+        .loading { color: #6c757d; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .form-row { margin-bottom: 1rem; }
+        .form-row label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.65rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+        .btn:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        .btn-small {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            margin-left: 0.35rem;
+        }
+
+        h2 {
+            font-size: 1.15rem;
+            color: #333;
+            margin: 1.25rem 0 0.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.35rem;
+        }
+        .meta-line {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 0.75rem;
+        }
+
+        table.holdings-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        table.holdings-table th,
+        table.holdings-table td {
+            border: 1px solid #ddd;
+            padding: 0.45rem 0.5rem;
+            text-align: left;
+            vertical-align: top;
+        }
+        table.holdings-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .cell-mono {
+            font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.85rem;
+            word-break: break-all;
+        }
+        .empty-hint {
+            color: #666;
+            font-style: italic;
+            padding: 0.75rem 0;
+        }
+        .footer-links {
+            margin-top: 1.25rem;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .footer-links a { color: #007bff; }
+        .store-details-link { color: #007bff; text-decoration: none; }
+        .store-details-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div id="tdgBalanceBadge"></div>
+    <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>
+        <h1>Inventory Holdings by Manager</h1>
+        <p id="description">Pick a warehouse manager to see on-hand inventory (same data as <strong>Inventory Movement Reporter</strong>) in a copy-friendly table. Optional: QR codes assigned to that manager from the QR list.</p>
+        <p id="status" class="fade-in loading" aria-live="polite">Verifying your digital signature…</p>
+
+        <div id="mainPanel" style="display: none;">
+            <div class="form-row">
+                <label for="managerSelectCombobox">Warehouse manager</label>
+                <div style="position: relative;">
+                    <div id="managerSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="managerSelectDisplay" style="color: #999;">Loading managers…</span>
+                        <span style="color: #666;">▼</span>
+                    </div>
+                    <div id="managerDropdownContainer" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px;">
+                        <input type="text" id="managerSearchInput" placeholder="Type to search managers…" autocomplete="off" style="width: 100%; padding: 0.8rem; font-size: 1rem; box-sizing: border-box; border: none; border-bottom: 1px solid #eee; outline: none;">
+                        <div id="managerAutocompleteList" style="max-height: 220px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button type="button" class="btn" id="refreshBtn" disabled>Refresh listing</button>
+                <button type="button" class="btn btn-secondary" id="copyTsvBtn" disabled>Copy all (TSV)</button>
+            </div>
+
+            <div id="holdingsMeta" class="meta-line" aria-live="polite"></div>
+
+            <h2>On-hand inventory</h2>
+            <div id="holdingsTableWrap"></div>
+
+            <h2>QR codes (list_with_members)</h2>
+            <p class="meta-line" style="margin-top:0;">Rows where the QR service reports <code>contributor_name</code> matching the selected manager.</p>
+            <div id="qrTableWrap"></div>
+
+            <div class="footer-links">
+                <a href="./report_inventory_movement.html" class="store-details-link">Report inventory movement →</a>
+                ·
+                <a href="https://github.com/TrueSightDAO/treasury-cache/blob/main/README.md" class="store-details-link" target="_blank" rel="noopener noreferrer">Treasury cache schema ↗</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_ENDPOINT = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
+            || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
+        const DAO_FORMS_BASE = (window.Routes && window.Routes.gas && window.Routes.gas.daoForms)
+            || 'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec';
+        const QR_CODE_BASE = (window.Routes && window.Routes.gas && window.Routes.gas.qrCodes)
+            || 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec';
+
+        let managersList = [];
+        let currentManagerKey = null;
+        let currentManagerName = '';
+        let lastAssets = [];
+        let lastQrRows = [];
+        let dataSourceLabel = '';
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                console.error('Clipboard failed:', err);
+                return false;
+            }
+        }
+
+        async function loadManagers() {
+            let managers = null;
+            let source = 'treasury-cache';
+            try {
+                if (window.TreasuryCache && typeof TreasuryCache.getManagers === 'function') {
+                    managers = await TreasuryCache.getManagers();
+                }
+            } catch (e) {
+                console.warn('[holdings] TreasuryCache.getManagers failed:', e);
+            }
+            if (!managers) {
+                source = 'gas';
+                const res = await fetch(DAO_FORMS_BASE + '?list=true');
+                managers = await res.json();
+            }
+            managersList = (managers || []).sort(function (a, b) {
+                return String(a.name || '').localeCompare(String(b.name || ''));
+            });
+            const display = document.getElementById('managerSelectDisplay');
+            if (display) {
+                display.textContent = 'Select a manager';
+                display.style.color = '#999';
+            }
+            console.log('[holdings] managers loaded via', source, managersList.length);
+        }
+
+        function updateManagerAutocomplete() {
+            const input = document.getElementById('managerSearchInput');
+            const list = document.getElementById('managerAutocompleteList');
+            if (!input || !list) return;
+            const q = (input.value || '').toLowerCase().trim();
+            list.innerHTML = '';
+            if (!managersList.length) {
+                list.innerHTML = '<div style="padding:8px 12px;color:#999;font-style:italic;">No managers</div>';
+                return;
+            }
+            const rows = q
+                ? managersList.filter(function (m) { return (m.name || '').toLowerCase().indexOf(q) !== -1; })
+                : managersList;
+            if (!rows.length) {
+                list.innerHTML = '<div style="padding:8px 12px;color:#999;font-style:italic;">No matches</div>';
+                return;
+            }
+            rows.forEach(function (m) {
+                const div = document.createElement('div');
+                div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid #eee;';
+                div.textContent = m.name;
+                div.addEventListener('mouseenter', function () { div.style.backgroundColor = '#f0f0f0'; });
+                div.addEventListener('mouseleave', function () { div.style.backgroundColor = 'white'; });
+                div.addEventListener('click', function () {
+                    selectManager(m.key, m.name);
+                });
+                list.appendChild(div);
+            });
+        }
+
+        function selectManager(managerKey, managerName) {
+            currentManagerKey = managerKey;
+            currentManagerName = managerName || '';
+            const display = document.getElementById('managerSelectDisplay');
+            const dropdown = document.getElementById('managerDropdownContainer');
+            const search = document.getElementById('managerSearchInput');
+            if (display) {
+                display.textContent = managerName;
+                display.style.color = '#333';
+            }
+            if (dropdown) dropdown.style.display = 'none';
+            if (search) search.value = '';
+            document.getElementById('refreshBtn').disabled = false;
+            document.getElementById('copyTsvBtn').disabled = false;
+            try {
+                const u = new URL(window.location.href);
+                u.searchParams.set('manager_key', managerKey);
+                u.searchParams.set('manager', managerName);
+                window.history.replaceState({}, '', u.toString());
+            } catch (_) { /* ignore */ }
+            refreshHoldings();
+        }
+
+        function escapeHtml(s) {
+            if (s === undefined || s === null) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function formatNum(v) {
+            if (v === undefined || v === null || v === '') return '';
+            var n = Number(v);
+            if (isNaN(n)) return String(v);
+            return String(n);
+        }
+
+        async function fetchManagerAssets(managerKey) {
+            dataSourceLabel = '';
+            try {
+                if (window.TreasuryCache && typeof TreasuryCache.getManagerAssets === 'function') {
+                    var cached = await TreasuryCache.getManagerAssets(managerKey);
+                    if (cached) {
+                        dataSourceLabel = 'treasury-cache';
+                        return cached;
+                    }
+                }
+            } catch (e) {
+                console.warn('[holdings] treasury-cache assets failed:', e);
+            }
+            var res = await fetch(DAO_FORMS_BASE + '?manager=' + encodeURIComponent(managerKey));
+            var json = await res.json();
+            dataSourceLabel = 'dao-forms (GAS)';
+            return Array.isArray(json) ? json : [];
+        }
+
+        async function fetchQrRowsForManager(managerName) {
+            var want = (managerName || '').trim().toLowerCase();
+            if (!want) return [];
+            var url = QR_CODE_BASE + '?list_with_members=true';
+            var res = await fetch(url);
+            var data = await res.json();
+            if (data.status === 'error') {
+                console.warn('[holdings] QR list error:', data.message);
+                return [];
+            }
+            var items = (data.items && Array.isArray(data.items)) ? data.items : [];
+            return items.filter(function (it) {
+                var n = (it.contributor_name || '').trim().toLowerCase();
+                return n === want;
+            });
+        }
+
+        function buildTsvFromAssets(assets) {
+            var lines = ['item\tamount\tledger\tunit_cost_usd\ttotal_value_usd'];
+            assets.forEach(function (a) {
+                lines.push([
+                    a.currency || '',
+                    a.amount != null ? a.amount : '',
+                    a.ledger || '',
+                    a.unit_cost != null ? a.unit_cost : '',
+                    a.total_value != null ? a.total_value : ''
+                ].join('\t'));
+            });
+            return lines.join('\n');
+        }
+
+        function renderHoldingsTable(assets) {
+            var wrap = document.getElementById('holdingsTableWrap');
+            if (!wrap) return;
+            if (!assets.length) {
+                wrap.innerHTML = '<p class="empty-hint">No manager-controlled lines for this manager (empty list from source).</p>';
+                return;
+            }
+            var sorted = assets.slice().sort(function (a, b) {
+                return String(a.currency || '').localeCompare(String(b.currency || ''));
+            });
+            var html = '<table class="holdings-table"><thead><tr>' +
+                '<th>Item</th><th>Amount</th><th>Ledger</th><th>Unit $</th><th>Total $</th><th>Copy</th>' +
+                '</tr></thead><tbody>';
+            sorted.forEach(function (a, idx) {
+                html += '<tr><td class="cell-mono">' + escapeHtml(a.currency || '') + '</td>' +
+                    '<td class="cell-mono">' + escapeHtml(formatNum(a.amount)) + '</td>' +
+                    '<td class="cell-mono">' + escapeHtml(a.ledger || '') + '</td>' +
+                    '<td class="cell-mono">' + escapeHtml(formatNum(a.unit_cost)) + '</td>' +
+                    '<td class="cell-mono">' + escapeHtml(formatNum(a.total_value)) + '</td>' +
+                    '<td><button type="button" class="btn btn-small copy-asset" data-asset-index="' + idx + '">Copy</button></td></tr>';
+            });
+            html += '</tbody></table>';
+            wrap.innerHTML = html;
+            wrap.querySelectorAll('.copy-asset').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    var i = parseInt(btn.getAttribute('data-asset-index'), 10);
+                    var a = sorted[i];
+                    if (!a) return;
+                    var line = [
+                        a.currency || '',
+                        a.amount != null ? a.amount : '',
+                        a.ledger || '',
+                        a.unit_cost != null ? a.unit_cost : '',
+                        a.total_value != null ? a.total_value : ''
+                    ].join('\t');
+                    var ok = await copyToClipboard(line);
+                    btn.textContent = ok ? 'Copied' : 'Failed';
+                    setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+                });
+            });
+        }
+
+        function renderQrTable(rows) {
+            var wrap = document.getElementById('qrTableWrap');
+            if (!wrap) return;
+            if (!rows.length) {
+                wrap.innerHTML = '<p class="empty-hint">No QR rows matched this manager name.</p>';
+                return;
+            }
+            var html = '<table class="holdings-table"><thead><tr>' +
+                '<th>QR code</th><th>Currency</th><th>Ledger</th><th>Copy</th></tr></thead><tbody>';
+            rows.forEach(function (it, idx) {
+                var qr = it.qr_code || '';
+                var cur = it.currency || '';
+                var led = it.ledger_shortcut || '';
+                html += '<tr><td class="cell-mono">' + escapeHtml(qr) + '</td>' +
+                    '<td class="cell-mono">' + escapeHtml(cur) + '</td>' +
+                    '<td class="cell-mono">' + escapeHtml(led) + '</td>' +
+                    '<td><button type="button" class="btn btn-small copy-qr" data-qr-index="' + idx + '">Copy</button></td></tr>';
+            });
+            html += '</tbody></table>';
+            wrap.innerHTML = html;
+            wrap.querySelectorAll('.copy-qr').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    var i = parseInt(btn.getAttribute('data-qr-index'), 10);
+                    var it = rows[i];
+                    if (!it) return;
+                    var line = [(it.qr_code || ''), (it.currency || ''), (it.ledger_shortcut || '')].join('\t');
+                    var ok = await copyToClipboard(line);
+                    btn.textContent = ok ? 'Copied' : 'Failed';
+                    setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+                });
+            });
+        }
+
+        async function refreshHoldings() {
+            if (!currentManagerKey) return;
+            var meta = document.getElementById('holdingsMeta');
+            if (meta) meta.textContent = 'Loading…';
+            try {
+                var assets = await fetchManagerAssets(currentManagerKey);
+                lastAssets = assets;
+                var qrRows = await fetchQrRowsForManager(currentManagerName);
+                lastQrRows = qrRows;
+                renderHoldingsTable(assets);
+                renderQrTable(qrRows);
+                var snap = null;
+                try {
+                    if (window.TreasuryCache && TreasuryCache.load) snap = await TreasuryCache.load();
+                } catch (_) { /* ignore */ }
+                var gen = snap && snap.generated_at ? snap.generated_at : '';
+                if (meta) {
+                    meta.textContent = 'Source: ' + (dataSourceLabel || 'unknown') +
+                        (gen ? ' · snapshot generated_at: ' + gen : '') +
+                        ' · manager: ' + currentManagerName;
+                }
+            } catch (err) {
+                console.error(err);
+                if (meta) meta.textContent = 'Error: ' + (err.message || String(err));
+                document.getElementById('holdingsTableWrap').innerHTML = '';
+                document.getElementById('qrTableWrap').innerHTML = '';
+            }
+        }
+
+        async function copyAllTsv() {
+            if (!lastAssets.length) {
+                alert('No rows to copy.');
+                return;
+            }
+            var body = buildTsvFromAssets(lastAssets);
+            var header = 'manager\t' + currentManagerName + '\n';
+            var ok = await copyToClipboard(header + body);
+            alert(ok ? 'Copied TSV (header + inventory rows).' : 'Clipboard failed.');
+        }
+
+        function wireManagerCombobox() {
+            var combo = document.getElementById('managerSelectCombobox');
+            var dropdown = document.getElementById('managerDropdownContainer');
+            var search = document.getElementById('managerSearchInput');
+            if (!combo || !dropdown || !search) return;
+            dropdown.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+            combo.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var open = dropdown.style.display === 'block';
+                dropdown.style.display = open ? 'none' : 'block';
+                if (!open) {
+                    setTimeout(function () { search.focus(); }, 10);
+                    updateManagerAutocomplete();
+                }
+            });
+            search.addEventListener('input', updateManagerAutocomplete);
+            document.addEventListener('click', function () {
+                dropdown.style.display = 'none';
+            });
+        }
+
+        function applyUrlManagerPref() {
+            try {
+                var u = new URL(window.location.href);
+                var key = u.searchParams.get('manager_key');
+                var name = u.searchParams.get('manager');
+                if (key && managersList.length) {
+                    var m = managersList.find(function (x) { return x.key === key; });
+                    if (m) {
+                        selectManager(m.key, m.name);
+                        return;
+                    }
+                }
+                if (name && managersList.length) {
+                    var m2 = managersList.find(function (x) {
+                        return (x.name || '').trim().toLowerCase() === name.trim().toLowerCase();
+                    });
+                    if (m2) {
+                        selectManager(m2.key, m2.name);
+                    }
+                }
+            } catch (_) { /* ignore */ }
+        }
+
+        window.addEventListener('load', async function () {
+            var statusEl = document.getElementById('status');
+            var mainPanel = document.getElementById('mainPanel');
+            var publicKey = localStorage.getItem('publicKey');
+            if (!publicKey) {
+                statusEl.textContent = 'No digital signature found. Redirecting…';
+                statusEl.className = 'error fade-in';
+                setTimeout(function () { window.location.href = './create_signature.html'; }, 1600);
+                return;
+            }
+            try {
+                var response = await fetch(API_ENDPOINT + '?signature=' + encodeURIComponent(publicKey));
+                var data = await response.json();
+                if (data.error) {
+                    if (String(data.error).indexOf('No matching') !== -1) {
+                        statusEl.innerHTML = 'Signature not registered. <a href="./create_signature.html">Register first</a>.';
+                    } else {
+                        statusEl.textContent = 'Error: ' + data.error;
+                    }
+                    statusEl.className = 'error fade-in';
+                    return;
+                }
+                statusEl.textContent = 'Signature verified.';
+                statusEl.className = 'status fade-in';
+                mainPanel.style.display = 'block';
+                wireManagerCombobox();
+                await loadManagers();
+                updateManagerAutocomplete();
+                document.getElementById('refreshBtn').addEventListener('click', refreshHoldings);
+                document.getElementById('copyTsvBtn').addEventListener('click', copyAllTsv);
+                applyUrlManagerPref();
+            } catch (err) {
+                statusEl.textContent = 'Verification failed: ' + (err.message || String(err));
+                statusEl.className = 'error fade-in';
+            }
+        });
+    </script>
+</body>
+</html>

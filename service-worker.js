@@ -1,6 +1,6 @@
 importScripts('./routes.js');
 
-const CACHE_NAME = 'qr-scanner-cache-v4';
+const CACHE_NAME = 'qr-scanner-cache-v5';
 
 /**
  * Apps Script web apps + Edgar GAS proxy — must not use the Cache API or HTTP cache
@@ -31,6 +31,7 @@ const URLS_TO_CACHE = [
   './report_contribution.html',
   './report_dao_expenses.html',
   './report_inventory_movement.html',
+  './view_inventory_holdings.html',
   './repackaging_planner.html',
   './report_sales.html',
   './report_tree_planting.html',
@@ -42,6 +43,7 @@ const URLS_TO_CACHE = [
   './menu.js',
   './routes.js',
   './service-worker.js',
+  './js/treasury_cache.js',
   // External libraries
   'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js',
   // Assets
