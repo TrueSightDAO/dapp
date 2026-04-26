@@ -1,4 +1,6 @@
 // navigation menu shared across all individual pages
+// When you change menuItems, bump the ?v= query on <script src="./menu.js?v=…"> in every
+// HTML page (and in service-worker.js URLS_TO_CACHE) so browsers and the SW pick up edits.
 // Section order in dropdown follows first occurrence: Home, Governor, Community, Inventory, Retail (field), Sunmint, Identity
 (function() {
   window.menuItems = [
