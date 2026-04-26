@@ -424,6 +424,11 @@
             background: #ffc107;
             color: #333;
         }
+        .badge-deferred-revisit {
+            background: #0d9488;
+            color: white;
+            font-weight: 500;
+        }
         .badge-rejected {
             background: #dc3545;
             color: white;
@@ -1026,6 +1031,7 @@
                                     <option value="Followed Up">Followed Up</option>
                                     <option value="Partnered">Partnered</option>
                                     <option value="On Hold">On Hold</option>
+                                    <option value="Deferred / Revisit later">Deferred / Revisit later</option>
                                     <option value="Rejected">Rejected</option>
                                     <option value="Not Appropriate">Not Appropriate</option>
                                 </select>
@@ -1139,6 +1145,10 @@
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="On Hold" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
                                 <span style="flex: 1;">On Hold</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="Deferred / Revisit later" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">Deferred / Revisit later</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="Rejected" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
@@ -1336,6 +1346,10 @@
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-status-filter-checkbox" value="On Hold" style="margin-right: 0.5rem; cursor: pointer;">
                                 <span>On Hold</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="Deferred / Revisit later" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>Deferred / Revisit later</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-status-filter-checkbox" value="Rejected" style="margin-right: 0.5rem; cursor: pointer;">
@@ -1548,6 +1562,7 @@
             'Followed Up': 'Follow-up contact with the manager has been completed. Waiting for their response or next steps.',
             'Partnered': 'Store is an active partner. They carry our products and have an established business relationship.',
             'On Hold': 'Store partnership is temporarily on hold. Waiting for further developments or decisions.',
+            'Deferred / Revisit later': 'Not a fit or not ready now (e.g. existing vendor, buying cycle months away). Plan a future check-in; not the same as Rejected.',
             'Rejected': 'Store declined partnership or is not interested in carrying our products.',
             'Not Appropriate': 'Store does not align with our values or target market. Not a good fit for partnership.',
             '': 'Showing all stores regardless of status. Use this to see the complete list.'
@@ -5060,6 +5075,7 @@
             else if (statusLower === 'followed up' || statusLower === 'followedup') badgeClass = 'badge-followedup';
             else if (statusLower === 'partnered') badgeClass = 'badge-partnered';
             else if (statusLower === 'on hold') badgeClass = 'badge-on-hold';
+            else if (statusLower === 'deferred / revisit later') badgeClass = 'badge-deferred-revisit';
             else if (statusLower === 'rejected') badgeClass = 'badge-rejected';
             else if (statusLower === 'not appropriate') badgeClass = 'badge-rejected'; // Use rejected style for not appropriate
             return `<span class="store-badge ${badgeClass}">${escapeHtml(status)}</span>`;
@@ -6394,6 +6410,7 @@
                             <option value="Followed Up" ${store.status === 'Followed Up' ? 'selected' : ''}>Followed Up</option>
                             <option value="Partnered" ${store.status === 'Partnered' ? 'selected' : ''}>Partnered</option>
                             <option value="On Hold" ${store.status === 'On Hold' ? 'selected' : ''}>On Hold</option>
+                            <option value="Deferred / Revisit later" ${store.status === 'Deferred / Revisit later' ? 'selected' : ''}>Deferred / Revisit later</option>
                             <option value="Rejected" ${store.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
                             <option value="Not Appropriate" ${store.status === 'Not Appropriate' ? 'selected' : ''}>Not Appropriate</option>
                         </select>
