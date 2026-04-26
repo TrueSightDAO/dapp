@@ -91,6 +91,34 @@
         }
         .suggest-item:hover { background: #f0f7ff; }
         .suggest-item small { color: #666; display: block; font-size: 0.8rem; }
+        .suggest-item-title-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.35rem 0.5rem;
+            margin-bottom: 0.2rem;
+        }
+        .suggest-item-title-row .suggest-shop-name {
+            font-size: 0.95rem;
+            min-width: 0;
+            flex: 1 1 8rem;
+        }
+        .suggest-status-pill {
+            display: inline-block;
+            padding: 0.12rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            line-height: 1.35;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 0 1 auto;
+        }
+        .suggest-item-sub { margin-top: 0.15rem; }
+        .suggest-item-type { color: #495057 !important; font-style: italic; }
         .btn {
             background-color: #007bff;
             color: white;
@@ -222,6 +250,7 @@
         .history-legend .legend-remarks { background: #0d6efd; }
         .history-legend .legend-followup { background: #198754; }
         .history-legend .legend-suggestions { background: #6f42c1; }
+        .history-legend .legend-store-reports { background: #fd7e14; }
 
         .timeline-entry {
             margin: 0.65rem 0;
@@ -234,6 +263,7 @@
         .timeline-entry.cat-dapp-remarks { border-left-color: #0d6efd; background: #f7f9ff; }
         .timeline-entry.cat-email-followup { border-left-color: #198754; background: #f4fbf6; }
         .timeline-entry.cat-email-suggestions { border-left-color: #6f42c1; background: #f9f6fc; }
+        .timeline-entry.cat-store-reports { border-left-color: #fd7e14; background: #fff8f2; }
 
         .timeline-entry-header {
             display: flex;
@@ -253,6 +283,7 @@
         .timeline-entry.cat-dapp-remarks .timeline-badge { background: #0d6efd; }
         .timeline-entry.cat-email-followup .timeline-badge { background: #198754; }
         .timeline-entry.cat-email-suggestions .timeline-badge { background: #6f42c1; }
+        .timeline-entry.cat-store-reports .timeline-badge { background: #fd7e14; }
         .timeline-entry-header .timeline-date {
             font-size: 0.85rem;
             color: #495057;
@@ -353,6 +384,89 @@
         .store-details-link:hover {
             text-decoration: underline;
         }
+        .attachment-preview {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed #ddd;
+        }
+        .attachment-preview img {
+            max-width: 280px;
+            height: auto;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            display: block;
+            margin: 0.35rem 0;
+        }
+        .attachment-preview iframe {
+            width: 100%;
+            height: 340px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 0.35rem;
+        }
+        .store-attachments-hidden-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+            opacity: 0;
+        }
+        .store-attachments-wrap {
+            position: relative;
+            margin-top: 0.35rem;
+        }
+        .paste-area {
+            border: 2px dashed #ccc;
+            padding: 1rem;
+            text-align: center;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #f8f9fa;
+            font-size: 1rem;
+            color: #333;
+        }
+        .paste-area:hover { background-color: #e9ecef; }
+        .paste-area:focus { outline: 2px solid #007bff; outline-offset: 2px; }
+        .store-attachments-preview {
+            border: 1px solid #ccc;
+            margin: 0.75rem 0 0;
+            max-width: 100%;
+            height: auto;
+            display: none;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 5px;
+        }
+        .info-box {
+            margin: 0.75rem 0 0;
+            background-color: #f8f9fa;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            overflow-x: auto;
+        }
+        .info-box .info {
+            font-weight: bold;
+            text-align: left;
+            font-size: 0.95rem;
+            margin: 0.5rem 0 0.15rem;
+        }
+        .info-box .info:first-child { margin-top: 0; }
+        .info-box .info-location {
+            font-weight: normal;
+            margin-left: 0;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+        @media (max-width: 600px) {
+            .paste-area { padding: 0.65rem; font-size: 0.95rem; }
+        }
     </style>
 </head>
 <body>
@@ -381,7 +495,7 @@
             <label for="storeSearch">Store name or key</label>
             <input type="text" id="storeSearch" placeholder="Type at least 2 characters…" autocomplete="off" />
             <div id="suggestPanel" class="suggest-panel" role="listbox"></div>
-            <p id="searchHelp" class="help-text">Suggestions load from Hit List. Click a row or press Enter to select — history loads automatically.</p>
+            <p id="searchHelp" class="help-text">Suggestions include a color-coded <strong>status</strong> pill (and shop type when present). Click a row or press Enter — history loads automatically.</p>
         </div>
 
         <button type="button" class="btn btn-secondary" id="refreshBtn" style="display:none;">Refresh history</button>
@@ -395,7 +509,7 @@
             <details id="updateSectionDetails" class="update-collapsible">
                 <summary>Update Status &amp; Shop Type <span class="update-collapsible-hint">— click to expand</span></summary>
                 <div class="update-collapsible-body">
-            <p class="help-text">Same endpoint as <strong>Stores Nearby</strong> (<code>action=update_status</code>, Google Apps Script → Hit List sheet). Requires verified signature. <strong>Photo attachments</strong> (business cards, etc.) are not supported—updates are text fields only. This flow does not go through <strong>Edgar</strong> (<code>sentiment_importer</code>).</p>
+            <p class="help-text">Same endpoint as <strong>Stores Nearby</strong> (<code>action=update_status</code>, Google Apps Script → Hit List sheet). Requires verified signature. Optional files are sent to <strong>Edgar</strong> after a successful update, archived under <code>TrueSightDAO/store_interaction_attachments</code>; URLs can be logged to <strong>Stores Visits Field Reports</strong> for this history page.</p>
 
             <label for="editStatus">Status</label>
             <select id="editStatus" data-requires-signature="true">
@@ -475,7 +589,24 @@
             </select>
 
             <label for="editRemarks" style="margin-top:0.75rem;">Remarks (optional)</label>
-            <textarea id="editRemarks" data-requires-signature="true" placeholder="Add context, next steps, or notes captured in the field..."></textarea>
+            <textarea id="editRemarks" data-requires-signature="true" placeholder="Add context, next steps, or notes…"></textarea>
+            <p class="help-text">Paste (⌘V / Ctrl+V) an image or file here while focused to add it to attachments below.</p>
+
+            <label style="margin-top:0.75rem;">Proof / attachments (optional)</label>
+            <p class="help-text">Multiple files allowed: images, PDF, TXT, CSV, JSON, DOC/DOCX, XLS/XLSX, WebP, HEIC.</p>
+            <div class="store-attachments-wrap">
+                <input type="file" id="editAttachments" class="store-attachments-hidden-input" data-requires-signature="true" multiple accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx,.xls,.xlsx,.webp,.heic,.heif" tabindex="-1" aria-hidden="true" />
+                <div id="storeAttachmentsPasteArea" class="paste-area" role="button" tabindex="0" title="Select or paste files">Click to select or paste (Ctrl+V / ⌘V) a file or image</div>
+            </div>
+            <img id="storeAttachmentsPreview" class="store-attachments-preview" alt="Selected image preview" />
+            <div class="info-box store-attachments-info" aria-live="polite">
+                <div class="info">Original file name(s):</div>
+                <div class="info-location" id="storeAttachmentOriginalNames">No file selected</div>
+                <div class="info">Archive path (after submit):</div>
+                <div class="info-location" id="storeAttachmentArchiveHint">store_visits_field_reports/&lt;store_key&gt;/&lt;update_id&gt;/</div>
+                <div class="info">Attachment repository:</div>
+                <div class="info-location"><a href="https://github.com/TrueSightDAO/store_interaction_attachments/tree/main/store_visits_field_reports" target="_blank" rel="noopener noreferrer" class="store-details-link">TrueSightDAO/store_interaction_attachments ↗</a></div>
+            </div>
 
             <button type="button" class="btn" id="updateStoreBtn" data-requires-signature="true">Update Store Information</button>
             <div id="updateStoreMessage" style="margin-top:0.5rem;font-size:0.9rem;"></div>
@@ -512,29 +643,44 @@
 
     /** Bypass HTTP cache for live GAS JSON (aligned with service-worker GAS policy). */
     var GAS_FETCH_INIT = { cache: 'no-store' };
+    var ATTACHMENT_REPO = 'TrueSightDAO/store_interaction_attachments';
+    var ATTACHMENT_BRANCH = 'main';
 
     /* ------------------------------------------------------------------ */
     /*  Edgar [RETAIL FIELD REPORT EVENT] helpers                        */
     /* ------------------------------------------------------------------ */
     function arrayBufferToBase64(buffer) {
-        return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
     }
     function base64ToArrayBuffer(base64) {
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        var binary = atob(base64);
+        var bytes = new Uint8Array(binary.length);
+        for (var bi = 0; bi < binary.length; bi++) bytes[bi] = binary.charCodeAt(bi);
         return bytes.buffer;
     }
-    async function submitRetailFieldReportToEdgar(fields) {
-        var EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
-            || 'https://edgar.truesight.me/dao/submit_contribution';
-        var publicKey = localStorage.getItem('publicKey');
-        var privateKey = localStorage.getItem('privateKey');
-        if (!publicKey || !privateKey) return { ok: false, error: 'No signature keys' };
-
-        var requestText = '[RETAIL FIELD REPORT EVENT]\n' +
+    function sanitizeAttachmentFilename(name) {
+        return String(name || 'attachment')
+            .replace(/[^\w.\-]+/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .slice(0, 120) || 'attachment';
+    }
+    function buildAttachmentTargetUrls(storeKey, updateId, idx, fileName) {
+        var safeStore = (storeKey || 'unknown_store').toLowerCase().replace(/[^\w\-]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '') || 'unknown_store';
+        var safeUpdate = (updateId || new Date().toISOString().replace(/[^\dTZ]/g, '')).replace(/[^\w\-]+/g, '_');
+        var safeName = sanitizeAttachmentFilename(fileName);
+        var path = 'store_visits_field_reports/' + safeStore + '/' + safeUpdate + '/' + String(idx + 1).padStart(2, '0') + '_' + safeName;
+        return {
+            path: path,
+            blobUrl: 'https://github.com/' + ATTACHMENT_REPO + '/blob/' + ATTACHMENT_BRANCH + '/' + path,
+            rawUrl: 'https://raw.githubusercontent.com/' + ATTACHMENT_REPO + '/' + ATTACHMENT_BRANCH + '/' + path
+        };
+    }
+    function buildRetailFieldReportText(fields, target) {
+        return '[RETAIL FIELD REPORT EVENT]\n' +
             (fields.shop_name ? 'Shop Name: ' + fields.shop_name + '\n' : '') +
             (fields.store_key ? 'Store Key: ' + fields.store_key + '\n' : '') +
+            (fields.update_id ? 'Update ID: ' + fields.update_id + '\n' : '') +
             (fields.new_status ? 'New Status: ' + fields.new_status + '\n' : '') +
             (fields.previous_status ? 'Previous Status: ' + fields.previous_status + '\n' : '') +
             (fields.shop_type ? 'Shop Type: ' + fields.shop_type + '\n' : '') +
@@ -550,33 +696,115 @@
             (fields.follow_up_date ? 'Follow Up Date: ' + fields.follow_up_date + '\n' : '') +
             (fields.contact_method ? 'Contact Method: ' + fields.contact_method + '\n' : '') +
             (fields.remarks ? 'Remarks: ' + fields.remarks + '\n' : '') +
+            (target && target.fileName ? 'Attachment Filename: ' + target.fileName + '\n' : '') +
+            (target && target.mimeType ? 'Attachment MIME Type: ' + target.mimeType + '\n' : '') +
+            (target && target.sizeBytes !== undefined ? 'Attachment Size Bytes: ' + target.sizeBytes + '\n' : '') +
+            (target && target.blobUrl ? 'Attachment GitHub URL: ' + target.blobUrl + '\n' : '') +
+            (target && target.rawUrl ? 'Attachment Raw URL: ' + target.rawUrl + '\n' : '') +
             '--------';
+    }
+    function logFieldReportAttachmentRow(fields) {
+        var raw = (fields.github_raw_url || '').trim();
+        var blob = (fields.github_blob_url || '').trim();
+        if (!raw && !blob) return Promise.resolve(null);
+        var pk = localStorage.getItem('publicKey');
+        if (!pk) return Promise.resolve(null);
+        var q = new URLSearchParams({
+            action: 'log_field_report_attachment',
+            shop_name: fields.shop_name || '',
+            digital_signature: pk,
+            github_raw_url: raw,
+            github_blob_url: blob,
+            store_key: fields.store_key || '',
+            update_id: fields.update_id || '',
+            hit_list_row: String((lastHistoryContext && lastHistoryContext.hit_list_row) || ''),
+            email: fields.email || '',
+            filename_original: fields.filename_original || '',
+            mime_type: fields.mime_type || '',
+            github_path: fields.github_path || '',
+            remarks: (fields.remarks || '').slice(0, 2000)
+        });
+        return fetch(STORES_NEARBY_API_URL + '?' + q.toString(), GAS_FETCH_INIT).then(function (r) {
+            return r.json();
+        });
+    }
+    async function submitRetailFieldReportToEdgar(fields, files) {
+        var EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
+            || 'https://edgar.truesight.me/dao/submit_contribution';
+        var publicKey = localStorage.getItem('publicKey');
+        var privateKey = localStorage.getItem('privateKey');
+        if (!publicKey || !privateKey) return { ok: false, error: 'No signature keys' };
 
         var privateKeyObj = await window.crypto.subtle.importKey(
-            "pkcs8",
+            'pkcs8',
             base64ToArrayBuffer(privateKey),
-            { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+            { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
             false,
-            ["sign"]
+            ['sign']
         );
         var encoder = new TextEncoder();
-        var signature = await window.crypto.subtle.sign(
-            "RSASSA-PKCS1-v1_5",
-            privateKeyObj,
-            encoder.encode(requestText)
-        );
-        var requestHash = arrayBufferToBase64(signature);
-        var shareText = requestText + '\n\nMy Digital Signature: ' + publicKey +
-            '\n\nRequest Transaction ID: ' + requestHash +
-            '\n\nThis submission was generated using ' + window.location.href +
-            '\n\nVerify submission here: https://dapp.truesight.me/verify_request.html';
+        var attachments = (files || []).slice();
+        var jobs = [];
+        if (!attachments.length) {
+            jobs.push({ target: null, file: null });
+        } else {
+            attachments.forEach(function (f, idx) {
+                var urls = buildAttachmentTargetUrls(fields.store_key, fields.update_id, idx, f.name);
+                jobs.push({
+                    file: f,
+                    target: {
+                        fileName: f.name,
+                        mimeType: f.type || 'application/octet-stream',
+                        sizeBytes: f.size || 0,
+                        blobUrl: urls.blobUrl,
+                        rawUrl: urls.rawUrl,
+                        path: urls.path
+                    }
+                });
+            });
+        }
 
-        var formData = new FormData();
-        formData.append('text', shareText);
-
-        var resp = await fetch(EDGAR_SUBMIT, { method: 'POST', body: formData });
-        if (!resp.ok) throw new Error(await resp.text());
-        return { ok: true, result: await resp.json() };
+        var results = [];
+        for (var ji = 0; ji < jobs.length; ji++) {
+            var job = jobs[ji];
+            var requestText = buildRetailFieldReportText(fields, job.target);
+            var signature = await window.crypto.subtle.sign(
+                'RSASSA-PKCS1-v1_5',
+                privateKeyObj,
+                encoder.encode(requestText)
+            );
+            var requestHash = arrayBufferToBase64(signature);
+            var shareText = requestText + '\n\nMy Digital Signature: ' + publicKey +
+                '\n\nRequest Transaction ID: ' + requestHash +
+                '\n\nThis submission was generated using ' + window.location.href +
+                '\n\nVerify submission here: https://dapp.truesight.me/verify_request.html';
+            var formData = new FormData();
+            formData.append('text', shareText);
+            if (job.file) {
+                formData.append('attachment', job.file, job.file.name);
+            }
+            var resp = await fetch(EDGAR_SUBMIT, { method: 'POST', body: formData });
+            if (!resp.ok) throw new Error(await resp.text());
+            var jsonResult = await resp.json();
+            results.push(jsonResult);
+            if (job.target && (job.target.rawUrl || job.target.blobUrl)) {
+                logFieldReportAttachmentRow({
+                    shop_name: fields.shop_name,
+                    store_key: fields.store_key,
+                    update_id: fields.update_id,
+                    email: fields.email,
+                    remarks: fields.remarks,
+                    github_raw_url: job.target.rawUrl,
+                    github_blob_url: job.target.blobUrl,
+                    github_path: job.target.path || '',
+                    filename_original: job.target.fileName,
+                    mime_type: job.target.mimeType
+                }).catch(function (e) {
+                    console.warn('log_field_report_attachment failed', e);
+                });
+            }
+        }
+        return { ok: true, result: results };
     }
 
     var searchInput = document.getElementById('storeSearch');
@@ -591,6 +819,8 @@
     var readOnlyUpdateHint = document.getElementById('readOnlyUpdateHint');
     var updateStoreMessage = document.getElementById('updateStoreMessage');
     var signatureBanner = document.getElementById('signaturePromptBanner');
+    var attachmentsInput = document.getElementById('editAttachments');
+    var attachmentsPasteArea = document.getElementById('storeAttachmentsPasteArea');
 
     var suggestTimer = null;
     var suggestions = [];
@@ -707,7 +937,7 @@
             searchHelp.className = 'field-loading-message';
         } else {
             searchInput.classList.remove('loading-field');
-            searchHelp.textContent = 'Suggestions load from Hit List. Click a row or press Enter to select — history loads automatically.';
+            searchHelp.textContent = 'Suggestions include a color-coded status pill. Click a row or press Enter — history loads automatically.';
             searchHelp.className = 'help-text';
         }
     }
@@ -723,6 +953,42 @@
             }
             el.classList.toggle('requires-signature-soft-disabled', !enabled);
         });
+        if (attachmentsPasteArea) {
+            attachmentsPasteArea.classList.toggle('requires-signature-soft-disabled', !enabled);
+            attachmentsPasteArea.style.pointerEvents = enabled ? '' : 'none';
+            attachmentsPasteArea.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+            attachmentsPasteArea.tabIndex = enabled ? 0 : -1;
+        }
+    }
+
+    function suggestStatusPillColors(status) {
+        var s = (status || '').trim();
+        var map = {
+            'Research': { bg: '#6c757d', fg: '#fff' },
+            'Shortlisted': { bg: '#0aa2c0', fg: '#fff' },
+            'Instagram Followed': { bg: '#d63384', fg: '#fff' },
+            'Contacted': { bg: '#0d6efd', fg: '#fff' },
+            'AI: Warm up prospect': { bg: '#6610f2', fg: '#fff' },
+            'AI: Prospect replied': { bg: '#6f42c1', fg: '#fff' },
+            'Manager Follow-up': { bg: '#fd7e14', fg: '#fff' },
+            'Bulk Info Requested': { bg: '#20c997', fg: '#fff' },
+            'Meeting Scheduled': { bg: '#087990', fg: '#fff' },
+            'Followed Up': { bg: '#198754', fg: '#fff' },
+            'Partnered': { bg: '#146c43', fg: '#fff' },
+            'On Hold': { bg: '#e67700', fg: '#fff' },
+            'Rejected': { bg: '#dc3545', fg: '#fff' },
+            'Not Appropriate': { bg: '#842029', fg: '#fff' }
+        };
+        if (!s) return { bg: '#dee2e6', fg: '#495057' };
+        if (map[s]) return map[s];
+        var h = 0;
+        var i;
+        for (i = 0; i < s.length; i++) {
+            h = ((h << 5) - h) + s.charCodeAt(i);
+            h |= 0;
+        }
+        h = Math.abs(h) % 360;
+        return { bg: 'hsl(' + h + ', 52%, 38%)', fg: '#fff' };
     }
 
     function renderSuggestions(list) {
@@ -736,8 +1002,23 @@
             var div = document.createElement('div');
             div.className = 'suggest-item';
             div.setAttribute('role', 'option');
-            div.innerHTML = '<strong>' + escapeHtml(item.shop_name || '') + '</strong><small>' +
-                escapeHtml(item.store_key || '') + (item.email ? ' · ' + escapeHtml(item.email) : '') + '</small>';
+            var st = (item.status !== undefined && item.status !== null ? String(item.status) : '').trim();
+            var stype = (item.shop_type !== undefined && item.shop_type !== null ? String(item.shop_type) : '').trim();
+            var colors = suggestStatusPillColors(st);
+            var pill = '<span class="suggest-status-pill" style="background-color:' + colors.bg + ';color:' + colors.fg + '">' +
+                escapeHtml(st || 'No status') + '</span>';
+            var typeLine = stype
+                ? '<small class="suggest-item-sub suggest-item-type">' + escapeHtml(stype) + '</small>'
+                : '';
+            div.innerHTML =
+                '<div class="suggest-item-title-row">' +
+                '<strong class="suggest-shop-name">' + escapeHtml(item.shop_name || '') + '</strong>' +
+                pill +
+                '</div>' +
+                '<small class="suggest-item-sub">' +
+                escapeHtml(item.store_key || '') + (item.email ? ' · ' + escapeHtml(item.email) : '') +
+                '</small>' +
+                typeLine;
             div.addEventListener('click', function () {
                 pickSuggestion(idx);
             });
@@ -872,6 +1153,106 @@
         return '';
     }
 
+    function renderSelectedAttachments() {
+        if (!attachmentsInput) return;
+        var files = attachmentsInput.files ? Array.prototype.slice.call(attachmentsInput.files) : [];
+        var origEl = document.getElementById('storeAttachmentOriginalNames');
+        var archEl = document.getElementById('storeAttachmentArchiveHint');
+        var preview = document.getElementById('storeAttachmentsPreview');
+        var sk = '';
+        if (lastHistoryContext) {
+            sk = (lastHistoryContext.store_key || '').trim();
+            if (!sk && lastHistoryContext.hit_list) {
+                sk = field(lastHistoryContext.hit_list, ['Store Key', 'store_key']);
+            }
+        }
+        var safeStore = (sk || 'your_store').toLowerCase().replace(/[^\w\-]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '') || 'your_store';
+
+        if (origEl) {
+            if (!files.length) {
+                origEl.textContent = 'No file selected';
+            } else if (files.length === 1) {
+                origEl.textContent = files[0].name || '(unnamed)';
+            } else {
+                origEl.innerHTML = files.map(function (f, idx) {
+                    var nm = f.name || '(unnamed)';
+                    return escapeHtml(String(idx + 1) + '. ' + nm + ' — ' + (f.type || 'unknown') + ', ' + String(f.size || 0) + ' bytes');
+                }).join('<br>');
+            }
+        }
+        if (archEl) {
+            archEl.textContent = files.length
+                ? 'store_visits_field_reports/' + safeStore + '/<update_id>/ (paths assigned when you submit)'
+                : 'store_visits_field_reports/' + safeStore + '/<update_id>/';
+        }
+        if (preview) {
+            var lastImage = null;
+            var fi;
+            for (fi = files.length - 1; fi >= 0; fi--) {
+                if (files[fi].type && files[fi].type.indexOf('image/') === 0) {
+                    lastImage = files[fi];
+                    break;
+                }
+            }
+            if (!lastImage) {
+                preview.removeAttribute('src');
+                preview.style.display = 'none';
+            } else {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.onerror = function () {
+                    preview.removeAttribute('src');
+                    preview.style.display = 'none';
+                };
+                reader.readAsDataURL(lastImage);
+            }
+        }
+    }
+
+    function appendFilesToAttachmentsInput(newFiles) {
+        if (!attachmentsInput || !newFiles || !newFiles.length) return 0;
+        var dt = new DataTransfer();
+        var existing = attachmentsInput.files ? Array.prototype.slice.call(attachmentsInput.files) : [];
+        existing.forEach(function (f) {
+            if (f) dt.items.add(f);
+        });
+        var added = 0;
+        newFiles.forEach(function (f) {
+            if (f && f.size > 0) {
+                dt.items.add(f);
+                added++;
+            }
+        });
+        if (!added) return 0;
+        attachmentsInput.files = dt.files;
+        renderSelectedAttachments();
+        return added;
+    }
+
+    function clipboardFilesFromPasteEvent(e) {
+        var cd = e.clipboardData;
+        if (!cd) return [];
+        var out = [];
+        if (cd.files && cd.files.length) {
+            for (var ci = 0; ci < cd.files.length; ci++) {
+                if (cd.files[ci] && cd.files[ci].size) out.push(cd.files[ci]);
+            }
+            return out;
+        }
+        if (cd.items && cd.items.length) {
+            for (var cj = 0; cj < cd.items.length; cj++) {
+                if (cd.items[cj].kind === 'file') {
+                    var cf = cd.items[cj].getAsFile();
+                    if (cf && cf.size) out.push(cf);
+                }
+            }
+        }
+        return out;
+    }
+
     function renderKeyValueDl(obj) {
         if (!obj || typeof obj !== 'object') {
             return '<p class="help-text">—</p>';
@@ -910,6 +1291,8 @@
             } else if (lk === 'website') {
                 var wu = /^https?:\/\//i.test(val) ? val : 'https://' + val;
                 inner = '<a href="' + escapeHtml(wu) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + '</a>';
+            } else if (lk.indexOf('github') !== -1 && /^https?:\/\//i.test(val)) {
+                inner = '<a href="' + escapeHtml(val) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + '</a>';
             } else if (lk === 'email') {
                 inner = '<a href="mailto:' + escapeHtml(val) + '" class="store-details-link">' + displayVal + '</a>';
             } else if (lk === 'phone' || lk === 'cell phone') {
@@ -1001,6 +1384,7 @@
         pushRows(data.dapp_remarks, 'DApp Remarks', 'cat-dapp-remarks');
         pushRows(data.email_agent_follow_up, 'Email Follow-up', 'cat-email-followup');
         pushRows(data.email_agent_drafts, 'Email Agent Drafts', 'cat-email-suggestions');
+        pushRows(data.stores_visits_field_reports, 'Store Visit Reports', 'cat-store-reports');
 
         merged.sort(function (a, b) {
             if (b.sortTime !== a.sortTime) {
@@ -1012,6 +1396,26 @@
         });
 
         return merged;
+    }
+
+    function renderAttachmentPreview(row) {
+        if (!row || typeof row !== 'object') return '';
+        var mime = field(row, ['mime_type', 'MIME Type', 'Attachment MIME Type']).toLowerCase();
+        var rawUrl = field(row, ['github_raw_url', 'GitHub Raw URL', 'Attachment Raw URL']);
+        var blobUrl = field(row, ['github_blob_url', 'GitHub Blob URL', 'Attachment GitHub URL']);
+        var href = rawUrl || blobUrl;
+        if (!href) return '';
+        var html = '<div class="attachment-preview">';
+        html += '<div><strong>Attachment:</strong> <a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">open ↗</a></div>';
+        if (mime.indexOf('image/') === 0) {
+            html += '<img src="' + escapeHtml(href) + '" alt="Attachment preview" loading="lazy" />';
+        } else if (mime === 'application/pdf') {
+            html += '<iframe src="' + escapeHtml(href) + '" title="PDF attachment preview" loading="lazy"></iframe>';
+        } else {
+            html += '<div class="help-text">MIME type: ' + escapeHtml(mime || 'unknown') + '</div>';
+        }
+        html += '</div>';
+        return html;
     }
 
     function renderHistory(data) {
@@ -1044,10 +1448,11 @@
         html += '<span class="legend-item legend-remarks">DApp Remarks</span>';
         html += '<span class="legend-item legend-followup">Email Follow-up</span>';
         html += '<span class="legend-item legend-suggestions">Email Agent Drafts</span>';
+        html += '<span class="legend-item legend-store-reports">Store Visit Reports</span>';
         html += '</div>';
 
         if (!timeline.length) {
-            html += '<p class="help-text">No remarks, follow-up, or draft-registry rows matched this store.</p>';
+            html += '<p class="help-text">No remarks, follow-up, draft-registry, or store visit report rows matched this store.</p>';
         } else {
             timeline.forEach(function (entry, idx) {
                 var dateStr = entry.sortTime ? formatTimelineDate(entry.sortTime) : '';
@@ -1062,6 +1467,7 @@
                 html += '<span style="margin-left:auto;font-size:0.75rem;color:#868e96;">#' + (idx + 1) + '</span>';
                 html += '</div>';
                 html += renderKeyValueDlLinked(entry.row);
+                html += renderAttachmentPreview(entry.row);
                 html += '</div>';
             });
         }
@@ -1120,6 +1526,8 @@
         document.getElementById('editContactDate').value = normalizeDateForInput(field(hit, ['Contact Date', 'contact_date']));
         document.getElementById('editContactMethod').value = field(hit, ['Contact Method', 'contact_method']);
         document.getElementById('editRemarks').value = '';
+        if (attachmentsInput) attachmentsInput.value = '';
+        renderSelectedAttachments();
         updateStoreMessage.innerHTML = shopName ? '' : '<span class="error">Missing Shop Name on row — updates may fail.</span>';
         setInteractionMode(interactionMode);
     }
@@ -1238,6 +1646,51 @@
         loadHistory();
     });
 
+    if (attachmentsInput) {
+        attachmentsInput.addEventListener('change', renderSelectedAttachments);
+    }
+    if (attachmentsPasteArea && attachmentsInput) {
+        attachmentsPasteArea.addEventListener('click', function () {
+            if (interactionMode !== 'interactive') return;
+            attachmentsInput.click();
+        });
+        attachmentsPasteArea.addEventListener('keydown', function (e) {
+            if (interactionMode !== 'interactive') return;
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                attachmentsInput.click();
+            }
+        });
+        attachmentsPasteArea.addEventListener('paste', function (e) {
+            if (interactionMode !== 'interactive') return;
+            var pfiles = clipboardFilesFromPasteEvent(e);
+            if (!pfiles.length) {
+                updateStoreMessage.innerHTML = '<span class="error">No file in clipboard. Paste an image or allowed file.</span>';
+                return;
+            }
+            e.preventDefault();
+            var pn = appendFilesToAttachmentsInput(pfiles);
+            if (pn > 0 && updateSectionDetails && !updateSectionDetails.open) {
+                updateSectionDetails.open = true;
+            }
+        });
+    }
+    var editRemarksEl = document.getElementById('editRemarks');
+    if (editRemarksEl && attachmentsInput) {
+        editRemarksEl.addEventListener('paste', function (e) {
+            if (interactionMode !== 'interactive') return;
+            var pfiles2 = clipboardFilesFromPasteEvent(e);
+            if (!pfiles2.length) return;
+            var n2 = appendFilesToAttachmentsInput(pfiles2);
+            if (n2 > 0) {
+                e.preventDefault();
+                if (updateSectionDetails && !updateSectionDetails.open) {
+                    updateSectionDetails.open = true;
+                }
+            }
+        });
+    }
+
     document.getElementById('updateStoreBtn').addEventListener('click', function () {
         if (interactionMode !== 'interactive') {
             updateStoreMessage.innerHTML = '<span class="error">Connect your digital signature to update the Hit List.</span>';
@@ -1268,6 +1721,7 @@
         var newContactDate = document.getElementById('editContactDate').value.trim();
         var newContactMethod = document.getElementById('editContactMethod').value.trim();
         var remarks = document.getElementById('editRemarks').value.trim();
+        var attachments = attachmentsInput && attachmentsInput.files ? Array.prototype.slice.call(attachmentsInput.files) : [];
 
         var curStatus = field(hit, ['Status', 'status']);
         var curShopType = field(hit, ['Shop Type', 'shop_type']);
@@ -1287,7 +1741,7 @@
             newOwnerName === curOwn && newContactPerson === curCp && newEmail === curEm &&
             newCellPhone === curCell && newPhone === curPh && newWebsite === curWeb &&
             newFollowUpDate === curFu && newVisitDate === curVis && newContactDate === curCd &&
-            newContactMethod === curCm && !remarks) {
+            newContactMethod === curCm && !remarks && !attachments.length) {
             updateStoreMessage.innerHTML = '<span style="color:#6c757d;">No changes detected</span>';
             return;
         }
@@ -1307,6 +1761,7 @@
             document.getElementById('editContactDate'),
             document.getElementById('editContactMethod'),
             document.getElementById('editRemarks'),
+            document.getElementById('editAttachments'),
             document.getElementById('updateStoreBtn')
         ];
         inputs.forEach(function (i) { if (i) i.disabled = true; });
@@ -1342,10 +1797,11 @@
                 if (data.success) {
                     updateStoreMessage.innerHTML = '<span class="status">✅ ' + escapeHtml(data.message || 'Updated') + '</span>';
 
-                    // Fire-and-forget: archive to Edgar for audit trail + oracle visibility
-                    submitRetailFieldReportToEdgar({
+                    var updateId = 'SFR_' + new Date().toISOString().replace(/[^\d]/g, '').slice(0, 14);
+                    var edgarFields = {
                         shop_name: shopName,
                         store_key: (lastHistoryContext && lastHistoryContext.store_key) || '',
+                        update_id: updateId,
                         new_status: newStatus,
                         previous_status: curStatus,
                         shop_type: newShopType,
@@ -1361,7 +1817,11 @@
                         follow_up_date: newFollowUpDate,
                         contact_method: newContactMethod,
                         remarks: remarks
-                    }).catch(function (err) { console.warn('Edgar retail field report failed:', err); });
+                    };
+                    submitRetailFieldReportToEdgar(edgarFields, attachments).catch(function (err) {
+                        console.warn('Edgar retail field report failed:', err);
+                        updateStoreMessage.innerHTML += '<br><span class="error">Attachment / Edgar warning: ' + escapeHtml(err.message || String(err)) + '</span>';
+                    });
 
                     loadHistory();
                 } else {
