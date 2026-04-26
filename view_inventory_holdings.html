@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="description" content="Look up DAO inventory held by a warehouse manager—copy-friendly list for admin work.">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Inventory Holdings by Manager</title>
 
     <meta property="og:title" content="Inventory Holdings by Manager">
@@ -26,7 +26,11 @@
             align-items: center;
             margin: 1rem;
             padding: 1rem;
+            padding-left: max(1rem, env(safe-area-inset-left, 0px));
+            padding-right: max(1rem, env(safe-area-inset-right, 0px));
+            padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
             min-height: 100vh;
+            min-height: 100dvh;
             box-sizing: border-box;
             background-color: #f5f5f5;
         }
@@ -107,6 +111,8 @@
             font-size: 0.85rem;
             color: #666;
             margin-bottom: 0.75rem;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         table.holdings-table {
@@ -139,10 +145,105 @@
             margin-top: 1.25rem;
             font-size: 0.9rem;
             text-align: center;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 0.35rem 0.65rem;
+            line-height: 1.45;
         }
         .footer-links a { color: #007bff; }
         .store-details-link { color: #007bff; text-decoration: none; }
         .store-details-link:hover { text-decoration: underline; }
+
+        .manager-ac-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            box-sizing: border-box;
+        }
+        .manager-ac-item:hover,
+        .manager-ac-item:focus {
+            background-color: #f0f0f0;
+            outline: none;
+        }
+
+        #logo {
+            max-width: 100%;
+            width: auto;
+            height: auto;
+            max-height: 180px;
+            object-fit: contain;
+        }
+
+        /* Wide tables: horizontal scroll on narrow viewports (readable columns). */
+        #holdingsTableWrap,
+        #qrTableWrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+            margin: 0.5rem 0;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            background: #fafafa;
+        }
+        table.holdings-table {
+            min-width: 34rem;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                margin: 0.5rem;
+                padding: 0.5rem;
+                padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+                padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+                padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+            }
+            .container {
+                padding: 0.75rem;
+                border-radius: 6px;
+            }
+            h1 {
+                font-size: 1.35rem;
+                line-height: 1.25;
+            }
+            #description {
+                font-size: 0.95rem;
+                text-align: left;
+            }
+            .btn-row {
+                flex-direction: column;
+            }
+            .btn-row .btn {
+                width: 100%;
+                min-height: 44px;
+                box-sizing: border-box;
+            }
+            .btn-small {
+                min-height: 40px;
+                min-width: 3.25rem;
+                padding: 0.35rem 0.6rem;
+            }
+            table.holdings-table th,
+            table.holdings-table td {
+                padding: 0.4rem 0.35rem;
+                font-size: 0.8125rem;
+            }
+            #logo {
+                max-height: 120px;
+            }
+            .manager-ac-item {
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+            }
+            #managerSelectCombobox {
+                min-height: 44px;
+            }
+            #managerSearchInput {
+                min-height: 44px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -150,7 +251,7 @@
     <div id="tdgBalanceBadge"></div>
     <div class="container">
         <div style="text-align: center;">
-            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+            <img id="logo" width="200" height="200" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>
         <h1>Inventory Holdings by Manager</h1>
         <p id="description">Pick a warehouse manager to see on-hand inventory (same data as <strong>Inventory Movement Reporter</strong>) in a copy-friendly table. Optional: QR codes assigned to that manager from the QR list.</p>
@@ -263,7 +364,8 @@
             }
             rows.forEach(function (m) {
                 const div = document.createElement('div');
-                div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid #eee;';
+                div.className = 'manager-ac-item';
+                div.setAttribute('role', 'option');
                 div.textContent = m.name;
                 div.addEventListener('mouseenter', function () { div.style.backgroundColor = '#f0f0f0'; });
                 div.addEventListener('mouseleave', function () { div.style.backgroundColor = 'white'; });
@@ -501,11 +603,28 @@
             });
         }
 
+        /** Undo accidental double-encoding in shared links (e.g. %2520 → space). */
+        function unwrapEncodedQueryParam(raw) {
+            if (raw == null || raw === '') return raw;
+            var k = String(raw);
+            var guard = 0;
+            while (guard++ < 5 && /%[0-9a-fA-F]{2}/i.test(k)) {
+                var prev = k;
+                try {
+                    k = decodeURIComponent(k.replace(/\+/g, ' '));
+                } catch (e) {
+                    break;
+                }
+                if (k === prev) break;
+            }
+            return k;
+        }
+
         function applyUrlManagerPref() {
             try {
                 var u = new URL(window.location.href);
-                var key = u.searchParams.get('manager_key');
-                var name = u.searchParams.get('manager');
+                var key = unwrapEncodedQueryParam(u.searchParams.get('manager_key'));
+                var name = unwrapEncodedQueryParam(u.searchParams.get('manager'));
                 if (key && managersList.length) {
                     var m = managersList.find(function (x) { return x.key === key; });
                     if (m) {
@@ -515,7 +634,7 @@
                 }
                 if (name && managersList.length) {
                     var m2 = managersList.find(function (x) {
-                        return (x.name || '').trim().toLowerCase() === name.trim().toLowerCase();
+                        return (x.name || '').trim().toLowerCase() === String(name).trim().toLowerCase();
                     });
                     if (m2) {
                         selectManager(m2.key, m2.name);
