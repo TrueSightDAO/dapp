@@ -41,7 +41,7 @@ const URLS_TO_CACHE = [
   './withdraw_voting_rights.html',
   './governor_contributor_admin.html',
   // Scripts
-  './menu.js?v=20260427',
+  './menu.js?v=20260428',
   './routes.js',
   './service-worker.js',
   './js/treasury_cache.js',

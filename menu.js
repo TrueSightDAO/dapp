@@ -5,7 +5,8 @@
 (function() {
   window.menuItems = [
     { title: 'Home', url: './index.html', section: '' },
-    { title: 'Governor Chat', url: './chat.html', section: '' },
+    { title: 'Governor Chat', url: './chat.html', section: 'Governor only' },
+    { title: 'Add New Contributor', url: './governor_contributor_admin.html', section: 'Governor only' },
     { title: 'DAO Contribution Reporter', url: './report_contribution.html', section: 'Community Contributions' },
     { title: 'Content Feedback Submission', url: './submit_feedback.html', section: 'Community Contributions' },
     { title: 'Capital Injection Reporter', url: './report_capital_injection.html', section: 'Inventory & ledger' },
@@ -30,8 +31,7 @@
     { title: 'Verify Signed Request', url: './verify_request.html', section: 'Identity & Governance' },
     { title: 'DAO Proposal Management', url: './view_open_proposals.html', section: 'Identity & Governance' },
     { title: 'Create Proposal', url: './create_proposal.html', section: 'Identity & Governance' },
-    { title: 'Review & Vote on Proposal', url: './review_proposal.html', section: 'Identity & Governance' },
-    { title: 'Add New Contributor (Governor)', url: './governor_contributor_admin.html', section: 'Identity & Governance' }
+    { title: 'Review & Vote on Proposal', url: './review_proposal.html', section: 'Identity & Governance' }
   ];
 
   document.addEventListener('DOMContentLoaded', function() {
