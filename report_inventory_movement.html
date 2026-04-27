@@ -404,8 +404,6 @@
     <!-- Include jsQR library via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script>
-        const API_ENDPOINT = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
-            || 'https://script.google.com/macros/s/AKfycbygmwRbyqse-dpCYMco0rb93NSgg-Jc1QIw7kUiBM7CZK6jnWnMB5DEjdoX_eCsvVs7/exec';
         const QR_CODE_BASE = (window.Routes && window.Routes.gas && window.Routes.gas.qrCodes)
             || 'https://script.google.com/macros/s/AKfycbxigq4-J0izShubqIC5k6Z7fgNRyVJLakfQ34HPuENiSpxuCG-wSq0g-wOAedZzzgaL/exec';
         const QR_CODE_ENDPOINT = `${QR_CODE_BASE}?list=true`;
@@ -2617,22 +2615,16 @@
             }
 
             try {
-                const response = await fetch(`${API_ENDPOINT}?signature=${encodeURIComponent(publicKey)}`);
-                const data = await response.json();
-
-                if (data.error) {
-                    if (data.error.includes('No matching')) {
-                        statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
-                        statusElement.className = 'error fade-in';
-                        return;
-                    } else {
-                        statusElement.textContent = 'Error: ' + data.error;
-                        statusElement.className = 'error fade-in';
-                        return;
-                    }
+                // Cache-first identity lookup. dao_members.json on treasury-cache is
+                // CDN-served (~50–150ms) vs the assetVerify GAS round-trip (1–3s).
+                const lookup = await window.DaoMembersCache.findByPublicKey(publicKey);
+                if (!lookup.contributor) {
+                    statusElement.innerHTML = 'Your digital signature is not registered. <a href="./create_signature.html">Please register it first</a>.';
+                    statusElement.className = 'error fade-in';
+                    return;
                 }
 
-                contributorName = data.contributor_name;
+                contributorName = lookup.contributor.name;
                 document.getElementById('info').style.display = 'block';
                 document.getElementById('welcome').textContent = `Welcome back, ${contributorName}!`;
                 document.getElementById('welcome').style.display = 'block';
