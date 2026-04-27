@@ -132,6 +132,53 @@
             margin-bottom: 1rem;
             width: 100%;
         }
+        /* Ship-from quick-pick (collapses Manager + Shipping Type into one decision in production). */
+        .ship-from-quick-pick {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .ship-from-btn {
+            flex: 1 1 200px;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 0.7rem 0.9rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.12s, background-color 0.12s, box-shadow 0.12s;
+            font-family: inherit;
+        }
+        .ship-from-btn:hover:not(:disabled) {
+            border-color: #007bff;
+            background: #f5faff;
+        }
+        .ship-from-btn[aria-pressed="true"] {
+            border-color: #007bff;
+            background: #e7f3ff;
+            box-shadow: inset 0 0 0 1px #007bff;
+        }
+        .ship-from-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        .ship-from-btn-name {
+            font-weight: 600;
+            color: #222;
+            font-size: 0.95rem;
+        }
+        .ship-from-btn-mode {
+            font-size: 0.82rem;
+            color: #666;
+            margin-top: 0.2rem;
+        }
+        .ship-from-btn-other {
+            border-style: dashed;
+        }
         label {
             margin-bottom: 0.5rem;
             font-weight: bold;
@@ -468,12 +515,44 @@
             <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
         </div>
         <h1>Shipping Planner</h1>
-        <p id="description">Select inventory items and calculate shipping costs for local or freight shipping.</p>
+        <p id="description">Pick a shipper to load their inventory. Kirsten ships USPS from San Francisco; Matheus air-freights from Brazil. Use "Other shipper…" if a different manager is fulfilling.</p>
         <p id="status" class="loading" aria-live="polite">Loading...</p>
         
         <div id="mainContent" style="display: none;">
-            <!-- Member Selection -->
-            <div class="form-row">
+            <!-- Ship-from quick-pick — covers the two shippers in production today.
+                 "Other shipper…" reveals the legacy manager + shipping-type controls
+                 so the data layer stays open-ended (any manager in `offchain asset
+                 location` col B + either local/freight) without paying daily UI cost. -->
+            <div class="form-row" id="shipFromQuickPickRow">
+                <label>Ship from:</label>
+                <div class="ship-from-quick-pick" role="group" aria-label="Ship from">
+                    <button type="button" class="ship-from-btn" id="shipFromKirstenBtn"
+                            data-name-match="kirsten" data-shipping-type="local"
+                            aria-pressed="false" disabled>
+                        <span class="ship-from-btn-name">Kirsten — San Francisco</span>
+                        <span class="ship-from-btn-mode">USPS local · 1423 Hayes St</span>
+                    </button>
+                    <button type="button" class="ship-from-btn" id="shipFromMatheusBtn"
+                            data-name-match="matheus" data-shipping-type="freight"
+                            aria-pressed="false" disabled>
+                        <span class="ship-from-btn-name">Matheus — Brazil</span>
+                        <span class="ship-from-btn-mode">Air freight · Ilhéus, Bahia</span>
+                    </button>
+                    <button type="button" class="ship-from-btn ship-from-btn-other" id="shipFromOtherBtn"
+                            aria-pressed="false">
+                        <span class="ship-from-btn-name">Other shipper…</span>
+                        <span class="ship-from-btn-mode">Pick manager + mode</span>
+                    </button>
+                </div>
+                <small class="help-text" id="shipFromQuickPickHelp" style="color: #666; font-size: 0.85rem; margin-top: 0.4rem; display: block;">
+                    Loading shippers…
+                </small>
+            </div>
+
+            <!-- Member Selection (full manager list — revealed by "Other shipper…"
+                 or auto-revealed if neither Kirsten nor Matheus is in the loaded
+                 manager list). -->
+            <div class="form-row" id="managerSelectRow" style="display: none;">
                 <label for="managerSelect">Select Member/Manager:</label>
                 <div style="position: relative;">
                     <input type="text" id="managerSearchInput" placeholder="Type to search managers..." autocomplete="off" style="width: 100%; padding: 0.6rem; font-size: 1rem; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; outline: none;">
@@ -500,8 +579,11 @@
                     <div id="manifestTotal" class="manifest-total"></div>
                 </div>
                 
-                <!-- Shipping Type -->
-                <div class="form-row">
+                <!-- Shipping Type — hidden by default. The Ship-from quick-pick at the top
+                     of the page sets this implicitly (Kirsten → local, Matheus → freight).
+                     Revealed only when the operator clicks "Other shipper…" so a non-default
+                     manager can override the mode. -->
+                <div class="form-row" id="shippingTypeRow" style="display: none;">
                     <label for="shippingType">Shipping Type:</label>
                     <select id="shippingType">
                         <option value="local">Local Shipping (USPS via EasyPost)</option>
@@ -928,10 +1010,134 @@
             });
         }
         
+        /**
+         * Resolve a quick-pick target ("kirsten" / "matheus") against the loaded
+         * managersList. Case-insensitive substring on `name`. Returns the manager
+         * record or null if the substring does not appear in the list.
+         */
+        function findManagerByQuickPick(substr) {
+            if (!managersList || !managersList.length) return null;
+            const needle = String(substr || '').toLowerCase();
+            if (!needle) return null;
+            return managersList.find(function (m) {
+                return String((m && m.name) || '').toLowerCase().indexOf(needle) !== -1;
+            }) || null;
+        }
+
+        /**
+         * Toggle the "Other shipper…" advanced section (manager autocomplete row +
+         * shipping-type row). Hidden by default; shown when the operator wants a
+         * non-default shipper or to override mode.
+         */
+        function setAdvancedShipperVisibility(visible) {
+            const managerRow = document.getElementById('managerSelectRow');
+            const shippingTypeRow = document.getElementById('shippingTypeRow');
+            const target = visible ? '' : 'none';
+            if (managerRow) managerRow.style.display = target;
+            if (shippingTypeRow) shippingTypeRow.style.display = target;
+        }
+
+        /** Visually mark which quick-pick button (if any) is active. */
+        function setQuickPickActiveBtn(activeBtn) {
+            ['shipFromKirstenBtn', 'shipFromMatheusBtn', 'shipFromOtherBtn'].forEach(function (id) {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.setAttribute('aria-pressed', btn === activeBtn ? 'true' : 'false');
+            });
+        }
+
+        /**
+         * Click handler for the two production quick-pick buttons. Resolves the
+         * manager by substring, mirrors the choice into the legacy controls (so
+         * the rest of the form keeps working untouched), and fires the change
+         * handlers in the same order the autocomplete path uses.
+         */
+        function onQuickPickShipperClick(e) {
+            const btn = e.currentTarget;
+            const matchSubstr = btn.getAttribute('data-name-match');
+            const desiredType = btn.getAttribute('data-shipping-type');
+            const manager = findManagerByQuickPick(matchSubstr);
+            if (!manager) {
+                // Should not happen — button is disabled when not resolvable.
+                console.warn('[ship-from] no manager matched substring', matchSubstr);
+                return;
+            }
+            const managerSelect = document.getElementById('managerSelect');
+            const shippingTypeSel = document.getElementById('shippingType');
+            if (managerSelect) managerSelect.value = manager.key;
+            if (shippingTypeSel && desiredType) shippingTypeSel.value = desiredType;
+            setQuickPickActiveBtn(btn);
+            setAdvancedShipperVisibility(false);
+            onManagerChange();
+            onShippingTypeChange();
+        }
+
+        function onOtherShipperClick() {
+            const otherBtn = document.getElementById('shipFromOtherBtn');
+            setQuickPickActiveBtn(otherBtn);
+            setAdvancedShipperVisibility(true);
+            const input = document.getElementById('managerSearchInput');
+            if (input) {
+                try { input.focus(); } catch (_) {}
+            }
+        }
+
+        /**
+         * Run after `loadManagers` populates `managersList`. Enables/disables the
+         * primary quick-pick buttons based on whether their substring resolves,
+         * and writes a one-line help message for the operator. If neither
+         * Kirsten nor Matheus is in the loaded list, auto-reveal the advanced
+         * section so the operator is not stuck.
+         */
+        function refreshQuickPickAvailability() {
+            const helpEl = document.getElementById('shipFromQuickPickHelp');
+            const kirstenBtn = document.getElementById('shipFromKirstenBtn');
+            const matheusBtn = document.getElementById('shipFromMatheusBtn');
+            const kirsten = findManagerByQuickPick('kirsten');
+            const matheus = findManagerByQuickPick('matheus');
+            if (kirstenBtn) {
+                kirstenBtn.disabled = !kirsten;
+                kirstenBtn.title = kirsten
+                    ? ('Use ' + kirsten.name + ' (USPS local from SF).')
+                    : 'No manager matching "Kirsten" in the current data.';
+            }
+            if (matheusBtn) {
+                matheusBtn.disabled = !matheus;
+                matheusBtn.title = matheus
+                    ? ('Use ' + matheus.name + ' (air freight from Brazil).')
+                    : 'No manager matching "Matheus" in the current data.';
+            }
+            if (helpEl) {
+                if (kirsten && matheus) {
+                    helpEl.textContent =
+                        'Two production shippers today. "Other shipper…" reveals the full manager list and lets you pick USPS or freight for any other manager.';
+                } else if (kirsten || matheus) {
+                    helpEl.textContent =
+                        'One production shipper currently visible. Use "Other shipper…" if you need a different manager.';
+                } else {
+                    helpEl.textContent =
+                        'Neither Kirsten nor Matheus is in the manager list right now. Use "Other shipper…" to pick a manager.';
+                    setAdvancedShipperVisibility(true);
+                    setQuickPickActiveBtn(document.getElementById('shipFromOtherBtn'));
+                }
+            }
+        }
+
         // Initialize
         window.addEventListener('DOMContentLoaded', function() {
-            loadManagers();
+            loadManagers().finally(function () {
+                // `loadManagers` populates `managersList`; we need it before we
+                // can decide which quick-pick buttons are usable.
+                refreshQuickPickAvailability();
+            });
             document.getElementById('shippingType').addEventListener('change', onShippingTypeChange);
+            // Quick-pick buttons (production shippers + "Other shipper…").
+            const kirstenBtn = document.getElementById('shipFromKirstenBtn');
+            const matheusBtn = document.getElementById('shipFromMatheusBtn');
+            const otherBtn = document.getElementById('shipFromOtherBtn');
+            if (kirstenBtn) kirstenBtn.addEventListener('click', onQuickPickShipperClick);
+            if (matheusBtn) matheusBtn.addEventListener('click', onQuickPickShipperClick);
+            if (otherBtn) otherBtn.addEventListener('click', onOtherShipperClick);
             document.getElementById('freightLaneSelect').addEventListener('change', function() {
                 const laneId = this.value;
                 loadFreightSnapshotForLaneId(laneId).then(function() {
@@ -1170,6 +1376,9 @@
                         autocompleteList.style.display = 'none';
                         // Trigger manager change
                         document.getElementById('managerSelect').value = m.key;
+                        // Pick came via the legacy autocomplete (advanced path), so
+                        // reflect "Other shipper…" as the active quick-pick segment.
+                        setQuickPickActiveBtn(document.getElementById('shipFromOtherBtn'));
                         onManagerChange();
                     });
                     autocompleteList.appendChild(item);
