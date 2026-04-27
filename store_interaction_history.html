@@ -509,7 +509,7 @@
             <details id="updateSectionDetails" class="update-collapsible">
                 <summary>Update Status &amp; Shop Type <span class="update-collapsible-hint">— click to expand</span></summary>
                 <div class="update-collapsible-body">
-            <p class="help-text">Same endpoint as <strong>Stores Nearby</strong> (<code>action=update_status</code>, Google Apps Script → Hit List sheet). Requires verified signature. Optional files are sent to <strong>Edgar</strong> after a successful update, archived under <code>TrueSightDAO/store_interaction_attachments</code>; URLs can be logged to <strong>Stores Visits Field Reports</strong> for this history page.</p>
+            <p class="help-text">Submits a signed <code>[RETAIL FIELD REPORT EVENT]</code> (with optional attachments) to <strong>Edgar</strong> at <code>/dao/submit_contribution</code>. Edgar logs the row to Telegram Chat Logs, uploads any attachment to <code>TrueSightDAO/store_interaction_attachments</code>, and fires an async GAS scanner that updates the Hit List Status, <strong>DApp Remarks</strong>, and <strong>Stores Visits Field Reports</strong> (one row per submission, dedup keyed on Update ID).</p>
 
             <label for="editStatus">Status</label>
             <select id="editStatus" data-requires-signature="true">
@@ -603,7 +603,7 @@
                 <div class="info">Original file name(s):</div>
                 <div class="info-location" id="storeAttachmentOriginalNames">No file selected</div>
                 <div class="info">Archive path (after submit):</div>
-                <div class="info-location" id="storeAttachmentArchiveHint">store_visits_field_reports/&lt;store_key&gt;/&lt;update_id&gt;/</div>
+                <div class="info-location" id="storeAttachmentArchiveHint">store_visits_field_reports/&lt;store_key&gt;/SFR_…/</div>
                 <div class="info">Attachment repository:</div>
                 <div class="info-location"><a href="https://github.com/TrueSightDAO/store_interaction_attachments/tree/main/store_visits_field_reports" target="_blank" rel="noopener noreferrer" class="store-details-link">TrueSightDAO/store_interaction_attachments ↗</a></div>
             </div>
@@ -629,13 +629,6 @@
     var API_BASE_URL = (window.Routes && window.Routes.gas && window.Routes.gas.storesHitList)
         || 'https://script.google.com/macros/s/AKfycbwoBqZnDS4JRRdFkxSXdlGt-qIn-RauMcORuDHeWs29oQ2CpJ3L4A10uM8se9anL108/exec';
     var API_TOKEN = '';
-
-    /**
-     * Hit List read/write API — must match stores_nearby.html API_URL
-     * (action=update_status, shop_name, new_status, …).
-     */
-    var STORES_NEARBY_API_URL = (window.Routes && window.Routes.gas && window.Routes.gas.stores)
-        || 'https://script.google.com/macros/s/AKfycbwB2zqNV9nMCMWs2hSa8FecjA36Oh-mSVuz3pk8TpXrXcy9dvqOqgbWIirNka2LmacgPw/exec';
 
     /** Same as stores_nearby.html SIGNATURE_VERIFY_API */
     var SIGNATURE_VERIFY_API = (window.Routes && window.Routes.gas && window.Routes.gas.assetVerify)
@@ -703,31 +696,6 @@
             (target && target.rawUrl ? 'Attachment Raw URL: ' + target.rawUrl + '\n' : '') +
             '--------';
     }
-    function logFieldReportAttachmentRow(fields) {
-        var raw = (fields.github_raw_url || '').trim();
-        var blob = (fields.github_blob_url || '').trim();
-        if (!raw && !blob) return Promise.resolve(null);
-        var pk = localStorage.getItem('publicKey');
-        if (!pk) return Promise.resolve(null);
-        var q = new URLSearchParams({
-            action: 'log_field_report_attachment',
-            shop_name: fields.shop_name || '',
-            digital_signature: pk,
-            github_raw_url: raw,
-            github_blob_url: blob,
-            store_key: fields.store_key || '',
-            update_id: fields.update_id || '',
-            hit_list_row: String((lastHistoryContext && lastHistoryContext.hit_list_row) || ''),
-            email: fields.email || '',
-            filename_original: fields.filename_original || '',
-            mime_type: fields.mime_type || '',
-            github_path: fields.github_path || '',
-            remarks: (fields.remarks || '').slice(0, 2000)
-        });
-        return fetch(STORES_NEARBY_API_URL + '?' + q.toString(), GAS_FETCH_INIT).then(function (r) {
-            return r.json();
-        });
-    }
     async function submitRetailFieldReportToEdgar(fields, files) {
         var EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
             || 'https://edgar.truesight.me/dao/submit_contribution';
@@ -787,22 +755,9 @@
             if (!resp.ok) throw new Error(await resp.text());
             var jsonResult = await resp.json();
             results.push(jsonResult);
-            if (job.target && (job.target.rawUrl || job.target.blobUrl)) {
-                logFieldReportAttachmentRow({
-                    shop_name: fields.shop_name,
-                    store_key: fields.store_key,
-                    update_id: fields.update_id,
-                    email: fields.email,
-                    remarks: fields.remarks,
-                    github_raw_url: job.target.rawUrl,
-                    github_blob_url: job.target.blobUrl,
-                    github_path: job.target.path || '',
-                    filename_original: job.target.fileName,
-                    mime_type: job.target.mimeType
-                }).catch(function (e) {
-                    console.warn('log_field_report_attachment failed', e);
-                });
-            }
+            // No DApp → GAS POST here. Edgar fires `processRetailFieldReportsFromTelegramChatLogs`
+            // server-side after writing this signed event to Telegram Chat Logs; that scanner
+            // updates Hit List + DApp Remarks + Stores Visits Field Reports atomically.
         }
         return { ok: true, result: results };
     }
@@ -1182,8 +1137,8 @@
         }
         if (archEl) {
             archEl.textContent = files.length
-                ? 'store_visits_field_reports/' + safeStore + '/<update_id>/ (paths assigned when you submit)'
-                : 'store_visits_field_reports/' + safeStore + '/<update_id>/';
+                ? 'store_visits_field_reports/' + safeStore + '/SFR_…/ (an SFR_… update id is generated when you click Update Store Information)'
+                : 'store_visits_field_reports/' + safeStore + '/SFR_…/ (id is generated on submit)';
         }
         if (preview) {
             var lastImage = null;
@@ -1405,6 +1360,13 @@
         var blobUrl = field(row, ['github_blob_url', 'GitHub Blob URL', 'Attachment GitHub URL']);
         var href = rawUrl || blobUrl;
         if (!href) return '';
+        if (!mime || mime === 'unknown') {
+            var u = href.split('?')[0].split('#')[0];
+            if (/\.png$/i.test(u)) mime = 'image/png';
+            else if (/\.jpe?g$/i.test(u)) mime = 'image/jpeg';
+            else if (/\.gif$/i.test(u)) mime = 'image/gif';
+            else if (/\.webp$/i.test(u)) mime = 'image/webp';
+        }
         var html = '<div class="attachment-preview">';
         html += '<div><strong>Attachment:</strong> <a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">open ↗</a></div>';
         if (mime.indexOf('image/') === 0) {
@@ -1765,71 +1727,44 @@
             document.getElementById('updateStoreBtn')
         ];
         inputs.forEach(function (i) { if (i) i.disabled = true; });
-        updateStoreMessage.innerHTML = '<span style="color:#007bff;">Updating store information…</span>';
+        updateStoreMessage.innerHTML = '<span style="color:#007bff;">Submitting signed retail field report to Edgar…</span>';
 
-        var publicKey = localStorage.getItem('publicKey');
-        var params = new URLSearchParams({
-            action: 'update_status',
+        /** Same id in the Edgar payload, GAS log_field_report_attachment, and server-driven update_status (after verify). */
+        var fieldReportUpdateId = 'SFR_' + new Date().toISOString().replace(/[^\d]/g, '').slice(0, 14);
+
+        var edgarFields = {
             shop_name: shopName,
-            new_status: newStatus
-        });
-        if (newShopType) params.append('shop_type', newShopType);
-        if (newInstagram) params.append('instagram', newInstagram);
-        if (newOwnerName) params.append('owner_name', newOwnerName);
-        if (newContactPerson) params.append('contact_person', newContactPerson);
-        if (newEmail) params.append('email', newEmail);
-        if (newCellPhone) params.append('cell_phone', newCellPhone);
-        if (newPhone) params.append('phone', newPhone);
-        if (newWebsite) params.append('website', newWebsite);
-        if (newFollowUpDate) params.append('follow_up_date', newFollowUpDate);
-        if (newVisitDate) params.append('visit_date', newVisitDate);
-        if (newContactDate) params.append('contact_date', newContactDate);
-        if (newContactMethod) params.append('contact_method', newContactMethod);
-        if (remarks) params.append('remarks', remarks);
-        if (publicKey) {
-            params.append('digital_signature', publicKey);
-            params.append('submitted_by', publicKey);
-        }
+            store_key: (lastHistoryContext && lastHistoryContext.store_key) || '',
+            update_id: fieldReportUpdateId,
+            new_status: newStatus,
+            previous_status: curStatus,
+            shop_type: newShopType,
+            owner_name: newOwnerName,
+            contact_person: newContactPerson,
+            email: newEmail,
+            phone: newPhone,
+            cell_phone: newCellPhone,
+            website: newWebsite,
+            instagram: newInstagram,
+            visit_date: newVisitDate,
+            contact_date: newContactDate,
+            follow_up_date: newFollowUpDate,
+            contact_method: newContactMethod,
+            remarks: remarks
+        };
 
-        fetch(STORES_NEARBY_API_URL + '?' + params.toString(), GAS_FETCH_INIT)
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data.success) {
-                    updateStoreMessage.innerHTML = '<span class="status">✅ ' + escapeHtml(data.message || 'Updated') + '</span>';
-
-                    var updateId = 'SFR_' + new Date().toISOString().replace(/[^\d]/g, '').slice(0, 14);
-                    var edgarFields = {
-                        shop_name: shopName,
-                        store_key: (lastHistoryContext && lastHistoryContext.store_key) || '',
-                        update_id: updateId,
-                        new_status: newStatus,
-                        previous_status: curStatus,
-                        shop_type: newShopType,
-                        owner_name: newOwnerName,
-                        contact_person: newContactPerson,
-                        email: newEmail,
-                        phone: newPhone,
-                        cell_phone: newCellPhone,
-                        website: newWebsite,
-                        instagram: newInstagram,
-                        visit_date: newVisitDate,
-                        contact_date: newContactDate,
-                        follow_up_date: newFollowUpDate,
-                        contact_method: newContactMethod,
-                        remarks: remarks
-                    };
-                    submitRetailFieldReportToEdgar(edgarFields, attachments).catch(function (err) {
-                        console.warn('Edgar retail field report failed:', err);
-                        updateStoreMessage.innerHTML += '<br><span class="error">Attachment / Edgar warning: ' + escapeHtml(err.message || String(err)) + '</span>';
-                    });
-
-                    loadHistory();
-                } else {
-                    updateStoreMessage.innerHTML = '<span class="error">❌ ' + escapeHtml(data.error || data.message || 'Unknown error') + '</span>';
+        submitRetailFieldReportToEdgar(edgarFields, attachments)
+            .then(function (out) {
+                if (!out || out.ok === false) {
+                    throw new Error((out && out.error) || 'Submission did not complete');
                 }
+                updateStoreMessage.innerHTML = '<span class="status">✅ Submitted to Edgar. Hit List and DApp Remarks update after Edgar verifies the signature (server-side).</span>';
+                loadHistory();
             })
             .catch(function (err) {
+                console.warn('Edgar retail field report failed:', err);
                 updateStoreMessage.innerHTML = '<span class="error">❌ ' + escapeHtml(err.message || String(err)) + '</span>';
+                loadHistory();
             })
             .finally(function () {
                 inputs.forEach(function (i) { if (i) i.disabled = false; });
