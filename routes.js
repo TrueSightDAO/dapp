@@ -9,7 +9,8 @@
   //   proxy  — route via edgar.truesight.me/proxy/gas/<name>, for networks
   //            that block script.google.com (server-side implementation lives
   //            in sentiment_importer/app/controllers/proxy_controller.rb; its
-  //            GAS_UPSTREAMS keys MUST stay in lockstep with directGas below)
+  //            GAS_UPSTREAMS keys MUST stay in lockstep with directGas below).
+  //            Proxy forwards GET (query string) and POST (urlencoded body) to GAS.
   //
   // Mode selection at parse time (in this order):
   //   1. ?route=direct / ?route=proxy URL param (wins; persisted to localStorage)
