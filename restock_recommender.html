@@ -76,6 +76,18 @@
         .setup-msg { padding: 1rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; font-size: 0.9rem; color: #856404; margin-top: 1rem; }
         .setup-msg a { color: #0056b3; }
         #navDropdown { margin: 1rem 0; text-align: center; }
+        .history-block { padding: 0.75rem 1rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; font-size: 0.9rem; line-height: 1.45; }
+        .history-block.loading { color: #888; font-style: italic; }
+        .history-block.empty { color: #888; }
+        .history-block .ptype { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #e3f2fd; color: #1565c0; margin-left: 0.4rem; vertical-align: middle; }
+        .history-block .ptype.wholesale { background: #fff3e0; color: #e65100; }
+        .history-block .ptype.upstream { background: #f3e5f5; color: #6a1b9a; }
+        .history-block ul { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+        .history-block li { margin: 0.2rem 0; }
+        .history-block .sku { font-weight: 600; color: #333; }
+        .history-block .num { font-weight: 600; color: #1b5e20; }
+        .history-block .stale { color: #c62828; }
+        .history-block .source { font-size: 0.75rem; color: #999; margin-top: 0.5rem; }
     </style>
 </head>
 <body>
@@ -122,6 +134,13 @@
             <label class="label">Shipping to</label>
             <div id="addressBlock" class="address-block empty" aria-live="polite">
                 Select a partner to load address.
+            </div>
+        </div>
+
+        <div class="form-row" id="historyRow" style="display: none;">
+            <label>Historical activity</label>
+            <div id="historyBlock" class="history-block empty" aria-live="polite">
+                Select a partner to load history.
             </div>
         </div>
 
@@ -196,8 +215,120 @@
                 });
             }
 
+            // ---- Historical velocity (partners-velocity.json) ------------------
+            const VELOCITY_URL = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/partners-velocity.json';
+            const historyRow = document.getElementById('historyRow');
+            const historyBlock = document.getElementById('historyBlock');
+            let velocityCache = null;
+            let velocityFetchInFlight = null;
+
+            function fetchVelocity() {
+                if (velocityCache) return Promise.resolve(velocityCache);
+                if (velocityFetchInFlight) return velocityFetchInFlight;
+                velocityFetchInFlight = fetch(VELOCITY_URL, { method: 'GET', cache: 'no-cache' })
+                    .then(function(res) { return res.ok ? res.json() : null; })
+                    .then(function(json) { velocityCache = json; return json; })
+                    .catch(function() { return null; });
+                return velocityFetchInFlight;
+            }
+
+            function relativeAge(iso) {
+                if (!iso) return null;
+                var d = new Date(iso + 'T00:00:00Z');
+                if (isNaN(d.getTime())) return null;
+                var days = Math.floor((Date.now() - d.getTime()) / 86400000);
+                if (days < 0) return 'in the future';
+                if (days === 0) return 'today';
+                if (days === 1) return 'yesterday';
+                if (days < 14) return days + ' days ago';
+                if (days < 60) return Math.round(days / 7) + ' weeks ago';
+                if (days < 365) return Math.round(days / 30) + ' months ago';
+                return Math.round(days / 365 * 10) / 10 + ' years ago';
+            }
+
+            function ptypeBadge(ptype) {
+                var p = (ptype || 'Consignment');
+                var cls = 'ptype';
+                if (p === 'Wholesale') cls += ' wholesale';
+                else if (p === 'Operator' || p === 'Supplier' || p === 'Manufacturer') cls += ' upstream';
+                return '<span class="' + cls + '">' + p + '</span>';
+            }
+
+            function renderHistory(partnerId, velocity) {
+                if (!velocity || !velocity.partners) {
+                    historyBlock.className = 'history-block empty';
+                    historyBlock.innerHTML = 'Could not load partners-velocity.json. Either the snapshot has not run yet, or the network blocked it. The recommendation below still works.';
+                    return;
+                }
+                var entry = velocity.partners[partnerId];
+                if (!entry) {
+                    historyBlock.className = 'history-block empty';
+                    historyBlock.innerHTML = 'No history on file. This partner is not tracked in <code>partners-velocity.json</code>.';
+                    return;
+                }
+                var ptype = entry.partner_type || 'Consignment';
+                var items = entry.items || {};
+                var skus = Object.keys(items).filter(function(sku) {
+                    var it = items[sku] || {};
+                    return (it.sample_size_sales > 0) || (it.sample_size_restocks > 0);
+                });
+                if (skus.length === 0) {
+                    historyBlock.className = 'history-block empty';
+                    historyBlock.innerHTML = 'Partner type: ' + ptypeBadge(ptype) + '<br>No historical sales or restocks on file (newly onboarded or pre-tracking).';
+                    return;
+                }
+                var medians = velocity.category_medians || {};
+                var lines = skus.sort().map(function(sku) {
+                    var it = items[sku] || {};
+                    // For Consignment, prioritize sales_*; for Wholesale, prioritize restocks_*.
+                    // For upstream roles (Operator/Supplier/Manufacturer) — mostly noise here, but emit anyway.
+                    var primary = (ptype === 'Wholesale') ? 'restocks' : 'sales';
+                    var monthly = it[primary + '_12m_monthly_avg'];
+                    var thirty = it[primary + '_30d'];
+                    var ninety = it[primary + '_90d'];
+                    var last = it[primary === 'sales' ? 'last_sale_date' : 'last_restock_date'];
+                    var n = it['sample_size_' + primary];
+                    var rel = relativeAge(last);
+                    var monthlyTxt = (monthly != null) ? ('<span class="num">' + Number(monthly).toFixed(2) + '/mo</span>') : '<span class="num">—/mo</span>';
+                    var range = (thirty || 0) + ' last 30d · ' + (ninety || 0) + ' last 90d';
+                    var lastTxt = last ? ('Last ' + (primary === 'sales' ? 'sold' : 'restocked') + ': ' + rel) : 'No ' + primary + ' on record';
+                    if (last) {
+                        var d = new Date(last + 'T00:00:00Z');
+                        if (!isNaN(d.getTime()) && (Date.now() - d.getTime()) > 90 * 86400000) {
+                            lastTxt = '<span class="stale">' + lastTxt + '</span>';
+                        }
+                    }
+                    var nTxt = n ? (' (n=' + n + ')') : '';
+                    var medianTxt = '';
+                    if (medians[sku] && medians[sku].monthly != null && monthly != null && medians[sku].monthly > 0) {
+                        var ratio = monthly / medians[sku].monthly;
+                        if (ratio >= 1.5) medianTxt = ' · <span class="num">' + ratio.toFixed(1) + '× category median</span>';
+                        else if (ratio <= 0.5) medianTxt = ' · ' + ratio.toFixed(1) + '× category median';
+                    }
+                    return '<li><span class="sku">' + sku + '</span>: ' + monthlyTxt + ' (' + primary + ', last 12m); ' + range + '. ' + lastTxt + nTxt + medianTxt + '</li>';
+                });
+                historyBlock.className = 'history-block';
+                historyBlock.innerHTML = 'Partner type: ' + ptypeBadge(ptype) + '<ul>' + lines.join('') + '</ul>' +
+                    '<div class="source">Source: <a href="https://github.com/TrueSightDAO/agroverse-inventory/blob/main/partners-velocity.json" target="_blank" rel="noopener">partners-velocity.json</a> · refreshed weekly.</div>';
+            }
+
+            function loadPartnerHistorical(partnerId) {
+                if (!partnerId) {
+                    historyRow.style.display = 'none';
+                    return;
+                }
+                historyRow.style.display = 'block';
+                historyBlock.className = 'history-block loading';
+                historyBlock.textContent = 'Loading history…';
+                fetchVelocity().then(function(velocity) {
+                    renderHistory(partnerId, velocity);
+                });
+            }
+
             partnerSelect.addEventListener('change', function() {
-                loadPartnerAddress((partnerSelect.value || '').trim());
+                var pid = (partnerSelect.value || '').trim();
+                loadPartnerAddress(pid);
+                loadPartnerHistorical(pid);
             });
 
             function setStatus(msg, isError) {
