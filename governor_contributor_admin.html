@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="Governor-only: register a new TrueSight DAO contributor with name and email.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add New Contributor (Governor)</title>
+
+  <meta property="og:title" content="Add New Contributor (Governor)">
+  <meta property="og:description" content="Governor-only: register a new TrueSight DAO contributor with name and email.">
+  <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+  <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+  <meta property="og:type" content="website">
+
+  <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+
+  <script src="./routes.js"></script>
+  <script src="./menu.js?v=20260427"></script>
+  <script src="./scripts/dao_members_cache.js"></script>
+  <script src="./scripts/permissions.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 1rem;
+      padding: 1rem;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 640px;
+      width: 100%;
+      background-color: white;
+      padding: 1.25rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 1.6rem;
+      color: #333;
+      margin: 0.5rem 0 0.5rem;
+      text-align: center;
+    }
+    #description {
+      font-style: italic;
+      color: #555;
+      line-height: 1.5;
+      margin: 0.6rem 0 1rem;
+      font-size: 0.95rem;
+      text-align: center;
+    }
+    #welcome {
+      font-size: 1rem;
+      font-weight: bold;
+      margin: 0.6rem 0;
+      text-align: center;
+      color: #28a745;
+    }
+    .form-row {
+      margin: 0.9rem 0;
+    }
+    .form-row label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 0.3rem;
+      color: #333;
+    }
+    .form-row input,
+    .form-row textarea {
+      width: 100%;
+      padding: 0.7rem;
+      font-size: 1rem;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .form-row textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.85rem;
+    }
+    .form-row .hint {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 0.3rem;
+    }
+    .dedup {
+      margin-top: 0.4rem;
+      font-size: 0.9rem;
+      min-height: 1.2em;
+    }
+    .dedup.warn {
+      color: #b54708;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      padding: 0.5rem 0.6rem;
+      border-radius: 4px;
+    }
+    .dedup.ok {
+      color: #166534;
+    }
+    button.primary {
+      width: 100%;
+      padding: 0.85rem;
+      font-size: 1rem;
+      font-weight: bold;
+      color: white;
+      background-color: #28a745;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button.primary[disabled] {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+    #status {
+      margin: 1rem 0;
+      font-weight: bold;
+      min-height: 24px;
+      font-size: 0.95rem;
+      text-align: center;
+    }
+    #status.success { color: #28a745; }
+    #status.error { color: #dc3545; }
+    #backLink {
+      font-size: 0.95rem;
+      color: #007bff;
+      text-decoration: none;
+    }
+    #backLink::before { content: "← "; }
+    .gov-badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      background: #e8f5e9;
+      color: #166534;
+      border: 1px solid #86efac;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: bold;
+      letter-spacing: 0.02em;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a id="backLink" href="./index.html">Back to Home</a>
+    <h1>Add New Contributor <span class="gov-badge">Governor</span></h1>
+    <p id="description">
+      Register a new contributor on the TrueSight DAO ledger with their name and email. The new contributor will later self-register their first device public key via <code>[EMAIL VERIFICATION EVENT]</code>; you do not need to enter a public key here.
+    </p>
+
+    <div id="gateContainer">
+      <p id="status">Loading…</p>
+    </div>
+
+    <div id="formContainer" style="display: none;">
+      <div id="welcome"></div>
+
+      <form id="addContributorForm" autocomplete="off">
+        <div class="form-row">
+          <label for="contributorName">Display name <span style="color: #dc3545;">*</span></label>
+          <input type="text" id="contributorName" name="contributorName" required maxlength="120" placeholder="e.g. Jane Smith">
+          <div class="hint">How this person will appear on the contribution ledger and in Telegram Chat Logs.</div>
+          <div class="dedup" id="nameDedup"></div>
+        </div>
+
+        <div class="form-row">
+          <label for="contributorEmail">Email <span style="color: #dc3545;">*</span></label>
+          <input type="email" id="contributorEmail" name="contributorEmail" required maxlength="200" placeholder="e.g. jane@example.com">
+          <div class="hint">Hard-required. The contributor will use this email to self-register their first device public key via <code>[EMAIL VERIFICATION EVENT]</code> later.</div>
+          <div class="dedup" id="emailDedup"></div>
+        </div>
+
+        <div class="form-row">
+          <label for="contributorInitialKey">Initial public key (optional)</label>
+          <textarea id="contributorInitialKey" name="contributorInitialKey" maxlength="3000" placeholder="(leave blank — the contributor will self-register a key via the email-verification flow)"></textarea>
+          <div class="hint">Only paste here if the contributor has already generated a key on their device and shared it with you. Otherwise leave blank.</div>
+        </div>
+
+        <button type="submit" class="primary" id="submitButton">Add contributor</button>
+      </form>
+
+      <p id="status"></p>
+    </div>
+  </div>
+
+  <script>
+    const EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
+        || 'https://edgar.truesight.me/dao/submit_contribution';
+
+    const ACTION = 'contributor.add';
+
+    const publicKey = (function () {
+      try { return localStorage.getItem('publicKey') || ''; } catch (_) { return ''; }
+    })();
+    const privateKey = (function () {
+      try { return localStorage.getItem('privateKey') || ''; } catch (_) { return ''; }
+    })();
+
+    function setStatus(msg, kind) {
+      const els = document.querySelectorAll('#status');
+      for (let i = 0; i < els.length; i++) {
+        els[i].textContent = msg || '';
+        els[i].className = kind || '';
+      }
+    }
+
+    function base64ToArrayBuffer(b64) {
+      const bin = atob(b64);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out.buffer;
+    }
+    function arrayBufferToBase64(buf) {
+      return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+    }
+
+    function debounce(fn, ms) {
+      let t = null;
+      return function () {
+        const args = arguments;
+        clearTimeout(t);
+        t = setTimeout(function () { fn.apply(null, args); }, ms);
+      };
+    }
+
+    /**
+     * Pre-flight dedup against dao_members.json. Returns { hit, contributor }
+     * where hit is null on no match, 'name' on display-name match, 'email' on
+     * email match.
+     */
+    function preflightDedup(name, email) {
+      return window.DaoMembersCache.fetchSnapshot().then(function (snapshot) {
+        const list = (snapshot && snapshot.contributors) || [];
+        const lname = (name || '').trim().toLowerCase();
+        const lmail = (email || '').trim().toLowerCase();
+        let nameHit = null;
+        let emailHit = null;
+        for (let i = 0; i < list.length; i++) {
+          const c = list[i] || {};
+          const cname = String(c.name || '').trim().toLowerCase();
+          const cmail = String(c.email || '').trim().toLowerCase();
+          if (lname && cname && cname === lname) nameHit = c;
+          if (lmail && cmail && cmail === lmail) emailHit = c;
+        }
+        return { nameHit: nameHit, emailHit: emailHit };
+      });
+    }
+
+    function renderDedup(elementId, hit, kind) {
+      const el = document.getElementById(elementId);
+      if (!hit) {
+        el.textContent = '';
+        el.className = 'dedup';
+        return;
+      }
+      const keyCount = (hit.public_keys || []).length;
+      el.className = 'dedup warn';
+      if (kind === 'name') {
+        el.innerHTML =
+            'A contributor named <strong>' + (hit.name || '').replace(/</g, '&lt;') +
+            '</strong> already exists' +
+            (hit.email ? ' (' + (hit.email || '').replace(/</g, '&lt;') + ')' : '') +
+            ' with ' + keyCount + ' active key(s). If this is the same person, they may want a new device key — use the email-verification flow instead.';
+      } else if (kind === 'email') {
+        el.innerHTML =
+            '<strong>' + (hit.email || '').replace(/</g, '&lt;') +
+            '</strong> already belongs to <strong>' +
+            (hit.name || '').replace(/</g, '&lt;') + '</strong>. If they need another device key, ask them to use the existing email-verification flow rather than registering a new contributor.';
+      }
+    }
+
+    async function signAndSubmit(plainText) {
+      if (!privateKey) throw new Error('No private key in localStorage. Use Digital Signature Creator first.');
+      const keyObj = await window.crypto.subtle.importKey(
+          'pkcs8',
+          base64ToArrayBuffer(privateKey),
+          { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+          false,
+          ['sign']);
+      const signature = await window.crypto.subtle.sign(
+          'RSASSA-PKCS1-v1_5', keyObj, new TextEncoder().encode(plainText));
+      const requestHash = arrayBufferToBase64(signature);
+      const shareText = plainText +
+          '\n\nMy Digital Signature: ' + publicKey +
+          '\n\nRequest Transaction ID: ' + requestHash +
+          '\n\nThis submission was generated using ' + window.location.href +
+          '\n\nVerify submission here: https://dapp.truesight.me/verify_request.html';
+      const formData = new FormData();
+      formData.append('text', shareText);
+      const resp = await fetch(EDGAR_SUBMIT, { method: 'POST', body: formData });
+      if (!resp.ok) throw new Error(await resp.text());
+      return await resp.json();
+    }
+
+    function buildEventText(name, email, initialKey) {
+      const ts = new Date().toISOString();
+      const lines = [
+        '[CONTRIBUTOR ADD EVENT]',
+        '- Contributor Name: ' + name,
+        '- Contributor Email: ' + email,
+        '- Initial Digital Signature: ' + (initialKey || '(none — contributor will self-register via [EMAIL VERIFICATION EVENT])'),
+        '- Submitted At: ' + ts,
+        '- Submission Source: ' + window.location.href,
+        '--------',
+      ];
+      return lines.join('\n');
+    }
+
+    function attachFormHandlers(checkResult) {
+      document.getElementById('formContainer').style.display = 'block';
+      document.querySelector('#gateContainer').style.display = 'none';
+      const wel = document.getElementById('welcome');
+      const cn = (checkResult.contributor && checkResult.contributor.name) || '(governor)';
+      wel.textContent = 'Welcome, ' + cn + '. Permission verified.';
+
+      const nameInput = document.getElementById('contributorName');
+      const emailInput = document.getElementById('contributorEmail');
+      const keyInput = document.getElementById('contributorInitialKey');
+      const submitBtn = document.getElementById('submitButton');
+      const form = document.getElementById('addContributorForm');
+
+      const runDedup = debounce(function () {
+        preflightDedup(nameInput.value, emailInput.value)
+            .then(function (r) {
+              renderDedup('nameDedup', r.nameHit, 'name');
+              renderDedup('emailDedup', r.emailHit, 'email');
+            })
+            .catch(function (err) {
+              console.error('Dedup pre-flight failed:', err);
+            });
+      }, 300);
+
+      nameInput.addEventListener('input', runDedup);
+      emailInput.addEventListener('input', runDedup);
+
+      form.addEventListener('submit', async function (ev) {
+        ev.preventDefault();
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        const initialKey = keyInput.value.trim();
+        if (!name || !email) {
+          setStatus('Display name and email are both required.', 'error');
+          return;
+        }
+        // Hard re-check the dedup synchronously before submit; server will also reject on conflict.
+        let dedup;
+        try {
+          dedup = await preflightDedup(name, email);
+        } catch (err) {
+          setStatus('Could not pre-flight dedup: ' + err.message + '. Submitting anyway — server will re-check.', '');
+        }
+        if (dedup && (dedup.nameHit || dedup.emailHit)) {
+          if (!confirm('A possible duplicate was detected. Submit anyway? Server will reject if it confirms a conflict.')) {
+            return;
+          }
+        }
+        submitBtn.disabled = true;
+        setStatus('Signing and submitting…', '');
+        try {
+          const text = buildEventText(name, email, initialKey);
+          const result = await signAndSubmit(text);
+          setStatus(
+              'Submitted. Edgar response: ' + JSON.stringify(result) +
+              '. The contributor row should appear on dao_members.json after the next publisher run (~30 min, or manual refresh).',
+              'success');
+          form.reset();
+          document.getElementById('nameDedup').textContent = '';
+          document.getElementById('emailDedup').textContent = '';
+        } catch (err) {
+          console.error('Submit failed:', err);
+          setStatus('Submission failed: ' + err.message, 'error');
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!publicKey) {
+        document.getElementById('gateContainer').innerHTML =
+            '<div style="max-width: 600px; margin: 1.5rem auto; padding: 1.25rem; ' +
+            'background: #fff5f5; border: 1px solid #f5c2c7; border-radius: 8px; color: #842029;">' +
+            '<h2 style="margin: 0 0 0.5rem 0;">Sign in first</h2>' +
+            '<p style="margin: 0;">No digital signature found in your browser. Please use ' +
+            '<a href="./create_signature.html">the Digital Signature Creator</a> first to set up your identity, ' +
+            'then return here.</p></div>';
+        return;
+      }
+      window.Permissions.requireRole({
+        action: ACTION,
+        publicKey: publicKey,
+        denyContainerId: 'gateContainer',
+        onAllowed: attachFormHandlers,
+        onDenied: function () {
+          // Permissions.requireRole already rendered the denied UI.
+        },
+      }).catch(function (err) {
+        console.error('Permission check failed:', err);
+        setStatus('Permission check failed: ' + err.message, 'error');
+      });
+    });
+  </script>
+</body>
+</html>
