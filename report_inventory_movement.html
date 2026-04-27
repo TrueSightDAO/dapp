@@ -15,8 +15,10 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
     <script src="./routes.js"></script>
-    <script src="./menu.js?v=20260426"></script>
+    <script src="./menu.js?v=20260427"></script>
     <script src="./tdg_balance.js"></script>
+    <script src="./scripts/dao_members_cache.js"></script>
+    <script src="./scripts/permissions.js"></script>
     
     <style>
         body {
@@ -379,10 +381,16 @@
                         <div id="recipientAutocompleteList" style="max-height: 200px; overflow-y: auto;"></div>
                     </div>
                 </div>
-                <label for="newRecipientInput" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Or enter a new recipient name:</label>
-                <input type="text" id="newRecipientInput" placeholder="Type new recipient name here..." style="display: none;">
-                <div id="recipientInputInfo" style="font-size: 0.85rem; color: #666; margin-top: 0.3rem; display: none;">
-                    New recipients will be automatically added to the Contributors list.
+                <!-- Governor-only: ability to type a new recipient name (which auto-creates a Contributors row server-side).
+                     The wrapper #newRecipientGovernorOnly stays display:none until permissions.js confirms the signed-in
+                     identity has the `contributor.add` action; non-governors never see this affordance. The server still
+                     enforces this independently — see process_movement_telegram_logs.gs (movementStatus === 'NEW' gate). -->
+                <div id="newRecipientGovernorOnly" style="display: none;">
+                    <label for="newRecipientInput" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Or enter a new recipient name (Governor only):</label>
+                    <input type="text" id="newRecipientInput" placeholder="Type new recipient name here..." style="display: none;">
+                    <div id="recipientInputInfo" style="font-size: 0.85rem; color: #666; margin-top: 0.3rem; display: none;">
+                        New recipients will be automatically added to the Contributors list. Prefer the dedicated <a href="./governor_contributor_admin.html">Add New Contributor</a> page when an email is available — it captures email so the contributor can self-register a device key later.
+                    </div>
                 </div>
             </div>
             <div class="form-row">
@@ -2929,6 +2937,28 @@
                 if (reportButton) {
                     reportButton.style.display = 'none';
                 }
+            }
+
+            // Governor-only gate for the "type a brand-new recipient name" affordance.
+            // Hidden by default in the markup (#newRecipientGovernorOnly display:none).
+            // We only reveal it after permissions.js confirms the signed-in identity has
+            // contributor.add. Server still enforces the rule (see process_movement_telegram_logs.gs
+            // movementStatus === 'NEW' gate), so this is purely a UX nudge to keep
+            // non-governors from seeing an affordance they cannot use.
+            try {
+                const pk = localStorage.getItem('publicKey') || '';
+                if (pk && window.Permissions) {
+                    window.Permissions.check('contributor.add', pk).then(function (r) {
+                        if (r.allowed) {
+                            const wrap = document.getElementById('newRecipientGovernorOnly');
+                            if (wrap) wrap.style.display = '';
+                        }
+                    }).catch(function (err) {
+                        console.warn('Permissions.check (contributor.add) failed:', err);
+                    });
+                }
+            } catch (err) {
+                console.warn('Governor-gate setup failed:', err);
             }
         });
     </script>

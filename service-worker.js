@@ -39,12 +39,15 @@ const URLS_TO_CACHE = [
   './submit_feedback.html',
   './verify_request.html',
   './withdraw_voting_rights.html',
+  './governor_contributor_admin.html',
   // Scripts
-  './menu.js?v=20260426',
+  './menu.js?v=20260427',
   './routes.js',
   './service-worker.js',
   './js/treasury_cache.js',
   './js/dapp_footer_links.js?v=1',
+  './scripts/dao_members_cache.js',
+  './scripts/permissions.js',
   // External libraries
   'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js',
   // Assets
