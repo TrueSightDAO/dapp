@@ -512,20 +512,31 @@
             <p class="help-text">Submits a signed <code>[RETAIL FIELD REPORT EVENT]</code> (with optional attachments) to <strong>Edgar</strong> at <code>/dao/submit_contribution</code>. Edgar logs the row to Telegram Chat Logs, uploads any attachment to <code>TrueSightDAO/store_interaction_attachments</code>, and fires an async GAS scanner that updates the Hit List Status, <strong>DApp Remarks</strong>, and <strong>Stores Visits Field Reports</strong> (one row per submission, dedup keyed on Update ID).</p>
 
             <label for="editStatus">Status</label>
+            <!-- Source of truth: Hit List "States" tab column B (exact_value).
+                 Order mirrors that tab — AI:* values cluster together so an
+                 operator scanning for "AI: Enrich with contact" finds it next
+                 to the other AI-driven statuses. Keep in sync; if a new
+                 status lands on the States tab, add it here verbatim. -->
             <select id="editStatus" data-requires-signature="true">
                 <option value="Research">Research</option>
+                <option value="AI: Shortlisted">AI: Shortlisted</option>
+                <option value="AI: Photo rejected">AI: Photo rejected</option>
+                <option value="AI: Photo needs review">AI: Photo needs review</option>
+                <option value="AI: Enrich with contact">AI: Enrich with contact</option>
+                <option value="AI: Email found">AI: Email found</option>
+                <option value="AI: Contact Form found">AI: Contact Form found</option>
+                <option value="AI: Enrich — manual">AI: Enrich — manual</option>
+                <option value="AI: Warm up prospect">AI: Warm up prospect</option>
+                <option value="AI: Prospect replied">AI: Prospect replied</option>
                 <option value="Shortlisted">Shortlisted</option>
                 <option value="Instagram Followed">Instagram Followed</option>
                 <option value="Contacted">Contacted</option>
-                <option value="AI: Warm up prospect">AI: Warm up prospect</option>
-                <option value="AI: Prospect replied">AI: Prospect replied</option>
                 <option value="Manager Follow-up">Manager Follow-up</option>
                 <option value="Bulk Info Requested">Bulk Info Requested</option>
                 <option value="Meeting Scheduled">Meeting Scheduled</option>
                 <option value="Followed Up">Followed Up</option>
                 <option value="Partnered">Partnered</option>
                 <option value="On Hold">On Hold</option>
-                <option value="Deferred / Revisit later">Deferred / Revisit later</option>
                 <option value="Rejected">Rejected</option>
                 <option value="Not Appropriate">Not Appropriate</option>
             </select>
