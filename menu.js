@@ -7,6 +7,7 @@
     { title: 'Home', url: './index.html', section: '' },
     { title: 'Governor Chat', url: './chat.html', section: 'Governor only' },
     { title: 'Add New Contributor', url: './governor_contributor_admin.html', section: 'Governor only' },
+    { title: 'Permissions Viewer', url: './governor_permissions.html', section: 'Governor only' },
     { title: 'DAO Contribution Reporter', url: './report_contribution.html', section: 'Community Contributions' },
     { title: 'Content Feedback Submission', url: './submit_feedback.html', section: 'Community Contributions' },
     { title: 'Capital Injection Reporter', url: './report_capital_injection.html', section: 'Inventory & ledger' },

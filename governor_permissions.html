@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="Governor-only viewer of the TrueSight DAO DApp permission matrix.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Permissions Viewer (Governor)</title>
+
+  <meta property="og:title" content="Permissions Viewer (Governor)">
+  <meta property="og:description" content="Governor-only viewer of the TrueSight DAO DApp permission matrix.">
+  <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+  <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+  <meta property="og:type" content="website">
+
+  <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+
+  <script src="./routes.js"></script>
+  <script src="./menu.js?v=20260429"></script>
+  <script src="./tdg_balance.js"></script>
+  <script src="./scripts/dao_members_cache.js"></script>
+  <script src="./scripts/permissions.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 1rem;
+      padding: 1rem;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 920px;
+      width: 100%;
+      background-color: white;
+      padding: 1.25rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 1.6rem;
+      color: #333;
+      margin: 0.5rem 0 0.5rem;
+      text-align: center;
+    }
+    h2 {
+      font-size: 1.15rem;
+      color: #333;
+      margin: 1.75rem 0 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid #e2e2e2;
+    }
+    #description {
+      font-style: italic;
+      color: #555;
+      line-height: 1.5;
+      margin: 0.6rem 0 1rem;
+      font-size: 0.95rem;
+      text-align: center;
+    }
+    #welcome {
+      font-size: 1.05rem;
+      font-weight: bold;
+      margin: 0.6rem 0;
+      text-align: center;
+      color: #28a745;
+      display: none;
+    }
+    #status {
+      margin: 1rem 0;
+      font-weight: bold;
+      min-height: 24px;
+      font-size: 0.95rem;
+      text-align: center;
+    }
+    #status.error { color: #dc3545; }
+    #status.loading { color: #555; }
+    .gov-badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      background: #e8f5e9;
+      color: #166534;
+      border: 1px solid #86efac;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: bold;
+      letter-spacing: 0.02em;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.12rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin: 0 0.2rem 0.2rem 0;
+      letter-spacing: 0.02em;
+    }
+    .badge-governor { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+    .badge-member   { background: #dbeafe; color: #1e40af; border: 1px solid #60a5fa; }
+    .badge-operator { background: #ede9fe; color: #5b21b6; border: 1px solid #a78bfa; }
+    .badge-custodian{ background: #fce7f3; color: #9d174d; border: 1px solid #f472b6; }
+    .badge-public   { background: #f3f4f6; color: #374151; border: 1px solid #9ca3af; }
+    .badge-deferred {
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      font-size: 0.7rem;
+      padding: 0.1rem 0.45rem;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.75rem;
+      margin: 0.5rem 0 1.5rem;
+    }
+    .summary-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+    .summary-card .label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .summary-card .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #111827;
+      margin-top: 0.2rem;
+    }
+    .action-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      margin: 0.6rem 0;
+      background: #fcfcfc;
+    }
+    .action-card.deferred { background: #fffbf6; border-color: #fde68a; }
+    .action-name {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    .action-row {
+      margin: 0.45rem 0;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .action-row .field-label {
+      display: inline-block;
+      min-width: 110px;
+      color: #6b7280;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      vertical-align: top;
+    }
+    .action-row .field-value {
+      display: inline-block;
+      vertical-align: top;
+      max-width: calc(100% - 130px);
+    }
+    .action-desc {
+      color: #374151;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin: 0.4rem 0 0.6rem;
+    }
+    .holders-list {
+      font-size: 0.85rem;
+      color: #4b5563;
+    }
+    .holders-list .holder-name {
+      display: inline-block;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 0.1rem 0.45rem;
+      margin: 0.15rem 0.2rem 0.15rem 0;
+      font-size: 0.8rem;
+    }
+    .surfaces-list, .endpoints-list {
+      font-size: 0.85rem;
+      color: #4b5563;
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+    .surfaces-list code, .endpoints-list code {
+      background: #f3f4f6;
+      padding: 0.05rem 0.3rem;
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+    .empty-note {
+      color: #9ca3af;
+      font-style: italic;
+      font-size: 0.85rem;
+    }
+    .meta-row {
+      font-size: 0.8rem;
+      color: #6b7280;
+      text-align: center;
+      margin: 0.4rem 0 1rem;
+    }
+    .meta-row code { background: #f3f4f6; padding: 0.05rem 0.4rem; border-radius: 3px; }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+  </style>
+</head>
+<body>
+  <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+  <div id="tdgBalanceBadge"></div>
+  <div id="google_translate_element" style="text-align: right; margin: 1rem;"></div>
+
+  <div class="container">
+    <div style="text-align: center;">
+      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSightDAO Logo"/>
+    </div>
+
+    <h1>Permissions Viewer <span class="gov-badge">Governor</span></h1>
+    <p id="description" class="fade-in">
+      Read-only view of every action declared in <code>permissions.json</code>, the role(s) it requires, who currently holds those roles, and where the action surfaces in the DApp. Source of truth: <code>treasury-cache/permissions.json</code> + <code>dao_members.json</code>.
+    </p>
+
+    <div id="welcome"></div>
+    <p id="status" class="loading fade-in" aria-live="polite">Verifying your digital signature&hellip;</p>
+
+    <div id="gateContainer"></div>
+    <div id="content" style="display: none;"></div>
+  </div>
+
+  <script>
+    const ACTION = 'governor_chat.access'; // page-level gate uses an existing governor-only action
+
+    const publicKey = (function () {
+      try { return localStorage.getItem('publicKey') || ''; } catch (_) { return ''; }
+    })();
+
+    const statusEl = document.getElementById('status');
+    const welcomeEl = document.getElementById('welcome');
+
+    function setStatus(msg, kind) {
+      statusEl.textContent = msg || '';
+      statusEl.className = (kind || '') + ' fade-in';
+    }
+
+    function showWelcome(name) {
+      welcomeEl.textContent = 'Welcome back, ' + name + '!';
+      welcomeEl.style.display = 'block';
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function badgeFor(role) {
+      const cls = 'badge badge-' + role.replace(/[^a-z]/g, '');
+      return '<span class="' + cls + '">' + escapeHtml(role) + '</span>';
+    }
+
+    function holdersWithRoles(contributors, requiredRoles) {
+      const set = new Set(requiredRoles);
+      return (contributors || []).filter(function (c) {
+        const roles = c.roles || [];
+        for (let i = 0; i < roles.length; i++) {
+          if (set.has(roles[i])) return true;
+        }
+        return false;
+      });
+    }
+
+    function listHolders(holders) {
+      if (!holders.length) {
+        return '<span class="empty-note">No registered contributor holds any of these roles yet.</span>';
+      }
+      return holders.map(function (h) {
+        return '<span class="holder-name">' + escapeHtml(h.name) + '</span>';
+      }).join('');
+    }
+
+    function listOrEmpty(items, mapper) {
+      if (!items || !items.length) {
+        return '<span class="empty-note">(none declared)</span>';
+      }
+      return '<ul class="surfaces-list">' + items.map(mapper).join('') + '</ul>';
+    }
+
+    function renderActionCard(actionName, def, contributors, isDeferred) {
+      const required = def.required_roles || [];
+      const holders = holdersWithRoles(contributors, required);
+      const cardClass = isDeferred ? 'action-card deferred' : 'action-card';
+
+      let html = '<div class="' + cardClass + '">';
+      html += '<div class="action-name">' + escapeHtml(actionName);
+      if (isDeferred) html += '<span class="badge-deferred">deferred</span>';
+      html += '</div>';
+
+      if (def.description) {
+        html += '<div class="action-desc">' + escapeHtml(def.description) + '</div>';
+      }
+
+      html += '<div class="action-row"><span class="field-label">Required</span> <span class="field-value">'
+            + (required.length ? required.map(badgeFor).join(' ') : '<span class="empty-note">(none)</span>')
+            + '</span></div>';
+
+      if (!isDeferred) {
+        html += '<div class="action-row"><span class="field-label">Held by</span> <span class="field-value holders-list">'
+              + listHolders(holders) + '</span></div>';
+      }
+
+      if (def.blocked_by) {
+        html += '<div class="action-row"><span class="field-label">Blocked by</span> <span class="field-value">'
+              + escapeHtml(def.blocked_by) + '</span></div>';
+      }
+
+      if (def.surfaces && def.surfaces.length) {
+        html += '<div class="action-row"><span class="field-label">Surfaces</span> <span class="field-value">'
+              + listOrEmpty(def.surfaces, function (s) { return '<li><code>' + escapeHtml(s) + '</code></li>'; })
+              + '</span></div>';
+      }
+
+      if (def.endpoints && def.endpoints.length) {
+        html += '<div class="action-row"><span class="field-label">Endpoints</span> <span class="field-value">'
+              + listOrEmpty(def.endpoints, function (e) { return '<li><code>' + escapeHtml(e) + '</code></li>'; })
+              + '</span></div>';
+      }
+
+      if (def.dedup) {
+        html += '<div class="action-row"><span class="field-label">Dedup</span> <span class="field-value">';
+        const keys = Object.keys(def.dedup);
+        if (!keys.length) {
+          html += '<span class="empty-note">(none)</span>';
+        } else {
+          html += '<ul class="surfaces-list">';
+          keys.forEach(function (k) {
+            html += '<li><strong>' + escapeHtml(k) + '</strong>: ' + escapeHtml(def.dedup[k]) + '</li>';
+          });
+          html += '</ul>';
+        }
+        html += '</span></div>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    function renderContent(manifest, snapshot) {
+      const contributors = snapshot.contributors || [];
+      const counts = snapshot.counts || {};
+      const actions = manifest.actions || {};
+      const deferred = manifest.deferred_actions || {};
+      const deferredKeys = Object.keys(deferred).filter(function (k) { return k !== 'comment'; });
+
+      const summaryHtml =
+          '<div class="summary-grid">' +
+          '<div class="summary-card"><div class="label">Manifest schema</div><div class="value">v' + escapeHtml(manifest.schema_version || '?') + '</div></div>' +
+          '<div class="summary-card"><div class="label">Active actions</div><div class="value">' + Object.keys(actions).length + '</div></div>' +
+          '<div class="summary-card"><div class="label">Deferred actions</div><div class="value">' + deferredKeys.length + '</div></div>' +
+          '<div class="summary-card"><div class="label">Contributors</div><div class="value">' + (counts.contributors || contributors.length || 0) + '</div></div>' +
+          '<div class="summary-card"><div class="label">Governors</div><div class="value">' + (counts.governors != null ? counts.governors : '?') + '</div></div>' +
+          '</div>';
+
+      const metaHtml =
+          '<div class="meta-row">Sources: <code>permissions.json</code> @ <code>' +
+          escapeHtml(window.Permissions.DEFAULT_URL) + '</code> · <code>dao_members.json</code> @ <code>' +
+          escapeHtml(window.DaoMembersCache.DEFAULT_URL) + '</code></div>';
+
+      let actionsHtml = '<h2>Active actions</h2>';
+      if (!Object.keys(actions).length) {
+        actionsHtml += '<p class="empty-note">No actions declared.</p>';
+      } else {
+        Object.keys(actions).sort().forEach(function (k) {
+          actionsHtml += renderActionCard(k, actions[k], contributors, false);
+        });
+      }
+
+      let deferredHtml = '';
+      if (deferredKeys.length) {
+        deferredHtml += '<h2>Deferred actions</h2>';
+        deferredHtml += '<p class="empty-note" style="margin-bottom:0.4rem;">Documented but not yet enforceable — listed for architectural intent.</p>';
+        deferredKeys.sort().forEach(function (k) {
+          deferredHtml += renderActionCard(k, deferred[k], contributors, true);
+        });
+      }
+
+      let unjoinedHtml = '';
+      if (snapshot.unjoined_governor_names && snapshot.unjoined_governor_names.length) {
+        unjoinedHtml = '<h2>Unjoined governor names</h2>'
+                     + '<p class="empty-note" style="margin-bottom:0.4rem;">Names on the Governors tab that didn&#39;t match any contributor (typos, ledger codes like AGL15, or governors who haven&#39;t registered a signature yet). Surface so config drift fails loudly.</p>'
+                     + '<ul class="surfaces-list">'
+                     + snapshot.unjoined_governor_names.map(function (n) { return '<li><code>' + escapeHtml(n) + '</code></li>'; }).join('')
+                     + '</ul>';
+      }
+
+      document.getElementById('content').innerHTML =
+          summaryHtml + metaHtml + actionsHtml + deferredHtml + unjoinedHtml;
+      document.getElementById('content').style.display = 'block';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!publicKey) {
+        setStatus('', '');
+        document.getElementById('gateContainer').innerHTML =
+            '<div style="max-width: 600px; margin: 1.5rem auto; padding: 1.25rem; ' +
+            'background: #fff5f5; border: 1px solid #f5c2c7; border-radius: 8px; color: #842029;">' +
+            '<h2 style="margin: 0 0 0.5rem 0;">Sign in first</h2>' +
+            '<p style="margin: 0;">No digital signature found in your browser. Please use ' +
+            '<a href="./create_signature.html">the Digital Signature Creator</a> first to set up your identity, ' +
+            'then return here.</p></div>';
+        return;
+      }
+
+      window.DaoMembersCache.findByPublicKey(publicKey).then(function (lookup) {
+        if (!lookup.contributor) {
+          setStatus('', '');
+          document.getElementById('gateContainer').innerHTML =
+              '<div style="max-width: 600px; margin: 1.5rem auto; padding: 1.25rem; ' +
+              'background: #fff5f5; border: 1px solid #f5c2c7; border-radius: 8px; color: #842029;">' +
+              '<h2 style="margin: 0 0 0.5rem 0;">Signature not registered</h2>' +
+              '<p style="margin: 0;">Your digital signature is not yet registered on the DAO ledger. Use ' +
+              '<a href="./create_signature.html">the Digital Signature Creator</a> to register it.</p></div>';
+          return null;
+        }
+        showWelcome(lookup.contributor.name || '(contributor)');
+        return window.Permissions.requireRole({
+          action: ACTION,
+          publicKey: publicKey,
+          denyContainerId: 'gateContainer',
+          onAllowed: function () {
+            setStatus('Permission verified. Loading the manifest…', 'loading');
+            return Promise.all([
+              window.Permissions.fetchManifest(),
+              window.DaoMembersCache.fetchSnapshot(),
+            ]).then(function (results) {
+              renderContent(results[0], results[1]);
+              setStatus('', '');
+            }).catch(function (err) {
+              console.error('Failed to load manifest / snapshot:', err);
+              setStatus('Failed to load manifest: ' + err.message, 'error');
+            });
+          },
+          onDenied: function () {
+            setStatus('', '');
+            // Permissions.requireRole already rendered the denied UI in #gateContainer.
+          },
+        });
+      }).catch(function (err) {
+        console.error('Identity / permission check failed:', err);
+        setStatus('Could not verify your signature: ' + err.message, 'error');
+      });
+    });
+  </script>
+  <script src="./js/dapp_footer_links.js?v=1"></script>
+</body>
+</html>
