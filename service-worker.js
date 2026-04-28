@@ -42,7 +42,7 @@ const URLS_TO_CACHE = [
   './governor_contributor_admin.html',
   './governor_permissions.html',
   // Scripts
-  './menu.js?v=20260429',
+  './menu.js?v=20260430',
   './routes.js',
   './service-worker.js',
   './js/treasury_cache.js',
