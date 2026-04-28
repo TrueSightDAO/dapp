@@ -100,26 +100,7 @@
         <div class="form-row">
             <label for="partnerSelect">Partner</label>
             <select id="partnerSelect">
-                <option value="">— Select partner —</option>
-                <option value="go-ask-alice">Go Ask Alice (Santa Cruz, CA)</option>
-                <option value="the-enchanted-forest-boutique">The Enchanted Forest Boutique (Chico, CA)</option>
-                <option value="kikis-cocoa">Kiki's Cocoa (San Francisco, CA)</option>
-                <option value="love-of-ganesha">Love of Ganesha (San Francisco, CA)</option>
-                <option value="queen-hippie-gypsy">Queen Hippie Gypsy (Oakland, CA)</option>
-                <option value="miss-tomato">Miss Tomato (Daly City, CA)</option>
-                <option value="green-gulch-farm-zen-center">Green Gulch Farm Zen Center (Marin, CA)</option>
-                <option value="lumin-earth-apothecary">Lumin Earth Apothecary (Morro Bay, CA)</option>
-                <option value="hacker-dojo">Hacker Dojo (Mountain View, CA)</option>
-                <option value="block71-silicon-valley">Block71 Silicon Valley (CA)</option>
-                <option value="love-wisdom-power">Love Wisdom Power (Williams, OR)</option>
-                <option value="sacred-earth-farms">Sacred Earth Farms (Merlin, OR)</option>
-                <option value="republic-cafe-and-ming-lounge">Republic Cafe and Ming Lounge (Portland, OR)</option>
-                <option value="prism-percussions">Prism Percussions (Corvallis, OR)</option>
-                <option value="embodied-blindfold-dance">Embodied Blindfold Dance (Eugene, OR)</option>
-                <option value="the-ponderosa-slab-city">The Ponderosa, Slab City (CA)</option>
-                <option value="soulfulness-breathe">Soulfulness Breathe (Denver, CO)</option>
-                <option value="peace-on-fifth">Peace on Fifth (Dayton, OH)</option>
-                <option value="edge-and-node-house-of-web3">Edge and Node, House of Web3 (San Francisco, CA)</option>
+                <option value="">— Loading partners… —</option>
             </select>
         </div>
 
@@ -330,6 +311,50 @@
                 loadPartnerAddress(pid);
                 loadPartnerHistorical(pid);
             });
+
+            // ---- Populate partner dropdown from partners-velocity.json ---------
+            // Single source of truth: TrueSightDAO/agroverse-inventory/partners-velocity.json
+            // (regenerated weekly from Agroverse Partners + ledger data). New partners
+            // appear here automatically once the velocity sync runs after they're added
+            // to the Agroverse Partners sheet — no edit to this page needed.
+            function slugToDisplayName(slug) {
+                // Best-effort title-case from slug. Strips paths like '../cooperatives/cepotx'.
+                var s = String(slug || '').split('/').pop();
+                return s.split('-').map(function(w) {
+                    if (!w) return '';
+                    if (w.length <= 2) return w.toUpperCase(); // SF, LA, OR — kept short
+                    return w.charAt(0).toUpperCase() + w.slice(1);
+                }).join(' ').trim();
+            }
+
+            function populatePartnerSelect() {
+                fetchVelocity().then(function(velocity) {
+                    if (!velocity || !velocity.partners) {
+                        partnerSelect.innerHTML = '<option value="">— Could not load partner list —</option>';
+                        return;
+                    }
+                    // Filter to retail-relevant partner types; skip upstream roles.
+                    var RETAIL_TYPES = { 'Consignment': true, 'Wholesale': true };
+                    var entries = Object.keys(velocity.partners)
+                        .filter(function(slug) {
+                            // Skip cooperative / non-partner-id slugs (e.g. "../cooperatives/cepotx").
+                            if (slug.indexOf('/') !== -1) return false;
+                            var p = velocity.partners[slug] || {};
+                            // Default to Consignment when partner_type is unset (matches script default).
+                            var ptype = p.partner_type || 'Consignment';
+                            return RETAIL_TYPES[ptype] === true;
+                        })
+                        .map(function(slug) { return { slug: slug, label: slugToDisplayName(slug) }; })
+                        .sort(function(a, b) { return a.label.toLowerCase().localeCompare(b.label.toLowerCase()); });
+
+                    var options = ['<option value="">— Select partner —</option>']
+                        .concat(entries.map(function(e) {
+                            return '<option value="' + e.slug + '">' + e.label + '</option>';
+                        }));
+                    partnerSelect.innerHTML = options.join('');
+                });
+            }
+            populatePartnerSelect();
 
             function setStatus(msg, isError) {
                 status.textContent = msg || '';
