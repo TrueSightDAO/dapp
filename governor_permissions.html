@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="description" content="Governor-only viewer of the TrueSight DAO DApp permission matrix.">
+  <meta name="description" content="Governor-only viewer + editor for the TrueSight DAO DApp permission matrix.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Permissions Viewer (Governor)</title>
 
   <meta property="og:title" content="Permissions Viewer (Governor)">
-  <meta property="og:description" content="Governor-only viewer of the TrueSight DAO DApp permission matrix.">
+  <meta property="og:description" content="Governor-only viewer + editor for the TrueSight DAO DApp permission matrix.">
   <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
   <meta property="og:url" content="https://truesightdao.github.io/dapp/">
   <meta property="og:type" content="website">
@@ -15,209 +15,71 @@
   <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
 
   <script src="./routes.js"></script>
-  <script src="./menu.js?v=20260429"></script>
+  <script src="./menu.js?v=20260430"></script>
   <script src="./tdg_balance.js"></script>
   <script src="./scripts/dao_members_cache.js"></script>
   <script src="./scripts/permissions.js"></script>
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 1rem;
-      padding: 1rem;
-      min-height: 100vh;
-      box-sizing: border-box;
-      background-color: #f5f5f5;
-    }
-    .container {
-      max-width: 920px;
-      width: 100%;
-      background-color: white;
-      padding: 1.25rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    h1 {
-      font-size: 1.6rem;
-      color: #333;
-      margin: 0.5rem 0 0.5rem;
-      text-align: center;
-    }
-    h2 {
-      font-size: 1.15rem;
-      color: #333;
-      margin: 1.75rem 0 0.5rem;
-      padding-bottom: 0.4rem;
-      border-bottom: 1px solid #e2e2e2;
-    }
-    #description {
-      font-style: italic;
-      color: #555;
-      line-height: 1.5;
-      margin: 0.6rem 0 1rem;
-      font-size: 0.95rem;
-      text-align: center;
-    }
-    #welcome {
-      font-size: 1.05rem;
-      font-weight: bold;
-      margin: 0.6rem 0;
-      text-align: center;
-      color: #28a745;
-      display: none;
-    }
-    #status {
-      margin: 1rem 0;
-      font-weight: bold;
-      min-height: 24px;
-      font-size: 0.95rem;
-      text-align: center;
-    }
+    body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 1rem; padding: 1rem; min-height: 100vh; box-sizing: border-box; background-color: #f5f5f5; }
+    .container { max-width: 920px; width: 100%; background-color: white; padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { font-size: 1.6rem; color: #333; margin: 0.5rem 0 0.5rem; text-align: center; }
+    h2 { font-size: 1.15rem; color: #333; margin: 1.75rem 0 0.5rem; padding-bottom: 0.4rem; border-bottom: 1px solid #e2e2e2; }
+    #description { font-style: italic; color: #555; line-height: 1.5; margin: 0.6rem 0 1rem; font-size: 0.95rem; text-align: center; }
+    #welcome { font-size: 1.05rem; font-weight: bold; margin: 0.6rem 0; text-align: center; color: #28a745; display: none; }
+    #status { margin: 1rem 0; font-weight: bold; min-height: 24px; font-size: 0.95rem; text-align: center; }
     #status.error { color: #dc3545; }
     #status.loading { color: #555; }
-    .gov-badge {
-      display: inline-block;
-      padding: 0.15rem 0.55rem;
-      background: #e8f5e9;
-      color: #166534;
-      border: 1px solid #86efac;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: bold;
-      letter-spacing: 0.02em;
-      margin-left: 0.4rem;
-      vertical-align: middle;
-    }
-    .badge {
-      display: inline-block;
-      padding: 0.12rem 0.55rem;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      margin: 0 0.2rem 0.2rem 0;
-      letter-spacing: 0.02em;
-    }
-    .badge-governor { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
-    .badge-member   { background: #dbeafe; color: #1e40af; border: 1px solid #60a5fa; }
-    .badge-operator { background: #ede9fe; color: #5b21b6; border: 1px solid #a78bfa; }
-    .badge-custodian{ background: #fce7f3; color: #9d174d; border: 1px solid #f472b6; }
-    .badge-public   { background: #f3f4f6; color: #374151; border: 1px solid #9ca3af; }
-    .badge-deferred {
-      background: #fef2f2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-      font-size: 0.7rem;
-      padding: 0.1rem 0.45rem;
-      margin-left: 0.4rem;
-      vertical-align: middle;
-    }
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 0.75rem;
-      margin: 0.5rem 0 1.5rem;
-    }
-    .summary-card {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-    }
-    .summary-card .label {
-      font-size: 0.75rem;
-      color: #6b7280;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-    .summary-card .value {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #111827;
-      margin-top: 0.2rem;
-    }
-    .action-card {
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 1rem 1.1rem;
-      margin: 0.6rem 0;
-      background: #fcfcfc;
-    }
+    .gov-badge { display: inline-block; padding: 0.15rem 0.55rem; background: #e8f5e9; color: #166534; border: 1px solid #86efac; border-radius: 999px; font-size: 0.78rem; font-weight: bold; letter-spacing: 0.02em; margin-left: 0.4rem; vertical-align: middle; }
+    .badge { display: inline-block; padding: 0.12rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin: 0 0.2rem 0.2rem 0; letter-spacing: 0.02em; user-select: none; }
+    .badge-governor  { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+    .badge-member    { background: #dbeafe; color: #1e40af; border: 1px solid #60a5fa; }
+    .badge-operator  { background: #ede9fe; color: #5b21b6; border: 1px solid #a78bfa; }
+    .badge-custodian { background: #fce7f3; color: #9d174d; border: 1px solid #f472b6; }
+    .badge-public    { background: #f3f4f6; color: #374151; border: 1px solid #9ca3af; }
+    .badge.role-toggle { cursor: pointer; }
+    .badge.role-toggle.off { background: #ffffff; color: #9ca3af; border-style: dashed; opacity: 0.55; }
+    .badge.role-toggle.dirty { box-shadow: 0 0 0 2px #fde68a; }
+    .badge-deferred { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; font-size: 0.7rem; padding: 0.1rem 0.45rem; margin-left: 0.4rem; vertical-align: middle; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin: 0.5rem 0 1.5rem; }
+    .summary-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem 1rem; }
+    .summary-card .label { font-size: 0.75rem; color: #6b7280; letter-spacing: 0.04em; text-transform: uppercase; }
+    .summary-card .value { font-size: 1.4rem; font-weight: 700; color: #111827; margin-top: 0.2rem; }
+    .action-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.1rem; margin: 0.6rem 0; background: #fcfcfc; }
     .action-card.deferred { background: #fffbf6; border-color: #fde68a; }
-    .action-name {
-      font-family: ui-monospace, SFMono-Regular, monospace;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #111827;
-    }
-    .action-row {
-      margin: 0.45rem 0;
-      font-size: 0.92rem;
-      line-height: 1.5;
-    }
-    .action-row .field-label {
-      display: inline-block;
-      min-width: 110px;
-      color: #6b7280;
-      font-size: 0.78rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      vertical-align: top;
-    }
-    .action-row .field-value {
-      display: inline-block;
-      vertical-align: top;
-      max-width: calc(100% - 130px);
-    }
-    .action-desc {
-      color: #374151;
-      font-size: 0.9rem;
-      line-height: 1.5;
-      margin: 0.4rem 0 0.6rem;
-    }
-    .holders-list {
-      font-size: 0.85rem;
-      color: #4b5563;
-    }
-    .holders-list .holder-name {
-      display: inline-block;
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px;
-      padding: 0.1rem 0.45rem;
-      margin: 0.15rem 0.2rem 0.15rem 0;
-      font-size: 0.8rem;
-    }
-    .surfaces-list, .endpoints-list {
-      font-size: 0.85rem;
-      color: #4b5563;
-      margin: 0;
-      padding-left: 1.2rem;
-    }
-    .surfaces-list code, .endpoints-list code {
-      background: #f3f4f6;
-      padding: 0.05rem 0.3rem;
-      border-radius: 3px;
-      font-size: 0.8rem;
-    }
-    .empty-note {
-      color: #9ca3af;
-      font-style: italic;
-      font-size: 0.85rem;
-    }
-    .meta-row {
-      font-size: 0.8rem;
-      color: #6b7280;
-      text-align: center;
-      margin: 0.4rem 0 1rem;
-    }
+    .action-card.dirty { border-color: #fbbf24; box-shadow: 0 2px 8px rgba(251,191,36,0.18); }
+    .action-name { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.95rem; font-weight: 600; color: #111827; }
+    .action-row { margin: 0.45rem 0; font-size: 0.92rem; line-height: 1.5; }
+    .action-row .field-label { display: inline-block; min-width: 110px; color: #6b7280; font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; vertical-align: top; }
+    .action-row .field-value { display: inline-block; vertical-align: top; max-width: calc(100% - 130px); }
+    .action-desc { color: #374151; font-size: 0.9rem; line-height: 1.5; margin: 0.4rem 0 0.6rem; }
+    .holders-list { font-size: 0.85rem; color: #4b5563; }
+    .holders-list .holder-name { display: inline-block; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 0.1rem 0.45rem; margin: 0.15rem 0.2rem 0.15rem 0; font-size: 0.8rem; }
+    .surfaces-list, .endpoints-list { font-size: 0.85rem; color: #4b5563; margin: 0; padding-left: 1.2rem; }
+    .surfaces-list code, .endpoints-list code { background: #f3f4f6; padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.8rem; }
+    .empty-note { color: #9ca3af; font-style: italic; font-size: 0.85rem; }
+    .meta-row { font-size: 0.8rem; color: #6b7280; text-align: center; margin: 0.4rem 0 1rem; }
     .meta-row code { background: #f3f4f6; padding: 0.05rem 0.4rem; border-radius: 3px; }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
+
+    .mode-bar { display: flex; justify-content: center; align-items: center; gap: 0.75rem; margin: 1rem 0 1.5rem; flex-wrap: wrap; }
+    .mode-bar button { padding: 0.5rem 1.25rem; font-size: 0.9rem; font-weight: 600; border: 1px solid #d1d5db; border-radius: 6px; background: #f3f4f6; color: #111827; cursor: pointer; }
+    .mode-bar button.primary { background: #28a745; color: white; border-color: #28a745; }
+    .mode-bar button.primary[disabled] { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
+    .mode-bar button.danger { background: #dc3545; color: white; border-color: #dc3545; }
+    .mode-bar .mode-pill { font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 999px; background: #dbeafe; color: #1e40af; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .mode-bar .mode-pill.edit { background: #fef3c7; color: #92400e; }
+
+    .pending-panel { border: 1px solid #fde68a; background: #fffbeb; border-radius: 8px; padding: 1rem 1.1rem; margin: 1.5rem 0; }
+    .pending-panel h2 { margin: 0 0 0.5rem 0; font-size: 1rem; border: none; padding: 0; color: #92400e; }
+    .pending-panel ul { margin: 0.4rem 0; padding-left: 1.4rem; font-size: 0.9rem; color: #78350f; }
+    .pending-panel ul li { margin: 0.2rem 0; }
+    .pending-panel code { background: rgba(146,64,14,0.08); padding: 0.05rem 0.3rem; border-radius: 3px; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+
+    .submit-result { margin-top: 0.6rem; font-size: 0.9rem; }
+    .submit-result .ok { color: #166534; }
+    .submit-result .fail { color: #991b1b; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .fade-in { animation: fadeIn 0.3s ease-in; }
   </style>
 </head>
@@ -233,7 +95,7 @@
 
     <h1>Permissions Viewer <span class="gov-badge">Governor</span></h1>
     <p id="description" class="fade-in">
-      Read-only view of every action declared in <code>permissions.json</code>, the role(s) it requires, who currently holds those roles, and where the action surfaces in the DApp. Source of truth: <code>treasury-cache/permissions.json</code> + <code>dao_members.json</code>.
+      Every action declared in <code>permissions.json</code>, the role(s) it requires, who currently holds those roles, and where the action surfaces in the DApp. Toggle <strong>Edit mode</strong> to propose changes — each pending change is sent as a signed <code>[DAPP PERMISSION CHANGE EVENT]</code> to Edgar, applied by GAS, and audited on the <em>Dapp Permission Changes</em> sheet. Spec: <code>agentic_ai_context/DAPP_PERMISSION_CHANGE_FLOW.md</code>.
     </p>
 
     <div id="welcome"></div>
@@ -244,14 +106,21 @@
   </div>
 
   <script>
-    const ACTION = 'governor_chat.access'; // page-level gate uses an existing governor-only action
+    const PAGE_ACTION = 'governor_chat.access';
+    const ROLE_PALETTE = ['governor', 'member', 'operator', 'custodian', 'public'];
+    const EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
+        || 'https://edgar.truesight.me/dao/submit_contribution';
 
-    const publicKey = (function () {
-      try { return localStorage.getItem('publicKey') || ''; } catch (_) { return ''; }
-    })();
+    const publicKey = (function () { try { return localStorage.getItem('publicKey') || ''; } catch (_) { return ''; } })();
+    const privateKey = (function () { try { return localStorage.getItem('privateKey') || ''; } catch (_) { return ''; } })();
 
     const statusEl = document.getElementById('status');
     const welcomeEl = document.getElementById('welcome');
+
+    let originalManifest = null;   // immutable snapshot from treasury-cache
+    let editedManifest = null;     // mutated by toggles in edit mode
+    let snapshot = null;           // dao_members.json
+    let editMode = false;
 
     function setStatus(msg, kind) {
       statusEl.textContent = msg || '';
@@ -265,94 +134,147 @@
 
     function escapeHtml(s) {
       return String(s == null ? '' : s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function badgeFor(role) {
-      const cls = 'badge badge-' + role.replace(/[^a-z]/g, '');
-      return '<span class="' + cls + '">' + escapeHtml(role) + '</span>';
+    function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+
+    function rolesEqual(a, b) {
+      if (!Array.isArray(a) || !Array.isArray(b)) return false;
+      if (a.length !== b.length) return false;
+      const aa = a.slice().sort();
+      const bb = b.slice().sort();
+      for (let i = 0; i < aa.length; i++) if (aa[i] !== bb[i]) return false;
+      return true;
     }
 
     function holdersWithRoles(contributors, requiredRoles) {
       const set = new Set(requiredRoles);
       return (contributors || []).filter(function (c) {
         const roles = c.roles || [];
-        for (let i = 0; i < roles.length; i++) {
-          if (set.has(roles[i])) return true;
-        }
+        for (let i = 0; i < roles.length; i++) if (set.has(roles[i])) return true;
         return false;
       });
     }
 
     function listHolders(holders) {
-      if (!holders.length) {
-        return '<span class="empty-note">No registered contributor holds any of these roles yet.</span>';
-      }
+      if (!holders.length) return '<span class="empty-note">No registered contributor holds any of these roles yet.</span>';
       return holders.map(function (h) {
         return '<span class="holder-name">' + escapeHtml(h.name) + '</span>';
       }).join('');
     }
 
     function listOrEmpty(items, mapper) {
-      if (!items || !items.length) {
-        return '<span class="empty-note">(none declared)</span>';
-      }
+      if (!items || !items.length) return '<span class="empty-note">(none declared)</span>';
       return '<ul class="surfaces-list">' + items.map(mapper).join('') + '</ul>';
     }
 
-    function renderActionCard(actionName, def, contributors, isDeferred) {
+    function badgeStatic(role) {
+      return '<span class="badge badge-' + role.replace(/[^a-z]/g, '') + '">' + escapeHtml(role) + '</span>';
+    }
+
+    function badgeToggle(role, on, dirty, bucketName, actionName) {
+      const cls = 'badge badge-' + role.replace(/[^a-z]/g, '') + ' role-toggle' +
+                  (on ? '' : ' off') + (dirty ? ' dirty' : '');
+      return '<span class="' + cls + '" data-role="' + role + '" data-bucket="' +
+             bucketName + '" data-action="' + escapeHtml(actionName) + '">' +
+             escapeHtml(role) + '</span>';
+    }
+
+    function getDef(manifest, bucketName, actionName) {
+      const bucket = manifest[bucketName] || {};
+      return bucket[actionName] || null;
+    }
+
+    function isDirty(bucketName, actionName) {
+      const before = getDef(originalManifest, bucketName, actionName);
+      const after = getDef(editedManifest, bucketName, actionName);
+      if (!before || !after) return false;
+      return !rolesEqual(before.required_roles || [], after.required_roles || []);
+    }
+
+    function pendingChanges() {
+      const out = [];
+      ['actions', 'deferred_actions'].forEach(function (bucketName) {
+        const bucket = editedManifest[bucketName] || {};
+        Object.keys(bucket).forEach(function (k) {
+          if (k === 'comment') return;
+          if (isDirty(bucketName, k)) {
+            out.push({
+              action: k,
+              bucket: bucketName,
+              before: (getDef(originalManifest, bucketName, k).required_roles || []).slice(),
+              after: (getDef(editedManifest, bucketName, k).required_roles || []).slice(),
+            });
+          }
+        });
+      });
+      return out;
+    }
+
+    function renderActionCard(actionName, bucketName, isDeferred) {
+      const def = getDef(editedManifest, bucketName, actionName);
       const required = def.required_roles || [];
-      const holders = holdersWithRoles(contributors, required);
-      const cardClass = isDeferred ? 'action-card deferred' : 'action-card';
+      const dirty = isDirty(bucketName, actionName);
+      const cardClass = 'action-card' +
+                        (isDeferred ? ' deferred' : '') +
+                        (dirty ? ' dirty' : '');
 
       let html = '<div class="' + cardClass + '">';
       html += '<div class="action-name">' + escapeHtml(actionName);
       if (isDeferred) html += '<span class="badge-deferred">deferred</span>';
+      if (dirty) html += '<span class="badge-deferred" style="background:#fef3c7;color:#92400e;border-color:#fbbf24;">modified</span>';
       html += '</div>';
 
       if (def.description) {
         html += '<div class="action-desc">' + escapeHtml(def.description) + '</div>';
       }
 
-      html += '<div class="action-row"><span class="field-label">Required</span> <span class="field-value">'
-            + (required.length ? required.map(badgeFor).join(' ') : '<span class="empty-note">(none)</span>')
-            + '</span></div>';
+      // Required roles row — interactive when in edit mode.
+      html += '<div class="action-row"><span class="field-label">Required</span> <span class="field-value">';
+      if (editMode) {
+        const set = new Set(required);
+        ROLE_PALETTE.forEach(function (r) {
+          html += badgeToggle(r, set.has(r), false, bucketName, actionName) + ' ';
+        });
+        if (dirty) {
+          const before = (getDef(originalManifest, bucketName, actionName).required_roles || []).slice();
+          html += '<div style="margin-top:0.4rem;font-size:0.78rem;color:#6b7280;">was: ' +
+                  (before.length ? before.map(badgeStatic).join('') : '<em>(none)</em>') +
+                  '</div>';
+        }
+      } else {
+        html += (required.length ? required.map(badgeStatic).join('') : '<span class="empty-note">(none)</span>');
+      }
+      html += '</span></div>';
 
+      // Holders
       if (!isDeferred) {
-        html += '<div class="action-row"><span class="field-label">Held by</span> <span class="field-value holders-list">'
-              + listHolders(holders) + '</span></div>';
+        const holders = holdersWithRoles(snapshot.contributors || [], required);
+        html += '<div class="action-row"><span class="field-label">Held by</span> <span class="field-value holders-list">' +
+                listHolders(holders) + '</span></div>';
       }
-
       if (def.blocked_by) {
-        html += '<div class="action-row"><span class="field-label">Blocked by</span> <span class="field-value">'
-              + escapeHtml(def.blocked_by) + '</span></div>';
+        html += '<div class="action-row"><span class="field-label">Blocked by</span> <span class="field-value">' +
+                escapeHtml(def.blocked_by) + '</span></div>';
       }
-
       if (def.surfaces && def.surfaces.length) {
-        html += '<div class="action-row"><span class="field-label">Surfaces</span> <span class="field-value">'
-              + listOrEmpty(def.surfaces, function (s) { return '<li><code>' + escapeHtml(s) + '</code></li>'; })
-              + '</span></div>';
+        html += '<div class="action-row"><span class="field-label">Surfaces</span> <span class="field-value">' +
+                listOrEmpty(def.surfaces, function (s) { return '<li><code>' + escapeHtml(s) + '</code></li>'; }) +
+                '</span></div>';
       }
-
       if (def.endpoints && def.endpoints.length) {
-        html += '<div class="action-row"><span class="field-label">Endpoints</span> <span class="field-value">'
-              + listOrEmpty(def.endpoints, function (e) { return '<li><code>' + escapeHtml(e) + '</code></li>'; })
-              + '</span></div>';
+        html += '<div class="action-row"><span class="field-label">Endpoints</span> <span class="field-value">' +
+                listOrEmpty(def.endpoints, function (e) { return '<li><code>' + escapeHtml(e) + '</code></li>'; }) +
+                '</span></div>';
       }
-
       if (def.dedup) {
         html += '<div class="action-row"><span class="field-label">Dedup</span> <span class="field-value">';
         const keys = Object.keys(def.dedup);
-        if (!keys.length) {
-          html += '<span class="empty-note">(none)</span>';
-        } else {
+        if (!keys.length) html += '<span class="empty-note">(none)</span>';
+        else {
           html += '<ul class="surfaces-list">';
-          keys.forEach(function (k) {
-            html += '<li><strong>' + escapeHtml(k) + '</strong>: ' + escapeHtml(def.dedup[k]) + '</li>';
-          });
+          keys.forEach(function (k) { html += '<li><strong>' + escapeHtml(k) + '</strong>: ' + escapeHtml(def.dedup[k]) + '</li>'; });
           html += '</ul>';
         }
         html += '</span></div>';
@@ -362,16 +284,47 @@
       return html;
     }
 
-    function renderContent(manifest, snapshot) {
+    function renderModeBar() {
+      const pending = pendingChanges();
+      const pillCls = editMode ? 'mode-pill edit' : 'mode-pill';
+      const pillText = editMode ? 'Edit mode' : 'Read-only';
+      const editBtn = editMode
+        ? '<button id="cancelEditBtn" class="danger">Cancel edits</button>'
+        : '<button id="enterEditBtn">Edit mode</button>';
+      const submitBtn = editMode
+        ? '<button id="submitChangesBtn" class="primary"' + (pending.length ? '' : ' disabled') +
+          '>Submit ' + pending.length + ' change' + (pending.length === 1 ? '' : 's') + '</button>'
+        : '';
+      return '<div class="mode-bar"><span class="' + pillCls + '">' + pillText + '</span>' +
+             editBtn + submitBtn +
+             '<div id="submitResults" class="submit-result"></div></div>';
+    }
+
+    function renderPendingPanel() {
+      const pending = pendingChanges();
+      if (!editMode || !pending.length) return '';
+      let html = '<div class="pending-panel"><h2>Pending changes (' + pending.length + ')</h2><ul>';
+      pending.forEach(function (p) {
+        html += '<li><code>' + escapeHtml(p.action) + '</code>: [' +
+                (p.before.length ? p.before.join(', ') : '∅') + '] → [' +
+                (p.after.length ? p.after.join(', ') : '∅') + ']</li>';
+      });
+      html += '</ul><p style="margin:0.5rem 0 0 0;font-size:0.85rem;color:#78350f;">' +
+              'Each change becomes one signed <code>[DAPP PERMISSION CHANGE EVENT]</code> on Edgar. ' +
+              'GAS verifies governor + roles-before, applies, and logs to <em>Dapp Permission Changes</em>.</p></div>';
+      return html;
+    }
+
+    function render() {
       const contributors = snapshot.contributors || [];
       const counts = snapshot.counts || {};
-      const actions = manifest.actions || {};
-      const deferred = manifest.deferred_actions || {};
+      const actions = editedManifest.actions || {};
+      const deferred = editedManifest.deferred_actions || {};
       const deferredKeys = Object.keys(deferred).filter(function (k) { return k !== 'comment'; });
 
       const summaryHtml =
           '<div class="summary-grid">' +
-          '<div class="summary-card"><div class="label">Manifest schema</div><div class="value">v' + escapeHtml(manifest.schema_version || '?') + '</div></div>' +
+          '<div class="summary-card"><div class="label">Manifest schema</div><div class="value">v' + escapeHtml(editedManifest.schema_version || '?') + '</div></div>' +
           '<div class="summary-card"><div class="label">Active actions</div><div class="value">' + Object.keys(actions).length + '</div></div>' +
           '<div class="summary-card"><div class="label">Deferred actions</div><div class="value">' + deferredKeys.length + '</div></div>' +
           '<div class="summary-card"><div class="label">Contributors</div><div class="value">' + (counts.contributors || contributors.length || 0) + '</div></div>' +
@@ -384,47 +337,175 @@
           escapeHtml(window.DaoMembersCache.DEFAULT_URL) + '</code></div>';
 
       let actionsHtml = '<h2>Active actions</h2>';
-      if (!Object.keys(actions).length) {
-        actionsHtml += '<p class="empty-note">No actions declared.</p>';
-      } else {
-        Object.keys(actions).sort().forEach(function (k) {
-          actionsHtml += renderActionCard(k, actions[k], contributors, false);
-        });
-      }
+      if (!Object.keys(actions).length) actionsHtml += '<p class="empty-note">No actions declared.</p>';
+      else Object.keys(actions).sort().forEach(function (k) {
+        actionsHtml += renderActionCard(k, 'actions', false);
+      });
 
       let deferredHtml = '';
       if (deferredKeys.length) {
         deferredHtml += '<h2>Deferred actions</h2>';
-        deferredHtml += '<p class="empty-note" style="margin-bottom:0.4rem;">Documented but not yet enforceable — listed for architectural intent.</p>';
+        deferredHtml += '<p class="empty-note" style="margin-bottom:0.4rem;">Documented but not yet enforceable — listed for architectural intent. Editing here updates the manifest but no endpoint enforces these yet.</p>';
         deferredKeys.sort().forEach(function (k) {
-          deferredHtml += renderActionCard(k, deferred[k], contributors, true);
+          deferredHtml += renderActionCard(k, 'deferred_actions', true);
         });
       }
 
       let unjoinedHtml = '';
       if (snapshot.unjoined_governor_names && snapshot.unjoined_governor_names.length) {
         unjoinedHtml = '<h2>Unjoined governor names</h2>'
-                     + '<p class="empty-note" style="margin-bottom:0.4rem;">Names on the Governors tab that didn&#39;t match any contributor (typos, ledger codes like AGL15, or governors who haven&#39;t registered a signature yet). Surface so config drift fails loudly.</p>'
+                     + '<p class="empty-note" style="margin-bottom:0.4rem;">Names on the Governors tab that didn&#39;t match any contributor. Surface so config drift fails loudly.</p>'
                      + '<ul class="surfaces-list">'
                      + snapshot.unjoined_governor_names.map(function (n) { return '<li><code>' + escapeHtml(n) + '</code></li>'; }).join('')
                      + '</ul>';
       }
 
       document.getElementById('content').innerHTML =
-          summaryHtml + metaHtml + actionsHtml + deferredHtml + unjoinedHtml;
+          renderModeBar() +
+          summaryHtml + metaHtml +
+          renderPendingPanel() +
+          actionsHtml + deferredHtml + unjoinedHtml;
       document.getElementById('content').style.display = 'block';
+      attachHandlers();
+    }
+
+    function attachHandlers() {
+      const enterBtn = document.getElementById('enterEditBtn');
+      if (enterBtn) enterBtn.addEventListener('click', function () {
+        editMode = true;
+        editedManifest = deepClone(originalManifest);
+        render();
+      });
+      const cancelBtn = document.getElementById('cancelEditBtn');
+      if (cancelBtn) cancelBtn.addEventListener('click', function () {
+        if (pendingChanges().length && !confirm('Discard ' + pendingChanges().length + ' pending change(s)?')) return;
+        editMode = false;
+        editedManifest = deepClone(originalManifest);
+        document.getElementById('submitResults').innerHTML = '';
+        render();
+      });
+      const submitBtn = document.getElementById('submitChangesBtn');
+      if (submitBtn) submitBtn.addEventListener('click', onSubmit);
+
+      document.querySelectorAll('.role-toggle').forEach(function (el) {
+        el.addEventListener('click', function () {
+          const role = el.getAttribute('data-role');
+          const bucket = el.getAttribute('data-bucket');
+          const action = el.getAttribute('data-action');
+          const def = getDef(editedManifest, bucket, action);
+          if (!def) return;
+          const arr = def.required_roles || [];
+          const i = arr.indexOf(role);
+          if (i >= 0) {
+            arr.splice(i, 1);
+          } else {
+            if (role === 'public' && !confirm('Adding `public` to `' + action + '` makes the action callable without a signed identity. Are you sure?')) return;
+            arr.push(role);
+          }
+          def.required_roles = arr;
+          render();
+        });
+      });
+    }
+
+    function base64ToArrayBuffer(b64) {
+      const bin = atob(b64);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out.buffer;
+    }
+    function arrayBufferToBase64(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
+
+    async function signAndSubmitOne(change) {
+      if (!privateKey) throw new Error('No private key in localStorage. Use Digital Signature Creator first.');
+      const ts = new Date().toISOString();
+      const text =
+          '[DAPP PERMISSION CHANGE EVENT]\n' +
+          '- Action: ' + change.action + '\n' +
+          '- Required Roles (before): ' + change.before.join(', ') + '\n' +
+          '- Required Roles (after): ' + change.after.join(', ') + '\n' +
+          '- Manifest Schema Version: ' + (originalManifest.schema_version || '') + '\n' +
+          '- Submitted At: ' + ts + '\n' +
+          '- Submission Source: ' + window.location.href + '\n' +
+          '--------';
+      const keyObj = await window.crypto.subtle.importKey(
+          'pkcs8', base64ToArrayBuffer(privateKey),
+          { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+      const sig = await window.crypto.subtle.sign(
+          'RSASSA-PKCS1-v1_5', keyObj, new TextEncoder().encode(text));
+      const requestHash = arrayBufferToBase64(sig);
+      const shareText = text +
+          '\n\nMy Digital Signature: ' + publicKey +
+          '\n\nRequest Transaction ID: ' + requestHash +
+          '\n\nThis submission was generated using ' + window.location.href +
+          '\n\nVerify submission here: https://dapp.truesight.me/verify_request.html';
+      const formData = new FormData();
+      formData.append('text', shareText);
+      const resp = await fetch(EDGAR_SUBMIT, { method: 'POST', body: formData });
+      if (!resp.ok) throw new Error(await resp.text());
+      return await resp.json();
+    }
+
+    async function onSubmit() {
+      const pending = pendingChanges();
+      if (!pending.length) return;
+      const submitBtn = document.getElementById('submitChangesBtn');
+      const resultsEl = document.getElementById('submitResults');
+      submitBtn.disabled = true;
+      resultsEl.innerHTML = '';
+
+      const lines = [];
+      let okCount = 0;
+      let failCount = 0;
+      for (let i = 0; i < pending.length; i++) {
+        const c = pending[i];
+        const label = c.action + ': [' + (c.before.join(', ') || '∅') + '] → [' + (c.after.join(', ') || '∅') + ']';
+        try {
+          resultsEl.innerHTML = lines.join('<br>') + (lines.length ? '<br>' : '') +
+              '<span>Submitting <code>' + escapeHtml(c.action) + '</code>&hellip;</span>';
+          const r = await signAndSubmitOne(c);
+          okCount++;
+          lines.push('<span class="ok">✔</span> ' + escapeHtml(label) +
+              ' — sent to Edgar (' + escapeHtml(JSON.stringify(r)) + ')');
+        } catch (err) {
+          failCount++;
+          lines.push('<span class="fail">✖</span> ' + escapeHtml(label) +
+              ' — ' + escapeHtml(err.message || String(err)));
+        }
+        resultsEl.innerHTML = lines.join('<br>');
+      }
+      resultsEl.innerHTML +=
+          '<br><strong>Done.</strong> ' + okCount + ' applied, ' + failCount + ' failed. ' +
+          'GAS handler will pick up the events on the next webhook fire (typically &lt;30s); ' +
+          'check the <em>Dapp Permission Changes</em> tab for outcome rows. ' +
+          '<a href="https://docs.google.com/spreadsheets/d/1qbZZhf-_7xzmDTriaJVWj6OZshyQsFkdsAV8-pyzASQ/edit?gid=1054656840" target="_blank">Open the audit log →</a>';
+      // Re-fetch the manifest so the page reflects post-apply state once GAS processes the events.
+      // Wait a bit then refresh.
+      setTimeout(function () {
+        window.Permissions.invalidate();
+        window.DaoMembersCache.invalidate();
+        Promise.all([window.Permissions.fetchManifest(), window.DaoMembersCache.fetchSnapshot()])
+          .then(function (results) {
+            originalManifest = results[0];
+            editedManifest = deepClone(results[0]);
+            snapshot = results[1];
+            editMode = false;
+            const oldResults = resultsEl.innerHTML;
+            render();
+            const newResultsEl = document.getElementById('submitResults');
+            if (newResultsEl) newResultsEl.innerHTML = oldResults;
+          });
+      }, 8000);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!publicKey) {
         setStatus('', '');
         document.getElementById('gateContainer').innerHTML =
-            '<div style="max-width: 600px; margin: 1.5rem auto; padding: 1.25rem; ' +
-            'background: #fff5f5; border: 1px solid #f5c2c7; border-radius: 8px; color: #842029;">' +
+            '<div style="max-width: 600px; margin: 1.5rem auto; padding: 1.25rem; background: #fff5f5; border: 1px solid #f5c2c7; border-radius: 8px; color: #842029;">' +
             '<h2 style="margin: 0 0 0.5rem 0;">Sign in first</h2>' +
-            '<p style="margin: 0;">No digital signature found in your browser. Please use ' +
-            '<a href="./create_signature.html">the Digital Signature Creator</a> first to set up your identity, ' +
-            'then return here.</p></div>';
+            '<p style="margin: 0;">No digital signature found. Use ' +
+            '<a href="./create_signature.html">the Digital Signature Creator</a> first.</p></div>';
         return;
       }
 
@@ -432,35 +513,29 @@
         if (!lookup.contributor) {
           setStatus('', '');
           document.getElementById('gateContainer').innerHTML =
-              '<div style="max-width: 600px; margin: 1.5rem auto; padding: 1.25rem; ' +
-              'background: #fff5f5; border: 1px solid #f5c2c7; border-radius: 8px; color: #842029;">' +
+              '<div style="max-width: 600px; margin: 1.5rem auto; padding: 1.25rem; background: #fff5f5; border: 1px solid #f5c2c7; border-radius: 8px; color: #842029;">' +
               '<h2 style="margin: 0 0 0.5rem 0;">Signature not registered</h2>' +
-              '<p style="margin: 0;">Your digital signature is not yet registered on the DAO ledger. Use ' +
-              '<a href="./create_signature.html">the Digital Signature Creator</a> to register it.</p></div>';
+              '<p style="margin: 0;">Your digital signature is not yet registered on the DAO ledger.</p></div>';
           return null;
         }
         showWelcome(lookup.contributor.name || '(contributor)');
         return window.Permissions.requireRole({
-          action: ACTION,
-          publicKey: publicKey,
-          denyContainerId: 'gateContainer',
+          action: PAGE_ACTION, publicKey: publicKey, denyContainerId: 'gateContainer',
           onAllowed: function () {
             setStatus('Permission verified. Loading the manifest…', 'loading');
-            return Promise.all([
-              window.Permissions.fetchManifest(),
-              window.DaoMembersCache.fetchSnapshot(),
-            ]).then(function (results) {
-              renderContent(results[0], results[1]);
-              setStatus('', '');
-            }).catch(function (err) {
-              console.error('Failed to load manifest / snapshot:', err);
-              setStatus('Failed to load manifest: ' + err.message, 'error');
-            });
+            return Promise.all([window.Permissions.fetchManifest(), window.DaoMembersCache.fetchSnapshot()])
+              .then(function (results) {
+                originalManifest = results[0];
+                editedManifest = deepClone(results[0]);
+                snapshot = results[1];
+                render();
+                setStatus('', '');
+              }).catch(function (err) {
+                console.error('Failed to load manifest / snapshot:', err);
+                setStatus('Failed to load manifest: ' + err.message, 'error');
+              });
           },
-          onDenied: function () {
-            setStatus('', '');
-            // Permissions.requireRole already rendered the denied UI in #gateContainer.
-          },
+          onDenied: function () { setStatus('', ''); },
         });
       }).catch(function (err) {
         console.error('Identity / permission check failed:', err);
