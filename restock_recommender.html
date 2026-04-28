@@ -318,13 +318,24 @@
             // appear here automatically once the velocity sync runs after they're added
             // to the Agroverse Partners sheet — no edit to this page needed.
             function slugToDisplayName(slug) {
-                // Best-effort title-case from slug. Strips paths like '../cooperatives/cepotx'.
+                // Fallback when partner_name is missing. Strips paths like '../cooperatives/cepotx'.
                 var s = String(slug || '').split('/').pop();
                 return s.split('-').map(function(w) {
                     if (!w) return '';
                     if (w.length <= 2) return w.toUpperCase(); // SF, LA, OR — kept short
                     return w.charAt(0).toUpperCase() + w.slice(1);
                 }).join(' ').trim();
+            }
+
+            function buildPartnerLabel(slug, p) {
+                // Prefer canonical partner_name + location from the JSON
+                // (Agroverse Partners sheet cols B and F, surfaced via
+                // sync_partners_velocity.py). Fall back to slug-derived
+                // text when the script hasn't been re-run since the
+                // partner was added.
+                var name = (p && p.partner_name && p.partner_name.trim()) || slugToDisplayName(slug);
+                var loc = (p && p.location && p.location.trim()) || '';
+                return loc ? (name + ' · ' + loc) : name;
             }
 
             function populatePartnerSelect() {
@@ -344,7 +355,9 @@
                             var ptype = p.partner_type || 'Consignment';
                             return RETAIL_TYPES[ptype] === true;
                         })
-                        .map(function(slug) { return { slug: slug, label: slugToDisplayName(slug) }; })
+                        .map(function(slug) {
+                            return { slug: slug, label: buildPartnerLabel(slug, velocity.partners[slug]) };
+                        })
                         .sort(function(a, b) { return a.label.toLowerCase().localeCompare(b.label.toLowerCase()); });
 
                     var options = ['<option value="">— Select partner —</option>']
