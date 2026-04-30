@@ -531,7 +531,24 @@
         }
 
         function selectStripeSessionForUpdate(sessionKey) {
-            setStripeSessionValue(sessionKey || '');
+            const id = (sessionKey || '').toString().trim();
+            setStripeSessionValue(id);
+
+            // Prefill shipping_provider + tracking_number from the picked
+            // session's Stripe row. The GAS list_unassigned_stripe_sessions
+            // payload includes both per item, so this is a pure lookup with
+            // no extra round trip. If the operator unlinks (id === ''), we
+            // intentionally do NOT clear the existing form values — they may
+            // have typed in something manually.
+            if (id) {
+                const info = stripeSessionInfoByKey.get(id);
+                if (info) {
+                    setShippingProviderSelectFromSheet(info.shipping_provider || '');
+                    const trkEl = document.getElementById('trackingNumberInput');
+                    if (trkEl) trkEl.value = info.tracking_number || '';
+                }
+            }
+
             const stripeDropdownContainer = document.getElementById('stripeDropdownContainer');
             const stripeSearchInput = document.getElementById('stripeSearchInput');
             const stripeSelectCombobox = document.getElementById('stripeSelectCombobox');
@@ -540,10 +557,17 @@
             if (stripeSelectCombobox) stripeSelectCombobox.setAttribute('aria-expanded', 'false');
         }
 
+        // Map of session_id → { shipping_provider, tracking_number } so we
+        // can prefill the form when the operator picks a session from the
+        // dropdown. Populated by loadStripeSessionsForUpdatePage from the
+        // GAS list_unassigned_stripe_sessions payload.
+        let stripeSessionInfoByKey = new Map();
+
         async function loadStripeSessionsForUpdatePage() {
             if (!lastQrParam) {
                 stripeSessions = [];
                 filteredStripeSessions = [];
+                stripeSessionInfoByKey = new Map();
                 updateStripeAutocomplete();
                 return;
             }
@@ -554,9 +578,16 @@
                 const data = await res.json();
                 if (data.status === 'error') throw new Error(data.message || 'Stripe list failed');
                 const items = Array.isArray(data.items) ? data.items : [];
+                stripeSessionInfoByKey = new Map();
                 stripeSessions = items
                     .map(it => {
                         const id = (it.stripe_session_id || '').toString().trim();
+                        if (id) {
+                            stripeSessionInfoByKey.set(id, {
+                                shipping_provider: (it.shipping_provider || '').toString().trim(),
+                                tracking_number: (it.tracking_number || '').toString().trim(),
+                            });
+                        }
                         return { key: id, name: id };
                     })
                     .filter(it => it.key);
@@ -571,6 +602,7 @@
                 console.error('Stripe sessions load:', err);
                 stripeSessions = [];
                 filteredStripeSessions = [];
+                stripeSessionInfoByKey = new Map();
                 updateStripeAutocomplete();
             }
         }
