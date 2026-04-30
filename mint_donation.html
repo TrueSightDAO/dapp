@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Record a SunMint Pledge Donation | TrueSight DAO</title>
+<meta property="og:title" content="Record a SunMint Pledge Donation | TrueSight DAO"/>
+<meta property="og:description" content="Governors record a cash donation toward SunMint Tree Planting and mint a serialized Pledge QR for the donor."/>
+<meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true"/>
+<link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true"/>
+<script src="./routes.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; line-height: 1.5; max-width: 720px; margin: 0 auto; padding: 1.5rem; background: #fafafa; }
+  #logo { display: block; margin: 0 auto 1rem; }
+  h1 { font-size: 1.5rem; text-align: center; margin: 0 0 0.5rem; }
+  .lede { text-align: center; color: #666; margin: 0 0 2rem; font-size: 0.95rem; }
+  #status { text-align: center; padding: 0.75rem; border-radius: 6px; margin: 0 0 1.5rem; }
+  #status.error { background: #fee; color: #b00; }
+  #status.ok { background: #e9f7e9; color: #2a6f2a; }
+  .form-row { margin-bottom: 1.25rem; }
+  .form-row label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.4rem; color: #444; }
+  .form-row .hint { font-size: 0.82rem; color: #777; margin-top: 0.25rem; }
+  input[type="text"], input[type="email"], input[type="number"], select, textarea {
+    width: 100%; padding: 0.7rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;
+    background: #fff;
+  }
+  input:disabled, select:disabled { background: #f4f4f4; color: #999; cursor: not-allowed; }
+  textarea { min-height: 60px; resize: vertical; }
+  .paste-area {
+    border: 2px dashed #aaa; border-radius: 8px; padding: 1.25rem; text-align: center;
+    color: #666; cursor: pointer; background: #fff; font-size: 0.95rem;
+  }
+  .paste-area:hover { border-color: #2a8f2a; color: #2a8f2a; }
+  #file-preview { display: none; max-width: 100%; max-height: 320px; margin: 0.75rem auto 0; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  #file-info { display: none; background: #fff; border: 1px solid #e3e3e3; border-radius: 6px; padding: 0.75rem; margin-top: 0.5rem; font-size: 0.85rem; }
+  #file-info > div { margin: 0.2rem 0; word-break: break-all; }
+  #file-info .label { display: inline-block; min-width: 7.5rem; color: #666; font-weight: 600; }
+  button[type="submit"] {
+    width: 100%; padding: 0.9rem; font-size: 1.05rem; font-weight: 600; border-radius: 8px; border: none;
+    background: #2a8f2a; color: #fff; cursor: pointer; transition: transform 0.1s, background 0.2s;
+  }
+  button[type="submit"]:hover { background: #237323; }
+  button[type="submit"]:active { transform: scale(0.98); }
+  button[type="submit"]:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+  #output { margin-top: 1.5rem; padding: 1rem; border-radius: 6px; white-space: pre-wrap; font-size: 0.9rem; }
+  #output.success { background: #e9f7e9; color: #2a6f2a; border: 1px solid #cfe6cf; }
+  #output.error { background: #fee; color: #b00; border: 1px solid #f5bdbd; }
+  #output a { color: inherit; font-weight: 600; }
+  .qr-id { font-family: 'SF Mono', Menlo, Consolas, monospace; background: rgba(42,143,42,0.12); padding: 0.15rem 0.4rem; border-radius: 4px; }
+  .next-step { background: #fff; border: 1px solid #cfe6cf; border-radius: 6px; padding: 0.85rem; margin-top: 0.75rem; font-size: 0.9rem; }
+  .next-step a { color: #2a8f2a; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<img id="logo" height="120" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO"/>
+<h1>Record a SunMint Pledge Donation</h1>
+<p class="lede">Governors record a cash donation toward SunMint Tree Planting and mint a serialized Pledge QR for the donor.</p>
+
+<div id="status">Verifying your digital signature…</div>
+
+<form id="donationForm" style="display: none;" novalidate>
+  <div class="form-row">
+    <label for="donorName">Donor Name <span style="color:#b00;">*</span></label>
+    <input type="text" id="donorName" required placeholder="e.g. Will" autocomplete="name"/>
+  </div>
+
+  <div class="form-row">
+    <label for="donorEmail">Donor Email <span style="color:#b00;">*</span></label>
+    <input type="email" id="donorEmail" required placeholder="donor@example.com" autocomplete="email"/>
+    <div class="hint">Goes to the Owner Email column on Agroverse QR codes — donor's receipt + future communications.</div>
+  </div>
+
+  <div class="form-row">
+    <label for="donationAmount">Donation Amount (USD) <span style="color:#b00;">*</span></label>
+    <input type="number" id="donationAmount" required min="0.01" step="0.01" placeholder="25"/>
+  </div>
+
+  <div class="form-row">
+    <label for="currency">Currency</label>
+    <select id="currency">
+      <option value="SunMint Tree Planting Pledge - QR Code" selected>SunMint Tree Planting Pledge - QR Code</option>
+    </select>
+    <div class="hint">V1: only SunMint Pledge currency is accepted.</div>
+  </div>
+
+  <div class="form-row">
+    <label for="paste-area">Visual Proof <span style="color:#b00;">*</span></label>
+    <input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none;"/>
+    <div id="paste-area" class="paste-area">Click to select or paste (Ctrl/Cmd+V) the donation receipt — Venmo / bank screenshot / cash photo.</div>
+    <img id="file-preview" alt="Proof preview"/>
+    <div id="file-info">
+      <div><span class="label">Original:</span> <span id="orig-name"></span></div>
+      <div><span class="label">Uploaded as:</span> <span id="dest-name"></span></div>
+      <div><span class="label">Destination:</span> <span id="dest-url"></span></div>
+    </div>
+    <div class="hint">File flows through Edgar to GitHub. Edgar holds the auth token; the browser never does.</div>
+  </div>
+
+  <div class="form-row">
+    <label for="notes">Notes (optional)</label>
+    <textarea id="notes" placeholder="Free-form context — e.g. 'Half of $50 Venmo split, other half is cacao bag purchase.'"></textarea>
+  </div>
+
+  <button type="submit" id="submitBtn">Mint Pledge</button>
+</form>
+
+<div id="output" style="display: none;"></div>
+
+<script>
+  const EDGAR_PING = (window.Routes && window.Routes.edgar && window.Routes.edgar.ping) || 'https://edgar.truesight.me/ping';
+  const EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit) || 'https://edgar.truesight.me/dao/submit_contribution';
+  const PROOF_DEST_BASE = 'https://github.com/TrueSightDAO/.github/blob/main/assets/donations/';
+  const EVENT_NAME = 'DONATION MINT EVENT';
+
+  let currentFile = null;
+  let currentDestFilename = null;
+  let currentDestUrl = null;
+  let currentQrCode = null;
+
+  function arrayBufferToBase64(buffer) { return btoa(String.fromCharCode(...new Uint8Array(buffer))); }
+  function base64ToArrayBuffer(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+  function todayYYYYMMDD() { return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+  function rand8Hex() {
+    const arr = new Uint8Array(4);
+    crypto.getRandomValues(arr);
+    return Array.from(arr, b => b.toString(16).padStart(2,'0')).join('');
+  }
+  function generateQrCode() { return `PLEDGE_${todayYYYYMMDD()}_${rand8Hex()}`; }
+
+  function setStatus(msg, kind) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = kind || '';
+  }
+
+  function buildSharedText(qrCode, attrs, publicKey, signatureB64) {
+    const lines = [`[${EVENT_NAME}]`];
+    for (const [k, v] of attrs) lines.push(`- ${k}: ${v}`);
+    lines.push('--------', '', `My Digital Signature: ${publicKey}`, '', `Request Transaction ID: ${signatureB64}`, '', `This submission was generated using ${window.location.href}`, '', 'Verify submission here: https://dapp.truesight.me/verify_request.html');
+    return lines.join('\n');
+  }
+
+  async function sign(text) {
+    const privKeyB64 = localStorage.getItem('privateKey');
+    if (!privKeyB64) throw new Error('No private key in localStorage. Visit /create_signature.html first.');
+    const privKey = await crypto.subtle.importKey(
+      'pkcs8',
+      base64ToArrayBuffer(privKeyB64),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privKey, new TextEncoder().encode(text));
+    return arrayBufferToBase64(sig);
+  }
+
+  async function preflight() {
+    const publicKey = localStorage.getItem('publicKey');
+    const privateKey = localStorage.getItem('privateKey');
+    if (!publicKey || !privateKey) {
+      setStatus('No digital signature found in this browser. Redirecting to create one…', 'error');
+      setTimeout(() => { window.location.href = './create_signature.html'; }, 2000);
+      return false;
+    }
+    try {
+      const r = await fetch(EDGAR_PING, { method: 'HEAD' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch (e) {
+      setStatus('Edgar is unreachable. Check your network.', 'error');
+      return false;
+    }
+    setStatus('Signed in. Server-side gate: only DAO governors can submit. If your signer isn\'t in Governors, the GAS handler will reject your submission.', 'ok');
+    document.getElementById('donationForm').style.display = 'block';
+    return true;
+  }
+
+  function sanitizeFilename(name) {
+    return name.replace(/[^a-zA-Z0-9.\-_]/g, '_').replace(/_+/g, '_');
+  }
+  function setFile(file) {
+    if (!file) {
+      currentFile = currentDestFilename = currentDestUrl = currentQrCode = null;
+      document.getElementById('file-preview').style.display = 'none';
+      document.getElementById('file-info').style.display = 'none';
+      return;
+    }
+    currentFile = file;
+    currentQrCode = generateQrCode();
+    currentDestFilename = `${currentQrCode}_${sanitizeFilename(file.name)}`;
+    currentDestUrl = PROOF_DEST_BASE + currentDestFilename;
+    document.getElementById('orig-name').textContent = file.name;
+    document.getElementById('dest-name').textContent = currentDestFilename;
+    document.getElementById('dest-url').textContent = currentDestUrl;
+    document.getElementById('file-info').style.display = 'block';
+    if (file.type && file.type.startsWith('image/')) {
+      const img = document.getElementById('file-preview');
+      img.src = URL.createObjectURL(file);
+      img.style.display = 'block';
+    } else {
+      document.getElementById('file-preview').style.display = 'none';
+    }
+  }
+  document.getElementById('paste-area').addEventListener('click', () => document.getElementById('fileInput').click());
+  document.getElementById('fileInput').addEventListener('change', (e) => setFile(e.target.files[0] || null));
+  window.addEventListener('paste', (e) => {
+    if (!e.clipboardData) return;
+    for (const item of e.clipboardData.items) {
+      if (item.kind === 'file') {
+        const f = item.getAsFile();
+        if (f) { setFile(f); return; }
+      }
+    }
+  });
+
+  document.getElementById('donationForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const out = document.getElementById('output');
+    out.style.display = 'none';
+    out.className = '';
+
+    const donorName = document.getElementById('donorName').value.trim();
+    const donorEmail = document.getElementById('donorEmail').value.trim();
+    const donationAmount = parseFloat(document.getElementById('donationAmount').value);
+    const currency = document.getElementById('currency').value;
+    const notes = document.getElementById('notes').value.trim();
+
+    if (!donorName || !donorEmail || !(donationAmount > 0) || !currentFile) {
+      out.textContent = 'All required fields plus a proof file must be filled.';
+      out.className = 'error';
+      out.style.display = 'block';
+      return;
+    }
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting…';
+
+    try {
+      const cashCollectedAt = new Date().toISOString();
+      const attrs = [
+        ['QR Code', currentQrCode],
+        ['Currency', currency],
+        ['Donation Amount', String(donationAmount)],
+        ['Donor Name', donorName],
+        ['Donor Email', donorEmail],
+        ['Cash collected at (UTC)', cashCollectedAt],
+        ['Attached Filename', currentDestFilename],
+        ['Destination Contribution File Location', currentDestUrl],
+      ];
+      if (notes) attrs.push(['Notes', notes]);
+
+      const publicKey = localStorage.getItem('publicKey');
+      const requestText = `[${EVENT_NAME}]\n` + attrs.map(([k,v]) => `- ${k}: ${v}`).join('\n') + '\n--------';
+      const signature = await sign(requestText);
+      const shareText = buildSharedText(currentQrCode, attrs, publicKey, signature);
+
+      const formData = new FormData();
+      formData.append('text', shareText);
+      formData.append('attachment', currentFile, currentDestFilename);
+
+      const resp = await fetch(EDGAR_SUBMIT, { method: 'POST', body: formData });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok || result.status !== 'success') {
+        throw new Error(result.error || result.message || `Edgar HTTP ${resp.status}`);
+      }
+
+      out.innerHTML =
+        `<strong>Submitted to Edgar.</strong><br/>` +
+        `Pledge: <span class="qr-id">${currentQrCode}</span><br/>` +
+        `Proof file uploaded to GitHub: ${result.fileUploadedToGithub ? 'yes' : 'pending'}<br/>` +
+        `Signature verification: ${result.signature_verification || '(unknown)'}<br/>` +
+        `Telegram Chat Logs: <a href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">view</a><br/>` +
+        `<div class="next-step"><strong>Next step</strong> — fire the Sales Event to flip MINTED → SOLD and land the donation on AGL4:<br/>` +
+          `<a href="./report_sales.html?qr_code=${encodeURIComponent(currentQrCode)}" target="_blank">Open Report Sales (with this Pledge prefilled)</a><br/>` +
+          `or run via dao_client:<br/>` +
+          `<code style="display:block; margin-top:0.4rem; padding:0.5rem; background:#f6f6f6; border-radius:4px; font-size:0.8rem; overflow-x:auto;">python -m truesight_dao_client.modules.report_sales --item ${currentQrCode} --attr "Sales price=${donationAmount}" --attr "Sold by=&lt;your-name&gt;" --attr "Cash proceeds collected by=&lt;your-name&gt;" --attr "Owner email=${donorEmail}" --attr "Stripe Session ID=(none)" --attr "Shipping Provider=N/A" --attr "Tracking number=N/A"</code>` +
+        `</div>` +
+        `<div style="margin-top:0.5rem; font-size:0.85rem; color:#666;">If the GAS handler rejects (governor / currency / proof URL gate failure), the audit row will appear on <a href="https://docs.google.com/spreadsheets/d/1qbZZhf-_7xzmDTriaJVWj6OZshyQsFkdsAV8-pyzASQ/edit?gid=519599408" target="_blank">Donation Pledge tab</a> with a REJECTED_* status — no Agroverse QR codes row is created in that case.</div>`;
+      out.className = 'success';
+      out.style.display = 'block';
+      submitBtn.textContent = 'Submitted ✓';
+    } catch (err) {
+      out.textContent = `Submission failed: ${err && err.message ? err.message : err}`;
+      out.className = 'error';
+      out.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Mint Pledge';
+    }
+  });
+
+  preflight();
+</script>
+
+</body>
+</html>
