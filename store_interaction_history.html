@@ -1273,6 +1273,15 @@
                 inner = '<a href="' + escapeHtml(wu) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + '</a>';
             } else if (lk.indexOf('github') !== -1 && /^https?:\/\//i.test(val)) {
                 inner = '<a href="' + escapeHtml(val) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + '</a>';
+            } else if (lk === 'gmail_message_id' || lk === 'gmail message id' || lk === 'gmail_thread_id' || lk === 'gmail thread id') {
+                // Gmail's web app accepts message OR thread IDs in the
+                // #all/<id> URL form and resolves to the conversation thread.
+                // We don't store thread IDs separately — message IDs work for
+                // both because Gmail looks up the thread containing the message.
+                if (val) {
+                    var gmailHref = 'https://mail.google.com/mail/u/0/#all/' + encodeURIComponent(val);
+                    inner = '<a href="' + escapeHtml(gmailHref) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + ' ↗</a>';
+                }
             } else if (lk === 'filename_original' || lk === 'original filename' || lk === 'attachment filename') {
                 // PDFs (and any other attachment whose preview iframe doesn't
                 // render inline on every browser) need the filename itself to
@@ -1706,6 +1715,23 @@
         }
 
         var newStatus = document.getElementById('editStatus').value;
+        // When operator marks a row Deferred, require a Follow Up Date so the
+        // GAS auto-flip-to-Manager-Follow-up cron has a date to compare against.
+        // Without this validation, a Deferred row sits forever and never resurfaces.
+        if (newStatus === 'Deferred / Revisit later') {
+            var fuRaw = (document.getElementById('editFollowUpDate').value || '').trim();
+            if (!fuRaw) {
+                updateStoreMessage.innerHTML = '<span class="error">Follow Up Date is required when Status = "Deferred / Revisit later" — that\'s the date the row auto-resurfaces to Manager Follow-up.</span>';
+                return;
+            }
+            // Best-effort future-date check; the cron tolerates any parseable date,
+            // but blocking past dates here surfaces operator typos immediately.
+            var fuMs = Date.parse(fuRaw);
+            if (!isNaN(fuMs) && fuMs < Date.now() - 86400000) {
+                updateStoreMessage.innerHTML = '<span class="error">Follow Up Date is in the past — Deferred rows resurface on or after that date, so set a future date (or use Manager Follow-up if the row should already be active).</span>';
+                return;
+            }
+        }
         var newShopType = document.getElementById('editShopType').value.trim();
         var newInstagram = document.getElementById('editInstagram').value.trim();
         var newOwnerName = document.getElementById('editOwnerName').value.trim();
