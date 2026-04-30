@@ -734,10 +734,42 @@
         };
     }
 
+    /**
+     * Pad ``byKind`` so every option in ``allOptions`` has a row in the
+     * pipeline overview, even if the live data has 0 rows for that key.
+     * Without this, a status like "AI: Prospect replied" disappears from the
+     * overview the moment the field-team triages all replies (count drops to 0),
+     * and an operator scanning the pipeline can't tell whether the status
+     * exists at all. Zero-count rows render with a 0 count and no touch bars.
+     */
+    function padPipelineWithKnownOptions(byKind, allOptions, keyName) {
+        var present = {};
+        var i;
+        for (i = 0; i < byKind.length; i++) {
+            var v = byKind[i] && byKind[i][keyName];
+            if (v) present[v] = true;
+        }
+        var padded = byKind.slice();
+        for (i = 0; i < allOptions.length; i++) {
+            if (!present[allOptions[i]]) {
+                var stub = { count: 0 };
+                stub[keyName] = allOptions[i];
+                padded.push(stub);
+            }
+        }
+        // Sort: nonzero first (by count desc), then zero rows alphabetically so the
+        // pipeline-shape stays readable.
+        padded.sort(function (a, b) {
+            if ((a.count || 0) !== (b.count || 0)) return (b.count || 0) - (a.count || 0);
+            return String(a[keyName] || '').localeCompare(String(b[keyName] || ''));
+        });
+        return padded;
+    }
+
     function renderPipeline(data) {
         if (!pipelineBody) return;
-        var byStatus = data.by_status || [];
-        var byShop = data.by_shop_type || [];
+        var byStatus = padPipelineWithKnownOptions(data.by_status || [], STATUS_OPTIONS, 'status');
+        var byShop = padPipelineWithKnownOptions(data.by_shop_type || [], SHOP_TYPE_OPTIONS, 'shop_type');
         pipelineBody.innerHTML =
             '<div class="pipeline-block"><h3>Stores by status</h3><div class="pipeline-rows">' +
             renderPipelineRows(byStatus, 'status') +

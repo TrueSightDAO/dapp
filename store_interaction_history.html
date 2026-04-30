@@ -537,6 +537,7 @@
                 <option value="Followed Up">Followed Up</option>
                 <option value="Partnered">Partnered</option>
                 <option value="On Hold">On Hold</option>
+                <option value="Deferred / Revisit later">Deferred / Revisit later</option>
                 <option value="Rejected">Rejected</option>
                 <option value="Not Appropriate">Not Appropriate</option>
             </select>
@@ -1242,6 +1243,19 @@
         var keys = Object.keys(obj).filter(function (k) { return obj[k] !== '' && obj[k] !== undefined && obj[k] !== null; });
         keys.sort(function (a, b) { return a.localeCompare(b); });
         if (!keys.length) return '<p class="help-text">(empty)</p>';
+        // Resolve the GitHub blob URL (preferred for PDFs/HTML — opens directly
+        // in a browser tab) once, so the filename_original cell can render as a
+        // clickable link without a per-key network call.
+        var attachmentBlobUrl = '';
+        for (var ki = 0; ki < keys.length; ki++) {
+            var kk = keys[ki].toLowerCase().replace(/\s+/g, ' ');
+            if (kk === 'github_blob_url' || kk === 'github blob url' || kk === 'attachment github url') {
+                if (/^https?:\/\//i.test(String(obj[keys[ki]]))) {
+                    attachmentBlobUrl = String(obj[keys[ki]]);
+                    break;
+                }
+            }
+        }
         var html = '<dl class="kv-list">';
         keys.forEach(function (k) {
             var val = String(obj[k]);
@@ -1259,6 +1273,17 @@
                 inner = '<a href="' + escapeHtml(wu) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + '</a>';
             } else if (lk.indexOf('github') !== -1 && /^https?:\/\//i.test(val)) {
                 inner = '<a href="' + escapeHtml(val) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + '</a>';
+            } else if (lk === 'filename_original' || lk === 'original filename' || lk === 'attachment filename') {
+                // PDFs (and any other attachment whose preview iframe doesn't
+                // render inline on every browser) need the filename itself to
+                // link to the GitHub blob URL, which renders in a normal
+                // browser tab. We use the blob URL (not raw) because GitHub's
+                // raw host returns application/pdf without a Content-Disposition,
+                // which Chrome treats as a download — the blob URL gives an
+                // in-tab viewer.
+                if (attachmentBlobUrl) {
+                    inner = '<a href="' + escapeHtml(attachmentBlobUrl) + '" target="_blank" rel="noopener noreferrer" class="store-details-link">' + displayVal + '</a>';
+                }
             } else if (lk === 'email') {
                 inner = '<a href="mailto:' + escapeHtml(val) + '" class="store-details-link">' + displayVal + '</a>';
             } else if (lk === 'phone' || lk === 'cell phone') {
