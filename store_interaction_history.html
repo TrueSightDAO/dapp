@@ -583,6 +583,12 @@
             <label for="editFollowUpDate" style="margin-top:0.75rem;">Follow Up Date (optional)</label>
             <input type="date" id="editFollowUpDate" data-requires-signature="true" />
 
+            <div id="editDeferredUntilWrap" style="display:none; margin-top:0.75rem;">
+                <label for="editDeferredUntil">Deferred Until <span style="color:#c62828;">*</span></label>
+                <input type="date" id="editDeferredUntil" data-requires-signature="true" />
+                <p class="help-text" style="margin:0.25rem 0 0 0; font-size:0.85rem;">Required when Status = "Deferred / Revisit later" — the date this row auto-resurfaces to <strong>Manager Follow-up</strong>. The auto-flip cron runs nightly.</p>
+            </div>
+
             <label for="editVisitDate" style="margin-top:0.75rem;">Visit Date (optional)</label>
             <input type="date" id="editVisitDate" data-requires-signature="true" />
 
@@ -699,6 +705,7 @@
             (fields.visit_date ? 'Visit Date: ' + fields.visit_date + '\n' : '') +
             (fields.contact_date ? 'Contact Date: ' + fields.contact_date + '\n' : '') +
             (fields.follow_up_date ? 'Follow Up Date: ' + fields.follow_up_date + '\n' : '') +
+            (fields.deferred_until ? 'Deferred Until: ' + fields.deferred_until + '\n' : '') +
             (fields.contact_method ? 'Contact Method: ' + fields.contact_method + '\n' : '') +
             (fields.remarks ? 'Remarks: ' + fields.remarks + '\n' : '') +
             (target && target.fileName ? 'Attachment Filename: ' + target.fileName + '\n' : '') +
@@ -1499,6 +1506,25 @@
         applyUpdateSectionVisibility();
     }
 
+    /**
+     * Show the Deferred Until field only when Status = "Deferred / Revisit later".
+     * The field is required when visible (validated at save time) and ignored
+     * otherwise so it doesn't clutter the editor for the 9 other states.
+     */
+    function toggleDeferredUntilVisibility_() {
+        var statusEl = document.getElementById('editStatus');
+        var wrap = document.getElementById('editDeferredUntilWrap');
+        if (!statusEl || !wrap) return;
+        var show = statusEl.value === 'Deferred / Revisit later';
+        wrap.style.display = show ? 'block' : 'none';
+    }
+    (function () {
+        var statusEl = document.getElementById('editStatus');
+        if (statusEl) {
+            statusEl.addEventListener('change', toggleDeferredUntilVisibility_);
+        }
+    })();
+
     function populateUpdateFormFromHitList(hit) {
         var shopName = field(hit, ['Shop Name', 'shop_name']);
         document.getElementById('editStatus').value = field(hit, ['Status', 'status']) || 'Research';
@@ -1529,6 +1555,8 @@
         document.getElementById('editPhone').value = field(hit, ['Phone', 'phone']);
         document.getElementById('editWebsite').value = field(hit, ['Website', 'website']);
         document.getElementById('editFollowUpDate').value = normalizeDateForInput(field(hit, ['Follow Up Date', 'follow_up_date']));
+        document.getElementById('editDeferredUntil').value = normalizeDateForInput(field(hit, ['Deferred Until', 'deferred_until']));
+        toggleDeferredUntilVisibility_();
         document.getElementById('editVisitDate').value = normalizeDateForInput(field(hit, ['Visit Date', 'visit_date']));
         document.getElementById('editContactDate').value = normalizeDateForInput(field(hit, ['Contact Date', 'contact_date']));
         document.getElementById('editContactMethod').value = field(hit, ['Contact Method', 'contact_method']);
@@ -1715,20 +1743,23 @@
         }
 
         var newStatus = document.getElementById('editStatus').value;
-        // When operator marks a row Deferred, require a Follow Up Date so the
-        // GAS auto-flip-to-Manager-Follow-up cron has a date to compare against.
-        // Without this validation, a Deferred row sits forever and never resurfaces.
+        // When operator marks a row Deferred, require a Deferred Until date so
+        // the GAS auto-flip-to-Manager-Follow-up cron has a single-purpose date
+        // to compare against. Deferred Until (Hit List col AX, added 2026-04-30)
+        // is intentionally separate from Follow Up Date — the latter is the
+        // active-status follow-up reminder and would create ambiguity if the
+        // cron read from it.
         if (newStatus === 'Deferred / Revisit later') {
-            var fuRaw = (document.getElementById('editFollowUpDate').value || '').trim();
-            if (!fuRaw) {
-                updateStoreMessage.innerHTML = '<span class="error">Follow Up Date is required when Status = "Deferred / Revisit later" — that\'s the date the row auto-resurfaces to Manager Follow-up.</span>';
+            var duRaw = (document.getElementById('editDeferredUntil').value || '').trim();
+            if (!duRaw) {
+                updateStoreMessage.innerHTML = '<span class="error">Deferred Until is required when Status = "Deferred / Revisit later" — that\'s the date the row auto-resurfaces to Manager Follow-up.</span>';
                 return;
             }
             // Best-effort future-date check; the cron tolerates any parseable date,
             // but blocking past dates here surfaces operator typos immediately.
-            var fuMs = Date.parse(fuRaw);
-            if (!isNaN(fuMs) && fuMs < Date.now() - 86400000) {
-                updateStoreMessage.innerHTML = '<span class="error">Follow Up Date is in the past — Deferred rows resurface on or after that date, so set a future date (or use Manager Follow-up if the row should already be active).</span>';
+            var duMs = Date.parse(duRaw);
+            if (!isNaN(duMs) && duMs < Date.now() - 86400000) {
+                updateStoreMessage.innerHTML = '<span class="error">Deferred Until is in the past — Deferred rows resurface on or after that date, so set a future date (or use Manager Follow-up if the row should already be active).</span>';
                 return;
             }
         }
@@ -1741,6 +1772,7 @@
         var newPhone = document.getElementById('editPhone').value.trim();
         var newWebsite = document.getElementById('editWebsite').value.trim();
         var newFollowUpDate = document.getElementById('editFollowUpDate').value.trim();
+        var newDeferredUntil = document.getElementById('editDeferredUntil').value.trim();
         var newVisitDate = document.getElementById('editVisitDate').value.trim();
         var newContactDate = document.getElementById('editContactDate').value.trim();
         var newContactMethod = document.getElementById('editContactMethod').value.trim();
@@ -1757,6 +1789,7 @@
         var curPh = field(hit, ['Phone', 'phone']);
         var curWeb = field(hit, ['Website', 'website']);
         var curFu = normalizeDateForInput(field(hit, ['Follow Up Date', 'follow_up_date']));
+        var curDu = normalizeDateForInput(field(hit, ['Deferred Until', 'deferred_until']));
         var curVis = normalizeDateForInput(field(hit, ['Visit Date', 'visit_date']));
         var curCd = normalizeDateForInput(field(hit, ['Contact Date', 'contact_date']));
         var curCm = field(hit, ['Contact Method', 'contact_method']);
@@ -1764,7 +1797,7 @@
         if (newStatus === curStatus && newShopType === curShopType && newInstagram === curIg &&
             newOwnerName === curOwn && newContactPerson === curCp && newEmail === curEm &&
             newCellPhone === curCell && newPhone === curPh && newWebsite === curWeb &&
-            newFollowUpDate === curFu && newVisitDate === curVis && newContactDate === curCd &&
+            newFollowUpDate === curFu && newDeferredUntil === curDu && newVisitDate === curVis && newContactDate === curCd &&
             newContactMethod === curCm && !remarks && !attachments.length) {
             updateStoreMessage.innerHTML = '<span style="color:#6c757d;">No changes detected</span>';
             return;
@@ -1781,6 +1814,7 @@
             document.getElementById('editPhone'),
             document.getElementById('editWebsite'),
             document.getElementById('editFollowUpDate'),
+            document.getElementById('editDeferredUntil'),
             document.getElementById('editVisitDate'),
             document.getElementById('editContactDate'),
             document.getElementById('editContactMethod'),
@@ -1811,6 +1845,7 @@
             visit_date: newVisitDate,
             contact_date: newContactDate,
             follow_up_date: newFollowUpDate,
+            deferred_until: newDeferredUntil,
             contact_method: newContactMethod,
             remarks: remarks
         };
