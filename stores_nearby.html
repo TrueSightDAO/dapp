@@ -1014,8 +1014,9 @@
                                 <select id="newStoreStatus">
                                     <option value="Research">Research</option>
                                     <option value="AI: Shortlisted">AI: Shortlisted</option>
-                                    <option value="AI: Photo rejected">AI: Photo rejected</option>
-                                    <option value="AI: Photo needs review">AI: Photo needs review</option>
+                                    <option value="AI: No fit signal">AI: No fit signal</option>
+                                    <option value="AI: Photo rejected">AI: Photo rejected (legacy)</option>
+                                    <option value="AI: Photo needs review">AI: Photo needs review (legacy)</option>
                                     <option value="AI: Enrich with contact">AI: Enrich with contact</option>
                                     <option value="AI: Email found">AI: Email found</option>
                                     <option value="AI: Contact Form found">AI: Contact Form found</option>
@@ -1079,12 +1080,16 @@
                                 <span style="flex: 1;">AI: Shortlisted</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" class="status-filter-checkbox" value="AI: No fit signal" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
+                                <span style="flex: 1;">AI: No fit signal</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="AI: Photo rejected" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
-                                <span style="flex: 1;">AI: Photo rejected</span>
+                                <span style="flex: 1;">AI: Photo rejected (legacy)</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="AI: Photo needs review" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
-                                <span style="flex: 1;">AI: Photo needs review</span>
+                                <span style="flex: 1;">AI: Photo needs review (legacy)</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.5rem; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" class="status-filter-checkbox" value="AI: Enrich with contact" style="margin-right: 0.75rem; cursor: pointer; width: 18px; height: 18px; accent-color: #007bff;">
@@ -1280,8 +1285,12 @@
                                 <span>AI: Shortlisted</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="expanded-status-filter-checkbox" value="AI: No fit signal" style="margin-right: 0.5rem; cursor: pointer;">
+                                <span>AI: No fit signal</span>
+                            </label>
+                            <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-status-filter-checkbox" value="AI: Photo rejected" style="margin-right: 0.5rem; cursor: pointer;">
-                                <span>AI: Photo rejected</span>
+                                <span>AI: Photo rejected (legacy)</span>
                             </label>
                             <label style="display: flex; align-items: center; padding: 0.25rem; cursor: pointer; user-select: none;">
                                 <input type="checkbox" class="expanded-status-filter-checkbox" value="AI: Photo needs review" style="margin-right: 0.5rem; cursor: pointer;">
@@ -1544,9 +1553,10 @@
 
         const statusDescriptions = {
             'Research': 'Store is being researched. Gathering information about the store, their products, and potential fit.',
-            'AI: Shortlisted': 'Automated photo check met the positive rubric. Confirm or promote to human Shortlisted.',
-            'AI: Photo rejected': 'Automated photo check failed the rubric (weak fit from imagery). Confirm or move to Rejected / Not Appropriate.',
-            'AI: Photo needs review': 'Automation could not decide from photos alone. Review imagery and set the next status.',
+            'AI: Shortlisted': 'LEGACY (pre-2026-05-03): Automated photo check met the positive rubric. The photo+Grok rubric is retired; this state is now operator-managed.',
+            'AI: No fit signal': 'Site was crawled, no qualifying keywords (cacao ceremony / women’s circle / sound bath / etc.) found. Recoverable: a future re-crawl that finds keywords promotes back to AI: Enrich with contact via the rescue path.',
+            'AI: Photo rejected': 'LEGACY (pre-2026-05-03): photo rubric flagged this row as weak fit. Renamed to AI: No fit signal; existing rows in this state get re-evaluated by the site-crawl rescue path automatically.',
+            'AI: Photo needs review': 'LEGACY (pre-2026-05-03): photo rubric ambiguous. No automation reaches this state any more; manual triage only.',
             'AI: Enrich with contact': 'Queued for contact enrichment (website scrape, email, or contact form URL).',
             'AI: Email found': 'Public email is in Hit List column Email (K). Next: draft/send warm-up; then move to AI: Warm up prospect when appropriate.',
             'AI: Contact Form found': 'No reliable email; use the URL in column Contact Form URL (AE). Submit the form manually; advance status when you get a response.',
@@ -6393,8 +6403,9 @@
                                 style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-bottom: 0.75rem;">
                             <option value="Research" ${store.status === 'Research' ? 'selected' : ''}>Research</option>
                             <option value="AI: Shortlisted" ${store.status === 'AI: Shortlisted' ? 'selected' : ''}>AI: Shortlisted</option>
-                            <option value="AI: Photo rejected" ${store.status === 'AI: Photo rejected' ? 'selected' : ''}>AI: Photo rejected</option>
-                            <option value="AI: Photo needs review" ${store.status === 'AI: Photo needs review' ? 'selected' : ''}>AI: Photo needs review</option>
+                            <option value="AI: No fit signal" ${store.status === 'AI: No fit signal' ? 'selected' : ''}>AI: No fit signal</option>
+                            <option value="AI: Photo rejected" ${store.status === 'AI: Photo rejected' ? 'selected' : ''}>AI: Photo rejected (legacy)</option>
+                            <option value="AI: Photo needs review" ${store.status === 'AI: Photo needs review' ? 'selected' : ''}>AI: Photo needs review (legacy)</option>
                             <option value="AI: Enrich with contact" ${store.status === 'AI: Enrich with contact' ? 'selected' : ''}>AI: Enrich with contact</option>
                             <option value="AI: Email found" ${store.status === 'AI: Email found' ? 'selected' : ''}>AI: Email found</option>
                             <option value="AI: Contact Form found" ${store.status === 'AI: Contact Form found' ? 'selected' : ''}>AI: Contact Form found</option>
