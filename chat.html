@@ -453,7 +453,6 @@
             appendMessage('You', text, true);
             sendBtn.disabled = true;
             setStatus('');
-            showTyping();
 
             const payloadObj = {
                 message: text,
@@ -463,6 +462,13 @@
 
             try {
                 const signed = await signPayload(payloadObj);
+
+                // Show a streaming message placeholder
+                const botMsgDiv = appendMessage('DAO Assistant', '', false);
+                const botTextDiv = botMsgDiv.querySelector('.text');
+                botTextDiv.textContent = '';
+
+                let fullResponse = '';
                 const res = await fetch(CHAT_API_URL, {
                     method: 'POST',
                     headers: {
@@ -471,8 +477,6 @@
                     },
                     body: JSON.stringify(signed)
                 });
-
-                hideTyping();
 
                 if (!res.ok) {
                     const errText = await res.text();
@@ -484,7 +488,7 @@
 
                     if (res.status === 403) {
                         setStatus('Access restricted', 'warning');
-                        appendMessage('System', displayErr, false);
+                        botTextDiv.textContent = displayErr;
                         sendBtn.disabled = true;
                         inputEl.disabled = true;
                         inputEl.placeholder = 'Access restricted — check back later.';
@@ -492,22 +496,73 @@
                     }
 
                     setStatus('Error: ' + displayErr, 'error');
-                    appendMessage('System', 'Failed to get a response. Please try again.', false);
+                    botTextDiv.textContent = 'Failed to get a response. Please try again.';
                     return;
                 }
 
-                const data = await res.json();
-                appendMessage('DAO Assistant', data.response || '(no response)', false);
+                // Read the SSE stream
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
 
-                // If the bot proposed an action, render proposal card
-                if (data.proposal) {
-                    renderProposal(data.proposal);
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || ''; // keep incomplete line
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const raw = line.slice(6).trim();
+                        if (!raw) continue;
+
+                        try {
+                            const event = JSON.parse(raw);
+                            const type = event.type;
+
+                            if (type === 'token') {
+                                fullResponse += event.content || '';
+                                if (typeof marked !== 'undefined') {
+                                    botTextDiv.innerHTML = marked.parse(fullResponse);
+                                } else {
+                                    botTextDiv.textContent = fullResponse;
+                                }
+                                messagesEl.scrollTop = messagesEl.scrollHeight;
+                            } else if (type === 'tool') {
+                                const status = event.status === 'calling' ? '...' : 'done';
+                                const toolMsg = event.status === 'calling' ? '🔧 ' + event.tool + '...' : '✅ ' + event.tool + ' done';
+                                setStatus(toolMsg);
+                            } else if (type === 'done') {
+                                if (event.response) {
+                                    fullResponse = event.response;
+                                    if (typeof marked !== 'undefined') {
+                                        botTextDiv.innerHTML = marked.parse(fullResponse);
+                                    } else {
+                                        botTextDiv.textContent = fullResponse;
+                                    }
+                                }
+                                if (event.proposal) {
+                                    renderProposal(event.proposal);
+                                }
+                                setStatus('');
+                            } else if (type === 'error') {
+                                botTextDiv.textContent = 'Error: ' + (event.content || 'Unknown error');
+                                setStatus('Error', 'error');
+                            }
+                        } catch (e) {
+                            // skip malformed JSON in buffer
+                        }
+                    }
                 }
             } catch (err) {
-                hideTyping();
                 console.error(err);
                 setStatus('Network error: ' + err.message, 'error');
-                appendMessage('System', 'Could not reach the chat service. Is it running at ' + API_BASE_URL + '?', false);
+                const botMsg = messagesEl.querySelector('.message.bot:last-child');
+                if (botMsg) {
+                    botMsg.querySelector('.text').textContent = 'Could not reach the chat service. Is it running at ' + API_BASE_URL + '?';
+                }
             } finally {
                 sendBtn.disabled = false;
                 inputEl.focus();
