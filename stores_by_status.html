@@ -399,30 +399,46 @@
     /** Bypass HTTP cache for live GAS JSON (aligned with service-worker GAS policy). */
     var GAS_FETCH_INIT = { cache: 'no-store' };
 
+    // 2026-05-03: ordered top-of-pipeline → bottom-of-pipeline so an
+    // operator can read the filter list as the lifecycle of a prospect.
+    // See agentic_ai_context/HIT_LIST_STATE_MACHINE.md for state semantics.
     var STATUS_OPTIONS = [
+        // Stage 1 — newly discovered
         'Research',
-        'AI: Shortlisted',
-        'AI: No fit signal',
-        'AI: Photo rejected',  // legacy — renamed 2026-05-03 to AI: No fit signal
-        'AI: Photo needs review',  // legacy — pre-2026-05-03 photo+Grok pipeline
-        'AI: Enrich with contact',
-        'AI: Email found',
-        'AI: Contact Form found',
-        'AI: Enrich — manual',
-        'AI: Warm up prospect',
-        'AI: Prospect replied',
-        'Shortlisted',
-        'Instagram Followed',
+
+        // Stage 2 — qualification outcomes
+        'AI: Shortlisted',          // Grok said likely fit (legacy, retired)
+        'Shortlisted',              // human-confirmed fit
+
+        // Stage 3 — enrichment (finding contact info)
+        'AI: Enrich with contact',  // queued for enrichment
+        'AI: Email found',          // success: email harvested
+        'AI: Contact Form found',   // partial: contact form, manual follow-up
+        'AI: Enrich — manual',      // failure: needs manual outreach
+
+        // Stage 4 — outreach in progress (rough time-ordered)
+        'AI: Warm up prospect',     // warm-up draft created / sent
         'Contacted',
+        'Instagram Followed',
+        'AI: Prospect replied',
         'Manager Follow-up',
         'Bulk Info Requested',
-        'Meeting Scheduled',
         'Followed Up',
+        'Meeting Scheduled',
+
+        // Stage 5 — closed positive
         'Partnered',
+
+        // Stage 6 — holding pattern
         'On Hold',
         'Deferred / Revisit later',
+
+        // Stage 7 — closed negative
+        'AI: No fit signal',
         'Rejected',
-        'Not Appropriate'
+        'Not Appropriate',
+        'AI: Photo rejected',       // legacy — renamed 2026-05-03 to AI: No fit signal
+        'AI: Photo needs review'    // legacy — pre-2026-05-03 photo+Grok pipeline
     ];
 
     var SHOP_TYPE_OPTIONS = [
