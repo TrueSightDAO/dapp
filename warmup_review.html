@@ -2,9 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="description" content="Review and send warm-up email drafts staged in Gmail.">
+  <meta name="description" content="Review and send warm-up email drafts staged in Gmail — sorted red-first by lint flags.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Warm-up Review · TrueSight DAO</title>
+  <title>Outbound Review · TrueSight DAO</title>
+
+  <meta property="og:title" content="Outbound Review — TrueSight DAO">
+  <meta property="og:description" content="Review and send pending Gmail drafts (warm-ups + follow-ups) — sorted red-first by lint flags.">
+  <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+  <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+  <meta property="og:type" content="website">
+
   <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
 
   <script src="./routes.js"></script>
@@ -15,24 +22,74 @@
 
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       margin: 1rem;
-      padding: 0;
-      background: #f5f5f5;
-      color: #222;
+      padding: 1rem;
+      min-height: 100vh;
       box-sizing: border-box;
+      background-color: #f5f5f5;
     }
     .container {
       max-width: 860px;
-      margin: 0 auto;
-      padding: 1rem;
-      background: white;
+      width: 100%;
+      background-color: white;
+      padding: 1.25rem;
       border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    h1 { font-size: 1.5rem; margin: 0 0 0.5rem; text-align: center; }
-    .meta { color: #666; font-size: 0.85rem; text-align: center; margin-bottom: 1rem; }
-    #status { text-align: center; padding: 0.5rem; min-height: 1.2rem; }
+    h1 {
+      font-size: 1.6rem;
+      color: #333;
+      margin: 0.5rem 0 0.5rem;
+      text-align: center;
+    }
+    .gov-badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      background: #e8f5e9;
+      color: #166534;
+      border: 1px solid #86efac;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: bold;
+      letter-spacing: 0.02em;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+    }
+    #description {
+      font-style: italic;
+      color: #555;
+      line-height: 1.5;
+      margin: 0.6rem 0 1rem;
+      font-size: 0.95rem;
+      text-align: center;
+    }
+    #welcome {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin: 0.6rem 0;
+      text-align: center;
+      color: #28a745;
+      display: none;
+    }
+    #status {
+      margin: 0.75rem 0;
+      font-weight: bold;
+      min-height: 24px;
+      font-size: 0.95rem;
+      text-align: center;
+    }
+    #status.success { color: #28a745; }
+    #status.error   { color: #dc3545; }
+    #status.loading { color: #555; }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
     .toolbar {
       display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
       padding: 0.5rem 0; margin-bottom: 0.75rem;
@@ -42,12 +99,39 @@
       padding: 0.5rem 0.9rem; font-size: 0.95rem; cursor: pointer; min-height: 40px;
     }
     .toolbar .btn-refresh:disabled { background: #6c757d; cursor: not-allowed; }
+    .tabs {
+      display: flex; gap: 0.5rem; margin-bottom: 0.75rem;
+      border-bottom: 1px solid #ddd;
+    }
+    .tab-btn {
+      background: transparent; border: none; padding: 0.6rem 1rem;
+      font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      color: #555; border-bottom: 3px solid transparent;
+      margin-bottom: -1px; min-height: 44px;
+    }
+    .tab-btn.active { color: #007bff; border-bottom-color: #007bff; }
+    .tab-btn .badge {
+      display: inline-block; min-width: 1.5rem; padding: 0 0.4rem;
+      margin-left: 0.4rem; background: #e0e0e0; color: #333;
+      border-radius: 999px; font-size: 0.75rem; font-weight: 700;
+    }
+    .tab-btn.active .badge { background: #007bff; color: white; }
     .summary {
-      display: flex; gap: 0.75rem; flex-wrap: wrap;
-      background: #f7f7f7; padding: 0.75rem; border-radius: 6px;
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      background: #f7f7f7; padding: 0.6rem; border-radius: 6px;
       font-size: 0.85rem;
     }
-    .summary div b { display: block; font-size: 1.1rem; }
+    .summary .chip {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 0.4rem 0.7rem; border-radius: 6px; cursor: pointer;
+      background: white; border: 1px solid #ddd; min-width: 64px;
+      user-select: none; transition: background 0.15s, border-color 0.15s;
+    }
+    .summary .chip:hover { background: #f0f7ff; border-color: #bbb; }
+    .summary .chip.active { background: #007bff; border-color: #007bff; color: white; }
+    .summary .chip.active b { color: white; }
+    .summary .chip b { display: block; font-size: 1.1rem; line-height: 1.1; }
+    .summary .chip .lbl { font-size: 0.75rem; color: inherit; opacity: 0.85; }
     .draft {
       border: 1px solid #ddd; border-left: 4px solid #ddd;
       border-radius: 6px; padding: 0.85rem; margin-bottom: 0.75rem;
@@ -101,8 +185,8 @@
     .toast.error { background: #b00020; }
 
     @media (max-width: 720px) {
-      body { margin: 0.5rem; }
-      .container { padding: 0.75rem; }
+      body { margin: 0.5rem; padding: 0.5rem; }
+      .container { padding: 0.85rem; }
       h1 { font-size: 1.3rem; }
       .summary div b { font-size: 1rem; }
       .draft { padding: 0.7rem; }
@@ -112,12 +196,31 @@
 <body>
   <div id="navDropdown" style="margin: 1rem 0; text-align: center;"></div>
   <div id="tdgBalanceBadge"></div>
+  <div id="google_translate_element" style="text-align: right; margin: 1rem;"></div>
   <div class="container">
-    <h1>Warm-up Review</h1>
-    <div class="meta">Linted Gmail drafts pending review · sorted red-first</div>
-    <p id="status" aria-live="polite">Verifying access…</p>
+
+    <div style="text-align: center;">
+      <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSightDAO Logo"/>
+    </div>
+
+    <h1>Outbound Review <span class="gov-badge">Governor</span></h1>
+    <p id="description" class="fade-in">
+      Triage pending Gmail drafts before they ship. Linter flags risky ones (generic <code>info@</code>, fallback shop name, foreign script, &hellip;) red; Hosts Circles=Yes prospects get a blue badge; clean cohort sits at the bottom for a glance + Send. Tap <strong>Send</strong> to ship from your Gmail (signed via <code>[WARMUP SEND EVENT]</code>) or <strong>Edit in Gmail</strong> to tweak first. Toggle between cohorts with the tabs below.
+    </p>
+
+    <div id="welcome"></div>
+    <p id="status" class="loading fade-in" aria-live="polite">Verifying your digital signature&hellip;</p>
     <div id="gateContainer"></div>
+
     <div id="content" style="display: none;">
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" type="button" data-label="AI/Warm-up" role="tab" aria-selected="true">
+          Warm-ups <span class="badge" data-count="warmup">0</span>
+        </button>
+        <button class="tab-btn" type="button" data-label="AI/Follow-up" role="tab" aria-selected="false">
+          Follow-ups <span class="badge" data-count="followup">0</span>
+        </button>
+      </div>
       <div class="toolbar">
         <button id="btnRefresh" class="btn-refresh" type="button">Refresh</button>
         <span id="lastFetchedAt" style="color:#888; font-size:0.8rem;"></span>
@@ -146,6 +249,7 @@
     let contributorName = '';
 
     const statusEl  = document.getElementById('status');
+    const welcomeEl = document.getElementById('welcome');
     const contentEl = document.getElementById('content');
     const summaryEl = document.getElementById('summary');
     const listEl    = document.getElementById('draftList');
@@ -155,7 +259,12 @@
 
     function setStatus(msg, kind) {
       statusEl.textContent = msg || '';
-      statusEl.className = kind || '';
+      statusEl.className = (kind || '') + ' fade-in';
+    }
+
+    function showWelcome(name) {
+      welcomeEl.textContent = 'Welcome back, ' + name + '!';
+      welcomeEl.style.display = 'block';
     }
 
     function escapeHtml(s) {
@@ -221,18 +330,61 @@
       return r * 10 + aw;
     }
 
+    // Filter chip definitions: map chip key → predicate(d => boolean).
+    // 'all' clears the filter.
+    const CHIP_FILTERS = {
+      all:    function () { return true; },
+      red:    function (d) { return d._flags.some(function (f) { return f[0] === 'red'; }); },
+      yel:    function (d) { return !d._flags.some(function (f) { return f[0] === 'red'; })
+                                  && d._flags.some(function (f) { return f[0] === 'yel'; }); },
+      clean:  function (d) { return !d._flags.some(function (f) { return f[0] === 'red' || f[0] === 'yel'; }); },
+      aw:     function (d) { return !!d.hosts_circles; },
+    };
+
     function renderSummary(rows) {
       const total = rows.length;
-      const red   = rows.filter(function (r) { return r._flags.some(function (f) { return f[0] === 'red'; }); }).length;
-      const yel   = rows.filter(function (r) { return !r._flags.some(function (f) { return f[0] === 'red'; }) && r._flags.some(function (f) { return f[0] === 'yel'; }); }).length;
-      const aw    = rows.filter(function (r) { return r.hosts_circles; }).length;
-      const clean = rows.filter(function (r) { return !r._flags.some(function (f) { return f[0] === 'red' || f[0] === 'yel'; }); }).length;
+      const red   = rows.filter(CHIP_FILTERS.red).length;
+      const yel   = rows.filter(CHIP_FILTERS.yel).length;
+      const aw    = rows.filter(CHIP_FILTERS.aw).length;
+      const clean = rows.filter(CHIP_FILTERS.clean).length;
+
+      function chip(key, lbl, count, color) {
+        const isActive = activeChip === key;
+        const styleAttr = isActive ? '' : (color ? ' style="color:' + color + '"' : '');
+        return '<button type="button" class="chip' + (isActive ? ' active' : '') + '" data-chip="' + key + '">' +
+               '<b' + styleAttr + '>' + count + '</b>' +
+               '<span class="lbl">' + lbl + '</span></button>';
+      }
       summaryEl.innerHTML =
-          '<div><b>' + total + '</b>pending</div>' +
-          '<div><b style="color:#d33">' + red + '</b>red flagged</div>' +
-          '<div><b style="color:#e90">' + yel + '</b>yellow only</div>' +
-          '<div><b style="color:#2a2">' + clean + '</b>clean</div>' +
-          '<div><b style="color:#28a">' + aw + '</b>Hosts Circles</div>';
+          chip('all',   'pending',        total) +
+          chip('red',   'red flagged',    red,   '#d33') +
+          chip('yel',   'yellow only',    yel,   '#e90') +
+          chip('clean', 'clean',          clean, '#2a2') +
+          chip('aw',    'Hosts Circles',  aw,    '#28a');
+
+      // Wire chip clicks (re-render on toggle).
+      Array.prototype.forEach.call(summaryEl.querySelectorAll('button[data-chip]'), function (b) {
+        b.addEventListener('click', function () {
+          const key = b.getAttribute('data-chip');
+          activeChip = (activeChip === key && key !== 'all') ? 'all' : key;
+          rerenderList();
+        });
+      });
+    }
+
+    function rerenderList() {
+      const filter = CHIP_FILTERS[activeChip] || CHIP_FILTERS.all;
+      const filtered = allDrafts.filter(filter);
+      // Re-render summary so the active chip highlight updates.
+      renderSummary(allDrafts);
+      if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="empty">' +
+            (allDrafts.length === 0 ? 'No pending drafts.' : 'No drafts match this filter.') +
+            '</div>';
+      } else {
+        listEl.innerHTML = filtered.map(renderDraft).join('');
+        attachSendHandlers();
+      }
     }
 
     function renderDraft(d) {
@@ -246,9 +398,12 @@
         return '<span class="flag f-' + f[0] + '">' + escapeHtml(f[1]) + '</span>';
       }).join('');
 
+      const labelFallback = activeLabel === 'AI/Follow-up'
+          ? 'https://mail.google.com/mail/u/0/#label/AI%2FFollow-up'
+          : 'https://mail.google.com/mail/u/0/#label/AI%2FWarm-up';
       const gmailLink = d.gmail_message_id
           ? 'https://mail.google.com/mail/u/0/#drafts/' + encodeURIComponent(d.gmail_message_id)
-          : 'https://mail.google.com/mail/u/0/#label/AI%2FWarm-up';
+          : labelFallback;
 
       return '' +
         '<div class="draft ' + cls + '" data-draft-id="' + escapeHtml(d.gmail_draft_id) + '" id="d-' + escapeHtml(d.gmail_draft_id) + '">' +
@@ -272,29 +427,63 @@
     }
 
     let allDrafts = [];
+    let activeLabel = 'AI/Warm-up'; // current cohort tab
+    let activeChip = 'all';         // current filter chip
+
+    // Initial label from URL hash if provided (#followup or #warmup).
+    (function initLabelFromHash() {
+      const h = (window.location.hash || '').replace(/^#/, '').toLowerCase();
+      if (h === 'followup' || h === 'follow-up') activeLabel = 'AI/Follow-up';
+    })();
+
+    function setActiveLabelUI() {
+      Array.prototype.forEach.call(document.querySelectorAll('.tab-btn'), function (btn) {
+        const isActive = btn.getAttribute('data-label') === activeLabel;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      window.location.hash = activeLabel === 'AI/Follow-up' ? 'followup' : 'warmup';
+    }
+
+    async function fetchQueueForLabel(label) {
+      const url = GAS_URL + '?action=getWarmupReviewQueue&label=' + encodeURIComponent(label);
+      const resp = await fetch(url, { method: 'GET' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const json = await resp.json();
+      if (json.status !== 'success') throw new Error(json.message || 'GAS error');
+      return json.data || {};
+    }
+
+    async function refreshTabBadges() {
+      // Quietly fetch counts for the inactive tab too, so the user sees the
+      // right "5" / "12" badge even before tapping. Best-effort — silent on
+      // failure (the active tab's load handles errors loudly).
+      try {
+        const otherLabel = activeLabel === 'AI/Warm-up' ? 'AI/Follow-up' : 'AI/Warm-up';
+        const data = await fetchQueueForLabel(otherLabel);
+        const key = otherLabel === 'AI/Follow-up' ? 'followup' : 'warmup';
+        const el = document.querySelector('[data-count="' + key + '"]');
+        if (el) el.textContent = String((data.drafts || []).length);
+      } catch (_) { /* silent */ }
+    }
 
     async function loadQueue() {
       refreshBtn.disabled = true;
-      setStatus('Loading queue…');
+      setStatus('Loading ' + (activeLabel === 'AI/Follow-up' ? 'follow-ups' : 'warm-ups') + '…', 'loading');
       try {
-        const url = GAS_URL + '?action=getWarmupReviewQueue';
-        const resp = await fetch(url, { method: 'GET' });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const json = await resp.json();
-        if (json.status !== 'success') throw new Error(json.message || 'GAS error');
-        const data = json.data || {};
+        const data = await fetchQueueForLabel(activeLabel);
         allDrafts = (data.drafts || []).map(function (d) {
           d._flags = lintDraft(d);
           return d;
         });
         allDrafts.sort(function (a, b) { return sortKey(a) - sortKey(b); });
-        renderSummary(allDrafts);
-        if (allDrafts.length === 0) {
-          listEl.innerHTML = '<div class="empty">No pending warm-up drafts.</div>';
-        } else {
-          listEl.innerHTML = allDrafts.map(renderDraft).join('');
-          attachSendHandlers();
-        }
+
+        // Update the active tab's count badge.
+        const activeKey = activeLabel === 'AI/Follow-up' ? 'followup' : 'warmup';
+        const activeBadge = document.querySelector('[data-count="' + activeKey + '"]');
+        if (activeBadge) activeBadge.textContent = String(allDrafts.length);
+
+        rerenderList();
         lastFetchedEl.textContent = 'Last refreshed ' + new Date().toLocaleTimeString();
         setStatus('');
       } catch (e) {
@@ -302,6 +491,21 @@
       } finally {
         refreshBtn.disabled = false;
       }
+      // Refresh the inactive tab's badge in the background.
+      refreshTabBadges();
+    }
+
+    function attachTabHandlers() {
+      Array.prototype.forEach.call(document.querySelectorAll('.tab-btn'), function (btn) {
+        btn.addEventListener('click', function () {
+          const newLabel = btn.getAttribute('data-label');
+          if (newLabel === activeLabel) return;
+          activeLabel = newLabel;
+          activeChip = 'all';
+          setActiveLabelUI();
+          loadQueue();
+        });
+      });
     }
 
     function attachSendHandlers() {
@@ -401,8 +605,11 @@
           publicKey: publicKey,
           denyContainerId: 'gateContainer',
           onAllowed: function () {
+            if (contributorName) showWelcome(contributorName);
             setStatus('');
             contentEl.style.display = 'block';
+            setActiveLabelUI();
+            attachTabHandlers();
             loadQueue();
           },
           onDenied: function () { setStatus(''); },
