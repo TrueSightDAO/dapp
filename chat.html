@@ -509,12 +509,19 @@
             try {
                 const signed = await signPayload(payloadObj);
 
-                // Show a streaming message placeholder
-                const botMsgDiv = appendMessage('DAO Assistant', '', false);
-                const botTextDiv = botMsgDiv.querySelector('.text');
-                botTextDiv.textContent = '';
-
+                // Show a streaming message placeholder (created on first token or tool call)
+                let botMsgDiv = null;
+                let botTextDiv = null;
                 let fullResponse = '';
+
+                function ensureBotMessage() {
+                    if (!botMsgDiv) {
+                        botMsgDiv = appendMessage('DAO Assistant', '', false);
+                        botTextDiv = botMsgDiv.querySelector('.text');
+                        botTextDiv.textContent = '';
+                    }
+                    return botTextDiv;
+                }
                 const res = await fetch(CHAT_API_URL, {
                     method: 'POST',
                     headers: {
@@ -567,34 +574,41 @@
                         try {
                             const event = JSON.parse(raw);
                             const type = event.type;
+                            console.log('[SSE]', type, event);
 
                             if (type === 'token') {
+                                const td = ensureBotMessage();
                                 fullResponse += event.content || '';
                                 if (typeof marked !== 'undefined') {
-                                    botTextDiv.innerHTML = marked.parse(fullResponse);
+                                    td.innerHTML = marked.parse(fullResponse);
                                 } else {
-                                    botTextDiv.textContent = fullResponse;
+                                    td.textContent = fullResponse;
                                 }
                                 messagesEl.scrollTop = messagesEl.scrollHeight;
                             } else if (type === 'tool') {
-                                const status = event.status === 'calling' ? '...' : 'done';
+                                ensureBotMessage();
                                 const toolMsg = event.status === 'calling' ? '🔧 ' + event.tool + '...' : '✅ ' + event.tool + ' done';
                                 setStatus(toolMsg);
                             } else if (type === 'done') {
-                                if (event.response) {
+                                if (event.response && event.response.trim()) {
+                                    const td = ensureBotMessage();
                                     fullResponse = event.response;
                                     if (typeof marked !== 'undefined') {
-                                        botTextDiv.innerHTML = marked.parse(fullResponse);
+                                        td.innerHTML = marked.parse(fullResponse);
                                     } else {
-                                        botTextDiv.textContent = fullResponse;
+                                        td.textContent = fullResponse;
                                     }
+                                }
+                                if (!fullResponse.trim() && botMsgDiv) {
+                                    botMsgDiv.remove();
                                 }
                                 if (event.proposal) {
                                     renderProposal(event.proposal);
                                 }
                                 setStatus('');
                             } else if (type === 'error') {
-                                botTextDiv.textContent = 'Error: ' + (event.content || 'Unknown error');
+                                const td = ensureBotMessage();
+                                td.textContent = 'Error: ' + (event.content || 'Unknown error');
                                 setStatus('Error', 'error');
                             }
                         } catch (e) {
