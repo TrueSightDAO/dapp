@@ -376,10 +376,11 @@
     }
 
     function rerenderList() {
+      const drafts = (allDraftsByLabel && allDraftsByLabel[activeLabel]) || [];
       const filter = CHIP_FILTERS[activeChip] || CHIP_FILTERS.all;
-      const filtered = allDrafts.filter(filter);
+      const filtered = drafts.filter(function (d) { d._flags = lintDraft(d); return filter(d); });
       // Re-render summary so the active chip highlight updates.
-      renderSummary(allDrafts);
+      renderSummary(drafts);
       if (filtered.length === 0) {
         listEl.innerHTML = '<div class="empty">' +
             (allDrafts.length === 0 ? 'No pending drafts.' : 'No drafts match this filter.') +
@@ -433,7 +434,8 @@
         '</div>';
     }
 
-    let allDrafts = [];
+    let allDraftsByLabel = null; // { 'AI/Warm-up': [...], 'AI/Follow-up': [...], 'AI/Prospect Replied': [...] }
+    let isLoading = false;
     let activeLabel = 'AI/Warm-up'; // current cohort tab
     let activeChip = 'all';         // current filter chip
 
@@ -451,59 +453,65 @@
         btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
       });
       window.location.hash = activeLabel === 'AI/Follow-up' ? 'followup' : activeLabel === 'AI/Prospect Replied' ? 'prospect' : 'warmup';
+      // Render from cached data if available
+      if (allDraftsByLabel) renderActiveTab();
     }
 
-    async function fetchQueueForLabel(label) {
-      const url = GAS_URL + '?action=getWarmupReviewQueue&label=' + encodeURIComponent(label);
-      const resp = await fetch(url, { method: 'GET' });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const json = await resp.json();
-      if (json.status !== 'success') throw new Error(json.message || 'GAS error');
-      return json.data || {};
-    }
+    function renderActiveTab() {
+      const drafts = (allDraftsByLabel[activeLabel] || []).slice();
+      const activeKey = activeLabel === 'AI/Follow-up' ? 'followup' : activeLabel === 'AI/Prospect Replied' ? 'prospect' : 'warmup';
+      const activeBadge = document.querySelector('[data-count="' + activeKey + '"]');
+      if (activeBadge) activeBadge.textContent = String(drafts.length);
 
-    async function refreshTabBadges() {
-      // Quietly fetch counts for inactive tabs so badges stay fresh.
-      const otherLabels = [];
-      if (activeLabel !== 'AI/Warm-up') otherLabels.push('AI/Warm-up');
-      if (activeLabel !== 'AI/Follow-up') otherLabels.push('AI/Follow-up');
-      if (activeLabel !== 'AI/Prospect Replied') otherLabels.push('AI/Prospect Replied');
-      for (const lbl of otherLabels) {
-        try {
-          const data = await fetchQueueForLabel(lbl);
-          const key = lbl === 'AI/Follow-up' ? 'followup' : lbl === 'AI/Prospect Replied' ? 'prospect' : 'warmup';
-          const el = document.querySelector('[data-count="' + key + '"]');
-          if (el) el.textContent = String((data.drafts || []).length);
-        } catch (_) { /* silent */ }
+      // Apply linter and sort
+      drafts.forEach(function (d) { d._flags = lintDraft(d); });
+      drafts.sort(function (a, b) { return sortKey(a) - sortKey(b); });
+
+      // Render list
+      const listEl = document.getElementById('draftList');
+      if (!drafts.length) {
+        listEl.innerHTML = '<div class="empty">No pending drafts in this cohort.</div>';
+        document.getElementById('summary').textContent = '';
+      } else {
+        let html = '';
+        for (let i = 0; i < drafts.length; i++) {
+          html += renderDraftCard(drafts[i]);
+        }
+        listEl.innerHTML = html;
+        document.getElementById('summary').textContent = drafts.length + ' draft' + (drafts.length !== 1 ? 's' : '') + ' pending review.';
       }
+      lastFetchedEl.textContent = 'Last refreshed ' + new Date().toLocaleTimeString();
     }
 
     async function loadQueue() {
       refreshBtn.disabled = true;
-      setStatus('Loading ' + (activeLabel === 'AI/Follow-up' ? 'follow-ups' : activeLabel === 'AI/Prospect Replied' ? 'prospects' : 'warm-ups') + '…', 'loading');
+      isLoading = true;
+      setStatus('Loading drafts…', 'loading');
       try {
-        const data = await fetchQueueForLabel(activeLabel);
-        allDrafts = (data.drafts || []).map(function (d) {
-          d._flags = lintDraft(d);
-          return d;
-        });
-        allDrafts.sort(function (a, b) { return sortKey(a) - sortKey(b); });
+        const url = GAS_URL + '?action=getWarmupReviewQueue';
+        const resp = await fetch(url, { method: 'GET' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const json = await resp.json();
+        if (json.status !== 'success') throw new Error(json.message || 'GAS error');
+        const data = json.data || {};
 
-        // Update the active tab's count badge.
-        const activeKey = activeLabel === 'AI/Follow-up' ? 'followup' : activeLabel === 'AI/Prospect Replied' ? 'prospect' : 'warmup';
-        const activeBadge = document.querySelector('[data-count="' + activeKey + '"]');
-        if (activeBadge) activeBadge.textContent = String(allDrafts.length);
+        allDraftsByLabel = data.drafts_by_label || {};
 
-        rerenderList();
-        lastFetchedEl.textContent = 'Last refreshed ' + new Date().toLocaleTimeString();
+        // Update all badges at once
+        const counts = data.counts || {};
+        document.querySelector('[data-count="warmup"]').textContent = String(counts['AI/Warm-up'] || 0);
+        document.querySelector('[data-count="followup"]').textContent = String(counts['AI/Follow-up'] || 0);
+        document.querySelector('[data-count="prospect"]').textContent = String(counts['AI/Prospect Replied'] || 0);
+
+        renderActiveTab();
         setStatus('');
       } catch (e) {
         setStatus('Failed to load queue: ' + e.message, 'error');
+        allDraftsByLabel = null;
       } finally {
+        isLoading = false;
         refreshBtn.disabled = false;
       }
-      // Refresh the inactive tab's badge in the background.
-      refreshTabBadges();
     }
 
     function attachTabHandlers() {
