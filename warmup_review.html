@@ -220,6 +220,9 @@
         <button class="tab-btn" type="button" data-label="AI/Follow-up" role="tab" aria-selected="false">
           Follow-ups <span class="badge" data-count="followup">0</span>
         </button>
+        <button class="tab-btn" type="button" data-label="AI/Prospect Replied" role="tab" aria-selected="false">
+          Prospects <span class="badge" data-count="prospect">0</span>
+        </button>
       </div>
       <div class="toolbar">
         <button id="btnRefresh" class="btn-refresh" type="button">Refresh</button>
@@ -400,6 +403,8 @@
 
       const labelFallback = activeLabel === 'AI/Follow-up'
           ? 'https://mail.google.com/mail/u/0/#label/AI%2FFollow-up'
+          : activeLabel === 'AI/Prospect Replied'
+          ? 'https://mail.google.com/mail/u/0/#label/AI%2FProspect%2BReplied'
           : 'https://mail.google.com/mail/u/0/#label/AI%2FWarm-up';
       const gmailLink = d.gmail_message_id
           ? 'https://mail.google.com/mail/u/0/#drafts/' + encodeURIComponent(d.gmail_message_id)
@@ -430,10 +435,11 @@
     let activeLabel = 'AI/Warm-up'; // current cohort tab
     let activeChip = 'all';         // current filter chip
 
-    // Initial label from URL hash if provided (#followup or #warmup).
+    // Initial label from URL hash if provided (#followup, #prospect, or #warmup).
     (function initLabelFromHash() {
       const h = (window.location.hash || '').replace(/^#/, '').toLowerCase();
       if (h === 'followup' || h === 'follow-up') activeLabel = 'AI/Follow-up';
+      else if (h === 'prospect' || h === 'prospects') activeLabel = 'AI/Prospect Replied';
     })();
 
     function setActiveLabelUI() {
@@ -442,7 +448,7 @@
         btn.classList.toggle('active', isActive);
         btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
       });
-      window.location.hash = activeLabel === 'AI/Follow-up' ? 'followup' : 'warmup';
+      window.location.hash = activeLabel === 'AI/Follow-up' ? 'followup' : activeLabel === 'AI/Prospect Replied' ? 'prospect' : 'warmup';
     }
 
     async function fetchQueueForLabel(label) {
@@ -455,21 +461,24 @@
     }
 
     async function refreshTabBadges() {
-      // Quietly fetch counts for the inactive tab too, so the user sees the
-      // right "5" / "12" badge even before tapping. Best-effort — silent on
-      // failure (the active tab's load handles errors loudly).
-      try {
-        const otherLabel = activeLabel === 'AI/Warm-up' ? 'AI/Follow-up' : 'AI/Warm-up';
-        const data = await fetchQueueForLabel(otherLabel);
-        const key = otherLabel === 'AI/Follow-up' ? 'followup' : 'warmup';
-        const el = document.querySelector('[data-count="' + key + '"]');
-        if (el) el.textContent = String((data.drafts || []).length);
-      } catch (_) { /* silent */ }
+      // Quietly fetch counts for inactive tabs so badges stay fresh.
+      const otherLabels = [];
+      if (activeLabel !== 'AI/Warm-up') otherLabels.push('AI/Warm-up');
+      if (activeLabel !== 'AI/Follow-up') otherLabels.push('AI/Follow-up');
+      if (activeLabel !== 'AI/Prospect Replied') otherLabels.push('AI/Prospect Replied');
+      for (const lbl of otherLabels) {
+        try {
+          const data = await fetchQueueForLabel(lbl);
+          const key = lbl === 'AI/Follow-up' ? 'followup' : lbl === 'AI/Prospect Replied' ? 'prospect' : 'warmup';
+          const el = document.querySelector('[data-count="' + key + '"]');
+          if (el) el.textContent = String((data.drafts || []).length);
+        } catch (_) { /* silent */ }
+      }
     }
 
     async function loadQueue() {
       refreshBtn.disabled = true;
-      setStatus('Loading ' + (activeLabel === 'AI/Follow-up' ? 'follow-ups' : 'warm-ups') + '…', 'loading');
+      setStatus('Loading ' + (activeLabel === 'AI/Follow-up' ? 'follow-ups' : activeLabel === 'AI/Prospect Replied' ? 'prospects' : 'warm-ups') + '…', 'loading');
       try {
         const data = await fetchQueueForLabel(activeLabel);
         allDrafts = (data.drafts || []).map(function (d) {
@@ -479,7 +488,7 @@
         allDrafts.sort(function (a, b) { return sortKey(a) - sortKey(b); });
 
         // Update the active tab's count badge.
-        const activeKey = activeLabel === 'AI/Follow-up' ? 'followup' : 'warmup';
+        const activeKey = activeLabel === 'AI/Follow-up' ? 'followup' : activeLabel === 'AI/Prospect Replied' ? 'prospect' : 'warmup';
         const activeBadge = document.querySelector('[data-count="' + activeKey + '"]');
         if (activeBadge) activeBadge.textContent = String(allDrafts.length);
 
