@@ -416,7 +416,7 @@
         '<div class="draft ' + cls + '" data-draft-id="' + escapeHtml(d.gmail_draft_id) + '" id="d-' + escapeHtml(d.gmail_draft_id) + '">' +
           '<div class="row1">' +
             '<span class="recipient">' + escapeHtml(d.to_email || '(no email)') + '</span>' +
-            (d.shop_name ? '<span class="shop">' + escapeHtml(d.shop_name) + '</span>' : '') +
+            (d.shop_name ? '<a class="shop" href="./store_interaction_history.html?store=' + encodeURIComponent(d.store_key || '') + '" target="_blank" title="View store interaction history">' + escapeHtml(d.shop_name) + '</a>' : '') +
             (d.city_state ? '<span class="city">' + escapeHtml(d.city_state) + '</span>' : '') +
             (d.hosts_circles ? '<span class="aw">Hosts Circles</span>' : '') +
           '</div>' +
