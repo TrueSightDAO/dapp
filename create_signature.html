@@ -720,7 +720,12 @@
           });
           const ver = verifyResult && verifyResult.email_registration;
           if (ver && ver.activated) {
-            setVerifyInlineStatus('Verification succeeded. Loading your contributor status…', 'status');
+            setVerifyInlineStatus('Verification succeeded. Refreshing cache…', 'status');
+            // Force-refresh the dao_members cache so other DApp pages see the new registration immediately
+            try {
+              await fetch('https://raw.githubusercontent.com/TrueSightDAO/treasury-cache/main/dao_members.json?t=' + Date.now(), { cache: 'reload' });
+              if (window.DaoMembersCache) window.DaoMembersCache.clearCache?.();
+            } catch (_) {}
           }
           stripVerifyParamsFromUrl();
           hideAllFlows();
