@@ -108,7 +108,11 @@ self.addEventListener('fetch', event => {
     event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
-  // Default: network-first strategy for all other requests, fallback to cache if offline
+  // Default: network-first strategy for GET requests, pass through for POST/PUT/DELETE
+  if (request.method !== 'GET') {
+    event.respondWith(fetch(request));
+    return;
+  }
   event.respondWith(
     fetch(request)
       .then(response => {
