@@ -213,6 +213,47 @@
             line-height: 1.4;
             overflow-y: auto;
         }
+        #attach-btn {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.4rem 0.6rem;
+            cursor: pointer;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            color: #555;
+            align-self: flex-end;
+            margin-bottom: 0;
+        }
+        #attach-btn:hover { background: #e0e0e0; }
+        #file-input { display: none; }
+        #attachment-preview {
+            display: none;
+            flex-shrink: 0;
+            padding: 0.3rem 0.5rem;
+            margin-bottom: 0.25rem;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #333;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        #attachment-preview .filename {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #attachment-preview .remove-attach {
+            cursor: pointer;
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.1rem;
+            padding: 0 0.2rem;
+        }
         .btn {
             background-color: #007bff;
             color: white;
@@ -400,7 +441,14 @@
 
         <div id="chat-ui" style="display:none; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden;">
             <div id="chat-messages"></div>
+            <div id="attachment-preview">
+                <span class="filename" id="attach-filename"></span>
+                <span id="attach-filesize"></span>
+                <span class="remove-attach" id="remove-attach">&times;</span>
+            </div>
             <div id="chat-input-area">
+                <button id="attach-btn" title="Attach file">&#128206;</button>
+                <input type="file" id="file-input" accept="image/*,.pdf,.csv,.xlsx,.xls,.txt,.md,.json,.py,.js,.html,.css">
                 <textarea id="chat-input" placeholder="Ask about the DAO, Agroverse, codebases, or governance..." rows="2"></textarea>
                 <button id="send-btn" class="btn">Send</button>
             </div>
@@ -420,6 +468,12 @@
         const messagesEl = document.getElementById('chat-messages');
         const inputEl = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
+        const attachBtn = document.getElementById('attach-btn');
+        const fileInput = document.getElementById('file-input');
+        const attachPreview = document.getElementById('attachment-preview');
+        const attachFilename = document.getElementById('attach-filename');
+        const attachFilesize = document.getElementById('attach-filesize');
+        const removeAttach = document.getElementById('remove-attach');
 
         // Keys
         const publicKey = localStorage.getItem('publicKey');
@@ -490,57 +544,169 @@
             return { payload: payloadObj, signature };
         }
 
+        // Attachment state
+        let pendingFile = null;
+
+        attachBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+            pendingFile = file;
+            attachFilename.textContent = file.name;
+            attachFilesize.textContent = '(' + (file.size / 1024).toFixed(1) + ' KB)';
+            attachPreview.style.display = 'flex';
+        });
+
+        removeAttach.addEventListener('click', function() {
+            pendingFile = null;
+            fileInput.value = '';
+            attachPreview.style.display = 'none';
+        });
+
+        async function readSSEStream(res, ensureBotMessage, botTextDiv, fullResponse, botMsgDiv) {
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const raw = line.slice(6).trim();
+                    if (!raw) continue;
+
+                    try {
+                        const event = JSON.parse(raw);
+                        const type = event.type;
+                        console.log('[SSE]', type, event);
+
+                        if (type === 'token') {
+                            const td = ensureBotMessage();
+                            fullResponse += event.content || '';
+                            if (typeof marked !== 'undefined') {
+                                td.innerHTML = marked.parse(fullResponse);
+                            } else {
+                                td.textContent = fullResponse;
+                            }
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                        } else if (type === 'tool') {
+                            const td = ensureBotMessage();
+                            if (event.status === 'calling') {
+                                const step = td.innerHTML ? td.innerHTML + '<br>' : '';
+                                td.innerHTML = step + '<span style="color:#666;font-style:italic;">🔧 ' + event.tool + '...</span>';
+                            } else {
+                                td.innerHTML = td.innerHTML.replace(
+                                    '<span style="color:#666;font-style:italic;">🔧 ' + event.tool + '...</span>',
+                                    '<span style="color:#28a745;">✅ ' + event.tool + ' done</span>'
+                                );
+                            }
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                        } else if (type === 'done') {
+                            if (event.response && event.response.trim()) {
+                                const td = ensureBotMessage();
+                                fullResponse = event.response;
+                                if (typeof marked !== 'undefined') {
+                                    td.innerHTML = marked.parse(fullResponse);
+                                } else {
+                                    td.textContent = fullResponse;
+                                }
+                            }
+                            if (!fullResponse.trim() && botMsgDiv) {
+                                botMsgDiv.remove();
+                            }
+                            if (event.proposal) {
+                                renderProposal(event.proposal);
+                            }
+                            setStatus('');
+                        } else if (type === 'error') {
+                            const td = ensureBotMessage();
+                            td.textContent = 'Error: ' + (event.content || 'Unknown error');
+                            setStatus('Error', 'error');
+                        }
+                    } catch (e) {
+                        // skip malformed JSON in buffer
+                    }
+                }
+            }
+        }
+
         async function sendMessage() {
             const text = inputEl.value.trim();
-            if (!text) return;
+            if (!text && !pendingFile) return;
+
+            const hasFile = !!pendingFile;
+            const fileLabel = hasFile ? ' + ' + pendingFile.name : '';
+            appendMessage('You', text ? text + ' ' + fileLabel : fileLabel, true);
 
             inputEl.value = '';
             inputEl.style.height = '';
-            appendMessage('You', text, true);
             sendBtn.disabled = true;
             setStatus('');
 
-            const payloadObj = {
-                message: text,
-                timestamp: new Date().toISOString(),
-                nonce: crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2))
-            };
+            let thinkingMsg = appendMessage('DAO Assistant', 'Thinking...', false);
+            const thinkingTextDiv = thinkingMsg.querySelector('.text');
+            thinkingTextDiv.style.color = '#888';
+            thinkingTextDiv.style.fontStyle = 'italic';
+
+            let botMsgDiv = null;
+            let botTextDiv = null;
+            let fullResponse = '';
+
+            function ensureBotMessage() {
+                if (!botMsgDiv) {
+                    if (thinkingMsg) {
+                        thinkingMsg.remove();
+                        thinkingMsg = null;
+                    }
+                    botMsgDiv = appendMessage('DAO Assistant', '', false);
+                    botTextDiv = botMsgDiv.querySelector('.text');
+                    botTextDiv.textContent = '';
+                }
+                return botTextDiv;
+            }
 
             try {
-                const signed = await signPayload(payloadObj);
+                let res;
 
-                // Show thinking indicator immediately
-                let thinkingMsg = appendMessage('DAO Assistant', 'Thinking...', false);
-                const thinkingTextDiv = thinkingMsg.querySelector('.text');
-                thinkingTextDiv.style.color = '#888';
-                thinkingTextDiv.style.fontStyle = 'italic';
+                if (hasFile) {
+                    const formData = new FormData();
+                    formData.append('message', text || '');
+                    formData.append('file', pendingFile);
 
-                // When first content arrives, replace the thinking placeholder
-                let botMsgDiv = null;
-                let botTextDiv = null;
-                let fullResponse = '';
+                    pendingFile = null;
+                    fileInput.value = '';
+                    attachPreview.style.display = 'none';
 
-                function ensureBotMessage() {
-                    if (!botMsgDiv) {
-                        // Remove thinking placeholder
-                        if (thinkingMsg) {
-                            thinkingMsg.remove();
-                            thinkingMsg = null;
-                        }
-                        botMsgDiv = appendMessage('DAO Assistant', '', false);
-                        botTextDiv = botMsgDiv.querySelector('.text');
-                        botTextDiv.textContent = '';
-                    }
-                    return botTextDiv;
+                    res = await fetch(CHAT_API_URL + '/upload', {
+                        method: 'POST',
+                        headers: { 'X-Public-Key': publicKey },
+                        body: formData
+                    });
+                } else {
+                    const payloadObj = {
+                        message: text,
+                        timestamp: new Date().toISOString(),
+                        nonce: crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2))
+                    };
+                    const signed = await signPayload(payloadObj);
+                    res = await fetch(CHAT_API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Public-Key': publicKey
+                        },
+                        body: JSON.stringify(signed)
+                    });
                 }
-                const res = await fetch(CHAT_API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Public-Key': publicKey
-                    },
-                    body: JSON.stringify(signed)
-                });
 
                 if (!res.ok) {
                     const errText = await res.text();
@@ -566,77 +732,7 @@
                     return;
                 }
 
-                // Read the SSE stream
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || ''; // keep incomplete line
-
-                    for (const line of lines) {
-                        if (!line.startsWith('data: ')) continue;
-                        const raw = line.slice(6).trim();
-                        if (!raw) continue;
-
-                        try {
-                            const event = JSON.parse(raw);
-                            const type = event.type;
-                            console.log('[SSE]', type, event);
-
-                            if (type === 'token') {
-                                const td = ensureBotMessage();
-                                fullResponse += event.content || '';
-                                if (typeof marked !== 'undefined') {
-                                    td.innerHTML = marked.parse(fullResponse);
-                                } else {
-                                    td.textContent = fullResponse;
-                                }
-                                messagesEl.scrollTop = messagesEl.scrollHeight;
-                            } else if (type === 'tool') {
-                                const td = ensureBotMessage();
-                                if (event.status === 'calling') {
-                                    const step = td.innerHTML ? td.innerHTML + '<br>' : '';
-                                    td.innerHTML = step + '<span style="color:#666;font-style:italic;">🔧 ' + event.tool + '...</span>';
-                                } else {
-                                    td.innerHTML = td.innerHTML.replace(
-                                        '<span style="color:#666;font-style:italic;">🔧 ' + event.tool + '...</span>',
-                                        '<span style="color:#28a745;">✅ ' + event.tool + ' done</span>'
-                                    );
-                                }
-                                messagesEl.scrollTop = messagesEl.scrollHeight;
-                            } else if (type === 'done') {
-                                if (event.response && event.response.trim()) {
-                                    const td = ensureBotMessage();
-                                    fullResponse = event.response;
-                                    if (typeof marked !== 'undefined') {
-                                        td.innerHTML = marked.parse(fullResponse);
-                                    } else {
-                                        td.textContent = fullResponse;
-                                    }
-                                }
-                                if (!fullResponse.trim() && botMsgDiv) {
-                                    botMsgDiv.remove();
-                                }
-                                if (event.proposal) {
-                                    renderProposal(event.proposal);
-                                }
-                                setStatus('');
-                            } else if (type === 'error') {
-                                const td = ensureBotMessage();
-                                td.textContent = 'Error: ' + (event.content || 'Unknown error');
-                                setStatus('Error', 'error');
-                            }
-                        } catch (e) {
-                            // skip malformed JSON in buffer
-                        }
-                    }
-                }
+                await readSSEStream(res, ensureBotMessage, botTextDiv, fullResponse, botMsgDiv);
             } catch (err) {
                 console.error(err);
                 setStatus('Network error: ' + err.message, 'error');
