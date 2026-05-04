@@ -678,8 +678,14 @@
                 let res;
 
                 if (hasFile) {
+                    const payloadObj = {
+                        message: text || '',
+                        timestamp: new Date().toISOString(),
+                        nonce: crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2))
+                    };
+                    const signed = await signPayload(payloadObj);
+
                     const formData = new FormData();
-                    formData.append('message', text || '');
                     formData.append('file', pendingFile);
 
                     pendingFile = null;
@@ -688,7 +694,11 @@
 
                     res = await fetch(CHAT_API_URL + '/upload', {
                         method: 'POST',
-                        headers: { 'X-Public-Key': publicKey },
+                        headers: {
+                            'X-Public-Key': publicKey,
+                            'X-Payload': JSON.stringify(payloadObj),
+                            'X-Signature': signed.signature
+                        },
                         body: formData
                     });
                 } else {
