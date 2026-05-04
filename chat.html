@@ -509,17 +509,30 @@
             try {
                 const signed = await signPayload(payloadObj);
 
-                // Show a streaming message placeholder (created on first token or tool call)
+                // Show thinking indicator immediately
+                let thinkingMsg = appendMessage('DAO Assistant', 'Thinking...', false);
+                const thinkingTextDiv = thinkingMsg.querySelector('.text');
+                thinkingTextDiv.style.color = '#888';
+                thinkingTextDiv.style.fontStyle = 'italic';
+
+                // When first content arrives, replace the thinking placeholder
                 let botMsgDiv = null;
                 let botTextDiv = null;
                 let fullResponse = '';
 
                 function ensureBotMessage() {
                     if (!botMsgDiv) {
+                        // Remove thinking placeholder
+                        if (thinkingMsg) {
+                            thinkingMsg.remove();
+                            thinkingMsg = null;
+                        }
                         botMsgDiv = appendMessage('DAO Assistant', '', false);
                         botTextDiv = botMsgDiv.querySelector('.text');
                         botTextDiv.textContent = '';
                     }
+                    return botTextDiv;
+                }
                     return botTextDiv;
                 }
                 const res = await fetch(CHAT_API_URL, {
@@ -541,7 +554,8 @@
 
                     if (res.status === 403) {
                         setStatus('Access restricted', 'warning');
-                        botTextDiv.textContent = displayErr;
+                        const td = ensureBotMessage();
+                        td.textContent = displayErr;
                         sendBtn.disabled = true;
                         inputEl.disabled = true;
                         inputEl.placeholder = 'Access restricted — check back later.';
@@ -549,7 +563,8 @@
                     }
 
                     setStatus('Error: ' + displayErr, 'error');
-                    botTextDiv.textContent = 'Failed to get a response. Please try again.';
+                    const td = ensureBotMessage();
+                    td.textContent = 'Failed to get a response. Please try again.';
                     return;
                 }
 
@@ -586,9 +601,17 @@
                                 }
                                 messagesEl.scrollTop = messagesEl.scrollHeight;
                             } else if (type === 'tool') {
-                                ensureBotMessage();
-                                const toolMsg = event.status === 'calling' ? '🔧 ' + event.tool + '...' : '✅ ' + event.tool + ' done';
-                                setStatus(toolMsg);
+                                const td = ensureBotMessage();
+                                if (event.status === 'calling') {
+                                    const step = td.innerHTML ? td.innerHTML + '<br>' : '';
+                                    td.innerHTML = step + '<span style="color:#666;font-style:italic;">🔧 ' + event.tool + '...</span>';
+                                } else {
+                                    td.innerHTML = td.innerHTML.replace(
+                                        '<span style="color:#666;font-style:italic;">🔧 ' + event.tool + '...</span>',
+                                        '<span style="color:#28a745;">✅ ' + event.tool + ' done</span>'
+                                    );
+                                }
+                                messagesEl.scrollTop = messagesEl.scrollHeight;
                             } else if (type === 'done') {
                                 if (event.response && event.response.trim()) {
                                     const td = ensureBotMessage();
