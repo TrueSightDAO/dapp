@@ -376,19 +376,26 @@
     }
 
     function rerenderList() {
-      const drafts = (allDraftsByLabel && allDraftsByLabel[activeLabel]) || [];
+      const drafts = ((allDraftsByLabel && allDraftsByLabel[activeLabel]) || []).slice();
+      // Lint + sort once (lintDraft is idempotent; doesn't mutate beyond _flags).
+      drafts.forEach(function (d) { d._flags = lintDraft(d); });
+      drafts.sort(function (a, b) { return sortKey(a) - sortKey(b); });
+
       const filter = CHIP_FILTERS[activeChip] || CHIP_FILTERS.all;
-      const filtered = drafts.filter(function (d) { d._flags = lintDraft(d); return filter(d); });
-      // Re-render summary so the active chip highlight updates.
+      const filtered = drafts.filter(filter);
+      // Render the clickable chip summary (counts reflect the full active-tab cohort,
+      // not the filtered subset — that way chips can take you back to the full list).
       renderSummary(drafts);
+
       if (filtered.length === 0) {
         listEl.innerHTML = '<div class="empty">' +
-            (allDrafts.length === 0 ? 'No pending drafts.' : 'No drafts match this filter.') +
+            (drafts.length === 0 ? 'No pending drafts in this cohort.' : 'No drafts match this filter.') +
             '</div>';
       } else {
         listEl.innerHTML = filtered.map(renderDraft).join('');
         attachSendHandlers();
       }
+      lastFetchedEl.textContent = 'Last refreshed ' + new Date().toLocaleTimeString();
     }
 
     function renderDraft(d) {
@@ -458,29 +465,17 @@
     }
 
     function renderActiveTab() {
-      const drafts = (allDraftsByLabel[activeLabel] || []).slice();
-      const activeKey = activeLabel === 'AI/Follow-up' ? 'followup' : activeLabel === 'AI/Prospect Replied' ? 'prospect' : 'warmup';
+      // Update the active tab's badge from the cached cohort length (loadQueue
+      // already populated all three badges from data.counts, but this keeps
+      // the active one accurate after client-side filter changes).
+      const drafts = (allDraftsByLabel && allDraftsByLabel[activeLabel]) || [];
+      const activeKey = activeLabel === 'AI/Follow-up' ? 'followup'
+          : activeLabel === 'AI/Prospect Replied' ? 'prospect'
+          : 'warmup';
       const activeBadge = document.querySelector('[data-count="' + activeKey + '"]');
       if (activeBadge) activeBadge.textContent = String(drafts.length);
-
-      // Apply linter and sort
-      drafts.forEach(function (d) { d._flags = lintDraft(d); });
-      drafts.sort(function (a, b) { return sortKey(a) - sortKey(b); });
-
-      // Render list
-      const listEl = document.getElementById('draftList');
-      if (!drafts.length) {
-        listEl.innerHTML = '<div class="empty">No pending drafts in this cohort.</div>';
-        document.getElementById('summary').textContent = '';
-      } else {
-        let html = '';
-        for (let i = 0; i < drafts.length; i++) {
-          html += renderDraftCard(drafts[i]);
-        }
-        listEl.innerHTML = html;
-        document.getElementById('summary').textContent = drafts.length + ' draft' + (drafts.length !== 1 ? 's' : '') + ' pending review.';
-      }
-      lastFetchedEl.textContent = 'Last refreshed ' + new Date().toLocaleTimeString();
+      // Defer to rerenderList for the actual lint + sort + chip + draft rendering.
+      rerenderList();
     }
 
     async function loadQueue() {
@@ -537,7 +532,9 @@
       const card = btn.closest('.draft');
       if (!card) return;
       const draftId = card.getAttribute('data-draft-id');
-      const draft = allDrafts.find(function (d) { return d.gmail_draft_id === draftId; });
+      // Look up across the active cohort (Send buttons only render on the active tab).
+      const cohort = (allDraftsByLabel && allDraftsByLabel[activeLabel]) || [];
+      const draft = cohort.find(function (d) { return d.gmail_draft_id === draftId; });
       if (!draft) return;
       const statusSpan = card.querySelector('[data-status]');
       btn.disabled = true;
