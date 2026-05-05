@@ -72,6 +72,114 @@
             text-align: center;
             flex-shrink: 0;
         }
+        #chat-backend-selector {
+            display: none;
+            position: fixed;
+            top: 0.5rem;
+            right: 0.75rem;
+            z-index: 1000;
+            background: rgba(255,255,255,0.92);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        #chat-backend-selector.visible {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        #chat-backend-selector label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-right: 0.3rem;
+        }
+        #chat-backend-selector select {
+            font-size: 0.8rem;
+            padding: 0.15rem 0.3rem;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            background: #fff;
+        }
+        #session-panel {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 300px;
+            height: 100dvh;
+            background: #f8f9fa;
+            border-right: 1px solid #ddd;
+            z-index: 1002;
+            overflow-y: auto;
+            padding: 0.75rem;
+            box-sizing: border-box;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+        #session-panel.open { display: block; }
+        #session-panel h3 {
+            font-size: 0.9rem;
+            margin: 0 0 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #session-list { list-style: none; padding: 0; margin: 0; }
+        #session-list li {
+            padding: 0.4rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-bottom: 0.15rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #session-list li:hover { background: #e9ecef; }
+        #session-list li.active { background: #007bff; color: white; }
+        #session-list li .rename-btn {
+            visibility: hidden;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0 0.2rem;
+            opacity: 0.6;
+        }
+        #session-list li:hover .rename-btn { visibility: visible; }
+        #session-list li.active .rename-btn { color: white; }
+        .session-toggle {
+            position: fixed;
+            top: 0.5rem;
+            left: 0.5rem;
+            z-index: 1001;
+            background: rgba(255,255,255,0.92);
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .session-toggle .badge {
+            background: #dc3545;
+            color: white;
+            border-radius: 10px;
+            padding: 0 0.35rem;
+            font-size: 0.65rem;
+            margin-left: 0.2rem;
+            display: none;
+        }
+        .session-toggle .badge.show { display: inline; }
+        .new-session-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .new-session-btn:hover { background: #0056b3; }
         #status {
             margin: 0.2rem 0 0.3rem;
             font-weight: bold;
@@ -371,6 +479,14 @@
         /* Mobile overrides — must come last so they win the cascade against the
            desktop defaults above. Reclaims vertical space on phones. */
         @media (max-width: 600px) {
+            #session-panel {
+                width: 100vw;
+                height: 60vh;
+                top: auto;
+                bottom: 0;
+                border-radius: 12px 12px 0 0;
+            }
+            #session-panel:not(.open) { display: none; }
             .container {
                 padding: 0 0.5rem 0.25rem;
             }
@@ -392,6 +508,18 @@
             }
             #status:empty {
                 display: none;
+            }
+            #chat-backend-selector {
+                top: 0.25rem;
+                right: 0.5rem;
+                padding: 0.15rem 0.35rem;
+            }
+            #chat-backend-selector label {
+                font-size: 0.7rem;
+            }
+            #chat-backend-selector select {
+                font-size: 0.7rem;
+                padding: 0.1rem 0.2rem;
             }
             #navDropdown {
                 margin: 0.25rem 0 !important;
@@ -421,9 +549,53 @@
                 font-size: 1rem;
             }
         }
+        /* Print layout — show full conversation thread */
+        @media print {
+            body { overflow: visible; height: auto; }
+            .container { max-width: none; height: auto; overflow: visible; padding: 0.5rem; box-shadow: none; }
+            #chat-messages { overflow: visible; max-height: none; border: none; }
+            #chat-input-area,             #chat-backend-selector, #conversation-tools,
+            #attach-btn, #file-input, #attachment-preview, #navDropdown,
+            #tdgBalanceBadge, #status, .btn, .session-toggle,
+            #session-panel { display: none !important; }
+            .message { max-width: 100%; page-break-inside: avoid; }
+            .message.user { background-color: #f0f0f0 !important; color: #333 !important; }
+            .copy-code-btn { display: none !important; }
+        }
+        /* Copy code button inside pre blocks */
+        .message .text pre {
+            position: relative;
+            padding-top: 1.8rem;
+        }
+        .copy-code-btn {
+            position: absolute;
+            top: 0.2rem;
+            right: 0.3rem;
+            font-size: 0.7rem;
+            padding: 0.1rem 0.4rem;
+            border: 1px solid #aaa;
+            border-radius: 3px;
+            background: #f5f5f5;
+            cursor: pointer;
+            color: #555;
+        }
+        .copy-code-btn:hover { background: #e0e0e0; }
     </style>
 </head>
 <body>
+    <button class="session-toggle" id="session-toggle" title="Sessions">&#9776; <span class="badge" id="pending-badge">0</span></button>
+    <div id="session-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <h3 style="margin:0;"><span>Sessions</span></h3>
+            <button id="close-panel-btn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; padding:0 0.3rem; color:#666;">✕</button>
+        </div>
+        <button class="new-session-btn" id="new-session-btn">+ New</button>
+        <div id="pending-section" style="display:none; margin-bottom:0.5rem; border-bottom:1px solid #ddd; padding-bottom:0.5rem;">
+            <strong style="font-size:0.8rem; color:#dc3545;">⏳ Pending Approval</strong>
+            <div id="pending-list" style="margin-top:0.25rem;"></div>
+        </div>
+        <ul id="session-list"></ul>
+    </div>
     <div class="container">
         <div id="navDropdown" style="margin:0.5rem 0; text-align:center;"></div>
         <div id="tdgBalanceBadge"></div>
@@ -432,6 +604,15 @@
         </div>
         <h1>Governor Chat</h1>
         <p id="description">Ask the DAO assistant anything about TrueSight, Agroverse, codebases, or governance. Phase 1: read-only Q&amp;A. Phase 2: DAO submission compilation coming soon.</p>
+        <div id="chat-backend-selector">
+            <select id="chat-backend-select" style="font-size:0.75rem; padding:0.1rem 0.25rem; border:1px solid #ddd; border-radius:3px; background:#fffbe6;">
+                <option value="http://localhost:8001">Local (8001)</option>
+                <option value="https://chatbot.truesight.me">Production</option>
+            </select>
+        </div>
+        <div id="conversation-tools" style="text-align:center; margin:0.15rem 0; flex-shrink:0;">
+            <button id="copy-conversation-btn" style="font-size:0.75rem; padding:0.15rem 0.5rem; border:1px solid #ccc; border-radius:3px; background:#f5f5f5; cursor:pointer; display:none;">Copy conversation</button>
+        </div>
         <div id="status" aria-live="polite"></div>
 
         <div id="auth-prompt" style="display:none;">
@@ -440,6 +621,7 @@
         </div>
 
         <div id="chat-ui" style="display:none; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden;">
+            <div id="status-bar" style="display:none; padding:0.3rem 0.75rem; background:#fff3cd; border-bottom:1px solid #ffc107; font-size:0.8rem; color:#856404; text-align:center; flex-shrink:0;"></div>
             <div id="chat-messages"></div>
             <div id="attachment-preview">
                 <span class="filename" id="attach-filename"></span>
@@ -448,7 +630,7 @@
             </div>
             <div id="chat-input-area">
                 <button id="attach-btn" title="Attach file">&#128206;</button>
-                <input type="file" id="file-input" accept="image/*,.pdf,.csv,.xlsx,.xls,.txt,.md,.json,.py,.js,.html,.css">
+                <input type="file" id="file-input" accept="image/*,.pdf,.csv,.xlsx,.xls,.txt,.md,.json,.py,.js,.html,.css" multiple>
                 <textarea id="chat-input" placeholder="Ask about the DAO, Agroverse, codebases, or governance..." rows="2"></textarea>
                 <button id="send-btn" class="btn">Send</button>
             </div>
@@ -458,14 +640,57 @@
     <script>
     (function() {
         // Configuration
-        const API_BASE_URL = localStorage.getItem('governorChatApiUrl') || 'https://chatbot.truesight.me';
-        const CHAT_API_URL = API_BASE_URL + '/chat';
+        const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '0.0.0.0';
+        const PRODUCTION_CHAT_URL = 'https://chatbot.truesight.me';
+        const LOCAL_CHAT_URL = 'http://localhost:8001';
+        const DEFAULT_CHAT_URL = isLocalhost ? LOCAL_CHAT_URL : PRODUCTION_CHAT_URL;
+
+        // Session ID — persists across refreshes in the same tab, unique per tab
+        if (!sessionStorage.getItem('chatSessionId')) {
+            sessionStorage.setItem('chatSessionId', crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+        }
+        const SESSION_ID = sessionStorage.getItem('chatSessionId');
+
+        function getChatApiBaseUrl() {
+            const stored = localStorage.getItem('governorChatApiUrl');
+            if (stored && isLocalhost) return stored;
+            if (!isLocalhost) return PRODUCTION_CHAT_URL;
+            return stored || DEFAULT_CHAT_URL;
+        }
+
+        function setChatApiBaseUrl(url) {
+            localStorage.setItem('governorChatApiUrl', url);
+        }
+
+        let API_BASE_URL = getChatApiBaseUrl();
+        let CHAT_API_URL = API_BASE_URL + '/chat';
+
+        function refreshApiUrl(newBaseUrl) {
+            API_BASE_URL = newBaseUrl;
+            CHAT_API_URL = API_BASE_URL + '/chat';
+            setChatApiBaseUrl(newBaseUrl);
+            setStatus('Switched to ' + newBaseUrl, 'status');
+        }
+
+        // Backend selector toggle (localhost only)
+        const backendSelectorEl = document.getElementById('chat-backend-selector');
+        const backendSelectEl = document.getElementById('chat-backend-select');
+
+        if (isLocalhost) {
+            backendSelectorEl.classList.add('visible');
+            // Sync select to current value
+            backendSelectEl.value = API_BASE_URL;
+            backendSelectEl.addEventListener('change', function() {
+                refreshApiUrl(this.value);
+            });
+        }
 
         // DOM refs
         const statusEl = document.getElementById('status');
         const authPromptEl = document.getElementById('auth-prompt');
         const chatUiEl = document.getElementById('chat-ui');
         const messagesEl = document.getElementById('chat-messages');
+        const statusBar = document.getElementById('status-bar');
         const inputEl = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
         const attachBtn = document.getElementById('attach-btn');
@@ -494,12 +719,18 @@
 
             const textDiv = document.createElement('div');
             textDiv.className = 'text';
+            // Strip [IMG:...] marker before rendering
+            var displayText = text.replace(/\[IMG:[^\]]+\]\n?/g, '');
             // Use marked.js for full Markdown rendering if available
             if (typeof marked !== 'undefined') {
-                textDiv.innerHTML = marked.parse(text);
+                try {
+                    textDiv.innerHTML = marked.parse(displayText);
+                } catch(e) {
+                    textDiv.textContent = displayText;
+                }
             } else {
                 // Fallback: simple line-break + code formatting
-                let html = text
+                let html = displayText
                     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                     .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
                     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -507,9 +738,57 @@
                 textDiv.innerHTML = html;
             }
 
+            // Add copy buttons to code blocks in bot messages
+            if (!isUser) {
+                textDiv.querySelectorAll('pre').forEach(function(pre) {
+                    var btn = document.createElement('button');
+                    btn.className = 'copy-code-btn';
+                    btn.textContent = 'Copy';
+                    btn.addEventListener('click', function() {
+                        var code = pre.textContent || '';
+                        navigator.clipboard.writeText(code).then(function() {
+                            btn.textContent = 'Copied!';
+                            setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+                        });
+                    });
+                    pre.appendChild(btn);
+                });
+            }
+
             div.appendChild(senderDiv);
             div.appendChild(textDiv);
             messagesEl.appendChild(div);
+
+            // Render attachment thumbnails from [IMG:url|filename|type] markers
+            var imgMatch = text.match(/\[IMG:([^\]]+)\]/);
+            if (imgMatch) {
+                var parts = imgMatch[1].split('|');
+                var imgUrl = parts[0];
+                var fname = parts[1] || '';
+                var ftype = parts[2] || '';
+                // Resolve relative URL
+                if (imgUrl.startsWith('/uploads/')) {
+                    imgUrl = API_BASE_URL + imgUrl;
+                }
+                if (ftype.startsWith('image/')) {
+                    var thumb = document.createElement('img');
+                    thumb.src = imgUrl;
+                    thumb.style.cssText = 'max-width:200px; max-height:200px; border-radius:6px; margin-top:0.5rem; cursor:pointer; display:block; border:1px solid #ddd;';
+                    thumb.title = fname + ' — click to enlarge';
+                    thumb.addEventListener('click', function() {
+                        var w = window.open('', '_blank', 'width=900,height=700');
+                        w.document.write('<img src=\"' + imgUrl + '\" style=\"max-width:100%;max-height:100vh;\">');
+                    });
+                    div.appendChild(thumb);
+                } else {
+                    var fileLink = document.createElement('a');
+                    fileLink.href = imgUrl;
+                    fileLink.textContent = '📎 ' + fname;
+                    fileLink.style.cssText = 'display:inline-block; margin-top:0.5rem; font-size:0.85rem; color:#007bff;';
+                    fileLink.target = '_blank';
+                    div.appendChild(fileLink);
+                }
+            }
             messagesEl.scrollTop = messagesEl.scrollHeight;
             return div;
         }
@@ -552,11 +831,19 @@
         });
 
         fileInput.addEventListener('change', function() {
-            const file = this.files[0];
-            if (!file) return;
-            pendingFile = file;
-            attachFilename.textContent = file.name;
-            attachFilesize.textContent = '(' + (file.size / 1024).toFixed(1) + ' KB)';
+            var fileList = this.files;
+            if (!fileList || fileList.length === 0) return;
+            if (fileList.length === 1) {
+                pendingFile = fileList[0];
+                attachFilename.textContent = fileList[0].name;
+                attachFilesize.textContent = '(' + (fileList[0].size / 1024).toFixed(1) + ' KB)';
+            } else {
+                pendingFile = fileList; // Store as FileList
+                var totalSize = 0;
+                for (var i = 0; i < fileList.length; i++) totalSize += fileList[i].size;
+                attachFilename.textContent = fileList.length + ' files selected';
+                attachFilesize.textContent = '(' + (totalSize / 1024).toFixed(1) + ' KB total)';
+            }
             attachPreview.style.display = 'flex';
         });
 
@@ -610,6 +897,15 @@
                                 );
                             }
                             messagesEl.scrollTop = messagesEl.scrollHeight;
+                        } else if (type === 'status') {
+                            var msg = event.message || event.stage || '';
+                            statusBar.textContent = '⏳ ' + msg;
+                            statusBar.style.display = 'block';
+                            if (msg.indexOf('Analysis complete') >= 0 || msg.indexOf('preparing response') >= 0) {
+                                setTimeout(function() { statusBar.style.display = 'none'; }, 2000);
+                            }
+                        } else if (type === 'tool') {
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
                         } else if (type === 'done') {
                             if (event.response && event.response.trim()) {
                                 const td = ensureBotMessage();
@@ -623,7 +919,10 @@
                             if (!fullResponse.trim() && botMsgDiv) {
                                 botMsgDiv.remove();
                             }
-                            if (event.proposal) {
+                            if (event.proposals) {
+                                // Batch proposals — render individual cards
+                                event.proposals.forEach(renderProposal);
+                            } else if (event.proposal) {
                                 renderProposal(event.proposal);
                             }
                             setStatus('');
@@ -644,7 +943,8 @@
             if (!text && !pendingFile) return;
 
             const hasFile = !!pendingFile;
-            const fileLabel = hasFile ? ' + ' + pendingFile.name : '';
+            const isMultiFile = hasFile && pendingFile.length !== undefined && pendingFile.length > 1;
+            const fileLabel = hasFile ? (' + ' + (isMultiFile ? pendingFile.length + ' files' : (pendingFile.name || 'file'))) : '';
             appendMessage('You', text ? text + ' ' + fileLabel : fileLabel, true);
 
             inputEl.value = '';
@@ -686,7 +986,15 @@
                     const signed = await signPayload(payloadObj);
 
                     const formData = new FormData();
-                    formData.append('file', pendingFile);
+                    if (pendingFile.length !== undefined) {
+                        // Multiple files (FileList)
+                        for (var i = 0; i < pendingFile.length; i++) {
+                            formData.append('files', pendingFile[i]);
+                        }
+                    } else {
+                        // Single file
+                        formData.append('files', pendingFile);
+                    }
 
                     pendingFile = null;
                     fileInput.value = '';
@@ -697,7 +1005,8 @@
                         headers: {
                             'X-Public-Key': publicKey,
                             'X-Payload': JSON.stringify(payloadObj),
-                            'X-Signature': signed.signature
+                            'X-Signature': signed.signature,
+                            'X-Session-Id': SESSION_ID
                         },
                         body: formData
                     });
@@ -712,7 +1021,8 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-Public-Key': publicKey
+                            'X-Public-Key': publicKey,
+                            'X-Session-Id': SESSION_ID
                         },
                         body: JSON.stringify(signed)
                     });
@@ -759,50 +1069,290 @@
         function renderProposal(proposal) {
             const card = document.createElement('div');
             card.className = 'proposal-card';
-            card.innerHTML = '<h4>Proposed Action: ' + (proposal.title || 'Unknown') + '</h4>' +
-                '<pre>' + JSON.stringify(proposal, null, 2) + '</pre>' +
+            var title = proposal.title || proposal.action || '';
+            if (!title || title === 'undefined' || title === 'null') title = 'Proposed Action';
+            var qr_code = proposal.qr_code || '';
+            var summary = proposal.summary || '';
+            card.innerHTML = '<h4>' + title + '</h4>' +
+                (summary ? '<p style="margin:0.3rem 0;color:#555;">' + summary + '</p>' : '') +
+                (qr_code ? '<code style="font-size:0.8rem;">' + qr_code + '</code>' : '') +
                 '<div class="proposal-actions">' +
                 '<button class="btn btn-success" data-action="approve">Approve</button>' +
-                '<button class="btn btn-secondary" data-action="edit">Edit</button>' +
+                '<button class="btn btn-secondary" data-action="ignore">Ignore</button>' +
                 '<button class="btn btn-danger" data-action="reject">Reject</button>' +
                 '</div>';
             messagesEl.appendChild(card);
             messagesEl.scrollTop = messagesEl.scrollHeight;
 
+            // Store in pending approvals
+            addPendingProposal(proposal);
+
             card.querySelectorAll('button').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const action = this.getAttribute('data-action');
+                    var qr = proposal.qr_code || '';
+                    var pTitle = proposal.title || 'transaction';
                     if (action === 'approve') {
-                        appendMessage('You', 'Approved: ' + proposal.title, true);
-                        // Phase 2: send approval to /execute endpoint
-                        executeProposal(proposal);
+                        var msg = 'Approve: ' + pTitle;
+                        if (qr) msg += '. Execute for QR ' + qr + ' only.';
+                        appendMessage('You', 'Approved: ' + pTitle + (qr ? ' (' + qr + ')' : ''), true);
+                        card.querySelectorAll('button').forEach(b => b.disabled = true);
+                        card.style.opacity = '0.6';
+                        removePendingProposal(proposal);
+                        inputEl.value = msg;
+                        sendMessage();
+                    } else if (action === 'ignore') {
+                        appendMessage('You', 'Skipped: ' + pTitle, true);
+                        card.style.opacity = '0.4';
+                        card.querySelectorAll('button').forEach(b => b.disabled = true);
+                        removePendingProposal(proposal);
                     } else if (action === 'reject') {
-                        appendMessage('You', 'Rejected: ' + proposal.title, true);
+                        appendMessage('You', 'Rejected: ' + pTitle, true);
                         card.remove();
-                    } else {
-                        appendMessage('You', 'Edit requested for: ' + proposal.title, true);
-                        // Future: open edit mode
+                        removePendingProposal(proposal);
+                        inputEl.value = 'Rejected: ' + pTitle + '. Do not proceed.';
+                        sendMessage();
                     }
                 });
             });
         }
 
+        // ────────────── Pending Approvals ──────────────
+        var PENDING_KEY = 'pendingProposals_' + (publicKey || 'anon').substring(0, 20);
+
+        function loadPendingProposals() {
+            try { return JSON.parse(sessionStorage.getItem(PENDING_KEY) || '[]'); }
+            catch(e) { return []; }
+        }
+
+        function savePendingProposals(list) {
+            sessionStorage.setItem(PENDING_KEY, JSON.stringify(list));
+            updatePendingUI();
+        }
+
+        function addPendingProposal(p) {
+            var list = loadPendingProposals();
+            // Don't add duplicates
+            var key = p.qr_code || p.title || '';
+            if (key && list.some(function(x) { return (x.qr_code || x.title) === key; })) return;
+            list.push({title: p.title, qr_code: p.qr_code, summary: p.summary, action: p.action, time: new Date().toISOString()});
+            savePendingProposals(list);
+        }
+
+        function removePendingProposal(p) {
+            var list = loadPendingProposals();
+            var key = p.qr_code || p.title || '';
+            list = list.filter(function(x) { return (x.qr_code || x.title) !== key; });
+            savePendingProposals(list);
+        }
+
+        function updatePendingUI() {
+            var list = loadPendingProposals();
+            var badge = document.getElementById('pending-badge');
+            var section = document.getElementById('pending-section');
+            var listEl = document.getElementById('pending-list');
+
+            if (list.length === 0) {
+                badge.style.display = 'none';
+                section.style.display = 'none';
+                return;
+            }
+            badge.textContent = list.length;
+            badge.style.display = 'inline';
+            section.style.display = 'block';
+
+            listEl.innerHTML = '';
+            list.forEach(function(p, idx) {
+                var div = document.createElement('div');
+                div.style.cssText = 'padding:0.4rem 0.5rem; margin-bottom:0.3rem; background:#fff; border-radius:4px; border:1px solid #f5c6cb; font-size:0.75rem;';
+                div.innerHTML = '<div style="margin-bottom:0.25rem;"><strong>' + (p.title || 'Transaction') + '</strong>' +
+                    (p.qr_code ? ' <code style="font-size:0.7rem;">' + p.qr_code + '</code>' : '') +
+                    (p.summary ? '<br><span style="color:#666;">' + p.summary + '</span>' : '') + '</div>' +
+                    '<button class="pending-approve" data-idx="' + idx + '" style="font-size:0.65rem; padding:0.15rem 0.4rem; background:#28a745; color:white; border:none; border-radius:3px; cursor:pointer; margin-right:0.25rem;">✓ Approve</button>' +
+                    '<button class="pending-reject" data-idx="' + idx + '" style="font-size:0.65rem; padding:0.15rem 0.4rem; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;">✕ Reject</button>';
+                listEl.appendChild(div);
+            });
+
+            // Wire up pending buttons
+            listEl.querySelectorAll('.pending-approve').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var idx = parseInt(this.dataset.idx);
+                    var list = loadPendingProposals();
+                    var p = list[idx];
+                    if (p) {
+                        var msg = 'Approve: ' + (p.title || 'transaction');
+                        if (p.qr_code) msg += '. Execute for QR ' + p.qr_code + ' only.';
+                        removePendingProposal(p);
+                        inputEl.value = msg;
+                        sendMessage();
+                    }
+                });
+            });
+            listEl.querySelectorAll('.pending-reject').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var idx = parseInt(this.dataset.idx);
+                    var list = loadPendingProposals();
+                    var p = list[idx];
+                    if (p) {
+                        removePendingProposal(p);
+                        inputEl.value = 'Rejected: ' + (p.title || 'transaction') + '. Do not proceed.';
+                        sendMessage();
+                    }
+                });
+            });
+        }
+
+        updatePendingUI();
+
         async function executeProposal(proposal) {
-            setStatus('Executing proposal...', 'status');
-            // Phase 2 implementation: POST to /execute with signed payload
-            appendMessage('System', 'Execution endpoint not yet implemented (Phase 2).', false);
+            var action = proposal.action || 'submit_contribution';
+            var title = proposal.title || 'transaction';
+            setStatus('Executing ' + title + '...', 'status');
+            // Send approval message to autopilot — this triggers the actual tool call
+            inputEl.value = 'Approved: ' + title + '. Please execute the ' + action + ' now.';
+            sendMessage();
             setStatus('');
         }
 
         // Init
-        if (!publicKey || !privateKey) {
-            authPromptEl.style.display = 'block';
-            chatUiEl.style.display = 'none';
-        } else {
-            authPromptEl.style.display = 'none';
+        try {
+            if (!publicKey || !privateKey) {
+                authPromptEl.style.display = 'block';
+                chatUiEl.style.display = 'none';
+            } else {
+                authPromptEl.style.display = 'none';
+                chatUiEl.style.display = 'flex';
+                restoreSession();
+            }
+        } catch(e) {
+            messagesEl.innerHTML = '<div class=\"message bot\"><div class=\"text\">Error loading chat: ' + e.message + '</div></div>';
             chatUiEl.style.display = 'flex';
+        }
+
+        async function restoreSession() {
+            try {
+                var res = await fetch(API_BASE_URL + '/session', {
+                    headers: {
+                        'X-Public-Key': publicKey,
+                        'X-Session-Id': SESSION_ID
+                    }
+                });
+                if (res.ok) {
+                    var data = await res.json();
+                    if (data.messages && data.messages.length > 0) {
+                        data.messages.forEach(function(msg) {
+                            appendMessage(msg.role === 'user' ? 'You' : 'DAO Assistant', msg.content, msg.role === 'user');
+                        });
+                        return;
+                    }
+                }
+            } catch (e) {
+                // Server not available or no history yet — show default greeting
+            }
             appendMessage('DAO Assistant', 'Hello, Governor. I have full workspace context loaded. Ask me anything about TrueSight DAO, Agroverse, codebases, or governance.', false);
         }
+
+        // ────────────── Session sidebar ──────────────
+        var sessionPanel = document.getElementById('session-panel');
+        var sessionToggle = document.getElementById('session-toggle');
+        var sessionList = document.getElementById('session-list');
+        var newSessionBtn = document.getElementById('new-session-btn');
+        var closePanelBtn = document.getElementById('close-panel-btn');
+
+        sessionToggle.addEventListener('click', function() {
+            sessionPanel.classList.toggle('open');
+        });
+        closePanelBtn.addEventListener('click', function() {
+            sessionPanel.classList.remove('open');
+        });
+
+        async function loadSessionList() {
+            try {
+                var res = await fetch(API_BASE_URL + '/sessions', {
+                    headers: { 'X-Public-Key': publicKey }
+                });
+                if (res.ok) {
+                    var data = await res.json();
+                    sessionList.innerHTML = '';
+                    (data.sessions || []).forEach(function(s) {
+                        var li = document.createElement('li');
+                        if (s.id === SESSION_ID) li.classList.add('active');
+                        var nameSpan = document.createElement('span');
+                        nameSpan.textContent = s.name || 'Untitled';
+                        nameSpan.title = 'Click to switch';
+                        nameSpan.style.flex = '1';
+                        nameSpan.addEventListener('click', function() {
+                            sessionStorage.setItem('chatSessionId', s.id);
+                            location.reload();
+                        });
+                        var renameBtn = document.createElement('button');
+                        renameBtn.className = 'rename-btn';
+                        renameBtn.textContent = '✎';
+                        renameBtn.title = 'Rename';
+                        renameBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            var newName = prompt('Rename session:', s.name);
+                            if (newName && newName.trim()) {
+                                fetch(API_BASE_URL + '/sessions/' + s.id, {
+                                    method: 'PATCH',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-Public-Key': publicKey
+                                    },
+                                    body: JSON.stringify({ name: newName.trim() })
+                                }).then(function() { loadSessionList(); });
+                            }
+                        });
+                        li.appendChild(nameSpan);
+                        li.appendChild(renameBtn);
+                        sessionList.appendChild(li);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        newSessionBtn.addEventListener('click', async function() {
+            try {
+                var res = await fetch(API_BASE_URL + '/sessions/new', {
+                    method: 'POST',
+                    headers: { 'X-Public-Key': publicKey }
+                });
+                if (res.ok) {
+                    var data = await res.json();
+                    sessionStorage.setItem('chatSessionId', data.session_id);
+                    location.reload();
+                }
+            } catch (e) {}
+        });
+
+        loadSessionList();
+
+        // Copy conversation button
+        const copyBtn = document.getElementById('copy-conversation-btn');
+        copyBtn.style.display = 'inline-block';
+        copyBtn.addEventListener('click', function() {
+            const messages = messagesEl.querySelectorAll('.message');
+            let text = '';
+            messages.forEach(msg => {
+                const sender = msg.querySelector('.sender')?.textContent || '';
+                const body = msg.querySelector('.text')?.textContent || '';
+                text += sender + ': ' + body + '\n\n';
+            });
+            navigator.clipboard.writeText(text).then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy conversation'; }, 2000);
+            }).catch(() => {
+                // Fallback for older browsers
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy conversation'; }, 2000);
+            });
+        });
 
         sendBtn.addEventListener('click', sendMessage);
         inputEl.addEventListener('keydown', function(e) {
