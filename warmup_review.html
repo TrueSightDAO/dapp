@@ -417,10 +417,10 @@
           : activeLabel === 'AI/Prospect Replied'
           ? 'https://mail.google.com/mail/u/0/#label/AI%2FProspect%2BReplied'
           : 'https://mail.google.com/mail/u/0/#label/AI%2FWarm-up';
-      const gmailLink = d.gmail_draft_id
-          ? 'https://mail.google.com/mail/u/0/#drafts?compose=' + encodeURIComponent(d.gmail_draft_id)
-          : d.gmail_message_id
-          ? 'https://mail.google.com/mail/u/0/#search/rfc822msgid:' + encodeURIComponent(d.gmail_message_id + '@mail.gmail.com')
+      const gmailLink = d.gmail_message_id
+          ? 'https://mail.google.com/mail/u/0/#drafts/' + encodeURIComponent(d.gmail_message_id)
+          : d.gmail_draft_id
+          ? 'https://mail.google.com/mail/u/0/#search/rfc822msgid:' + encodeURIComponent(d.gmail_draft_id)
           : labelFallback;
 
       return '' +
