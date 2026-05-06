@@ -487,6 +487,12 @@
                 border-radius: 12px 12px 0 0;
             }
             #session-panel:not(.open) { display: none; }
+            #pending-inline-badge {
+                top: 2.6rem !important;
+                left: 0.5rem !important;
+                font-size: 0.7rem !important;
+                padding: 0.15rem 0.5rem !important;
+            }
             .container {
                 padding: 0 0.5rem 0.25rem;
             }
@@ -1151,13 +1157,13 @@
         }
 
         async function removePendingProposal(p) {
-            var qr = p.qr_code || '';
-            if (qr) {
+            var key = p.qr_code || p.title || '';
+            if (key) {
                 try {
                     await fetch(API_BASE_URL + '/pending/resolve', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-Public-Key': publicKey },
-                        body: JSON.stringify({ qr_code: qr, action: 'approved' })
+                        body: JSON.stringify({ qr_code: key, action: 'approved' })
                     });
                 } catch(e) {}
             }
@@ -1261,21 +1267,22 @@
         }
 
         function parseProposalsFromText(text) {
-            // Parse ```json proposal blocks from assistant text — same regex autopilot uses server-side
+            // Parse ALL ```json proposal blocks from assistant text — same regex autopilot uses server-side
             var proposals = [];
-            try {
-                var m = text.match(/```json\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```/);
-                if (m) {
+            var re = /```json\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```/g;
+            var m;
+            while ((m = re.exec(text)) !== null) {
+                try {
                     var embedded = JSON.parse(m[1]);
                     if (Array.isArray(embedded)) {
-                        proposals = embedded;
+                        proposals = proposals.concat(embedded);
                     } else if (embedded.proposal) {
-                        proposals = [embedded.proposal];
+                        proposals.push(embedded.proposal);
                     } else if (embedded.proposals) {
-                        proposals = embedded.proposals;
+                        proposals = proposals.concat(embedded.proposals);
                     }
-                }
-            } catch(e) {}
+                } catch(e) {}
+            }
             return proposals;
         }
 
