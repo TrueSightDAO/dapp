@@ -584,6 +584,7 @@
 </head>
 <body>
     <button class="session-toggle" id="session-toggle" title="Sessions">&#9776; <span class="badge" id="pending-badge">0</span></button>
+    <div id="pending-inline-badge" style="display:none; position:fixed; top:0.5rem; left:4.5rem; z-index:1001; background:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:0.2rem 0.6rem; font-size:0.8rem; color:#856404; cursor:pointer; white-space:nowrap;"></div>
     <div id="session-panel">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
             <h3 style="margin:0;"><span>Sessions</span></h3>
@@ -1117,49 +1118,74 @@
             });
         }
 
-        // ────────────── Pending Approvals ──────────────
-        var PENDING_KEY = 'pendingProposals_' + (publicKey || 'anon').substring(0, 20);
+        // ────────────── Pending Approvals (server-backed, survives everything) ──────────────
 
-        function loadPendingProposals() {
-            try { return JSON.parse(sessionStorage.getItem(PENDING_KEY) || '[]'); }
-            catch(e) { return []; }
+        async function loadPendingProposals() {
+            try {
+                var res = await fetch(API_BASE_URL + '/pending', {
+                    headers: { 'X-Public-Key': publicKey }
+                });
+                if (res.ok) {
+                    var data = await res.json();
+                    return data.pending || [];
+                }
+            } catch(e) {}
+            return [];
         }
 
-        function savePendingProposals(list) {
-            sessionStorage.setItem(PENDING_KEY, JSON.stringify(list));
+        async function savePendingProposals(list) {
+            // Server-side sync happens per-item via add/resolve — no bulk save needed
             updatePendingUI();
         }
 
-        function addPendingProposal(p) {
-            var list = loadPendingProposals();
-            // Don't add duplicates
-            var key = p.qr_code || p.title || '';
-            if (key && list.some(function(x) { return (x.qr_code || x.title) === key; })) return;
-            list.push({title: p.title, qr_code: p.qr_code, summary: p.summary, action: p.action, time: new Date().toISOString()});
-            savePendingProposals(list);
+        async function addPendingProposal(p) {
+            // Tell server to persist this pending approval (uses qr_code or title as key)
+            try {
+                await fetch(API_BASE_URL + '/pending/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Public-Key': publicKey },
+                    body: JSON.stringify(p)
+                });
+            } catch(e) {}
+            updatePendingUIFromServer();
         }
 
-        function removePendingProposal(p) {
-            var list = loadPendingProposals();
-            var key = p.qr_code || p.title || '';
-            list = list.filter(function(x) { return (x.qr_code || x.title) !== key; });
-            savePendingProposals(list);
+        async function removePendingProposal(p) {
+            var qr = p.qr_code || '';
+            if (qr) {
+                try {
+                    await fetch(API_BASE_URL + '/pending/resolve', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Public-Key': publicKey },
+                        body: JSON.stringify({ qr_code: qr, action: 'approved' })
+                    });
+                } catch(e) {}
+            }
+            updatePendingUIFromServer();
         }
 
-        function updatePendingUI() {
-            var list = loadPendingProposals();
+        async function updatePendingUIFromServer() {
+            var list = await loadPendingProposals();
+            renderPendingList(list);
+        }
+
+        function renderPendingList(list) {
             var badge = document.getElementById('pending-badge');
             var section = document.getElementById('pending-section');
             var listEl = document.getElementById('pending-list');
+            var inlineBadge = document.getElementById('pending-inline-badge');
 
             if (list.length === 0) {
                 badge.style.display = 'none';
                 section.style.display = 'none';
+                inlineBadge.style.display = 'none';
                 return;
             }
             badge.textContent = list.length;
             badge.style.display = 'inline';
             section.style.display = 'block';
+            inlineBadge.textContent = '⏳ ' + list.length + ' pending' + (list.length > 1 ? '' : '') + ' — tap to review';
+            inlineBadge.style.display = 'block';
 
             listEl.innerHTML = '';
             list.forEach(function(p, idx) {
@@ -1173,28 +1199,28 @@
                 listEl.appendChild(div);
             });
 
-            // Wire up pending buttons
+            // Wire buttons
             listEl.querySelectorAll('.pending-approve').forEach(function(btn) {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', async function() {
                     var idx = parseInt(this.dataset.idx);
-                    var list = loadPendingProposals();
-                    var p = list[idx];
+                    var current = await loadPendingProposals();
+                    var p = current[idx];
                     if (p) {
                         var msg = 'Approve: ' + (p.title || 'transaction');
                         if (p.qr_code) msg += '. Execute for QR ' + p.qr_code + ' only.';
-                        removePendingProposal(p);
+                        await removePendingProposal(p);
                         inputEl.value = msg;
                         sendMessage();
                     }
                 });
             });
             listEl.querySelectorAll('.pending-reject').forEach(function(btn) {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', async function() {
                     var idx = parseInt(this.dataset.idx);
-                    var list = loadPendingProposals();
-                    var p = list[idx];
+                    var current = await loadPendingProposals();
+                    var p = current[idx];
                     if (p) {
-                        removePendingProposal(p);
+                        await removePendingProposal(p);
                         inputEl.value = 'Rejected: ' + (p.title || 'transaction') + '. Do not proceed.';
                         sendMessage();
                     }
@@ -1202,6 +1228,11 @@
             });
         }
 
+        function updatePendingUI() {
+            updatePendingUIFromServer();
+        }
+
+        // Initial load
         updatePendingUI();
 
         async function executeProposal(proposal) {
@@ -1229,6 +1260,55 @@
             chatUiEl.style.display = 'flex';
         }
 
+        function parseProposalsFromText(text) {
+            // Parse ```json proposal blocks from assistant text — same regex autopilot uses server-side
+            var proposals = [];
+            try {
+                var m = text.match(/```json\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```/);
+                if (m) {
+                    var embedded = JSON.parse(m[1]);
+                    if (Array.isArray(embedded)) {
+                        proposals = embedded;
+                    } else if (embedded.proposal) {
+                        proposals = [embedded.proposal];
+                    } else if (embedded.proposals) {
+                        proposals = embedded.proposals;
+                    }
+                }
+            } catch(e) {}
+            return proposals;
+        }
+
+        function reAddImageAttachments(msgDiv, text) {
+            var imgMatch = text.match(/\[IMG:([^\]]+)\]/);
+            if (!imgMatch) return;
+            var parts = imgMatch[1].split('|');
+            var imgUrl = parts[0];
+            var fname = parts[1] || '';
+            var ftype = parts[2] || '';
+            if (imgUrl.startsWith('/uploads/')) {
+                imgUrl = API_BASE_URL + imgUrl;
+            }
+            if (ftype.startsWith('image/')) {
+                var thumb = document.createElement('img');
+                thumb.src = imgUrl;
+                thumb.style.cssText = 'max-width:200px; max-height:200px; border-radius:6px; margin-top:0.5rem; cursor:pointer; display:block; border:1px solid #ddd;';
+                thumb.title = fname + ' — click to enlarge';
+                thumb.addEventListener('click', function() {
+                    var w = window.open('', '_blank', 'width=900,height=700');
+                    w.document.write('<img src="' + imgUrl + '" style="max-width:100%;max-height:100vh;">');
+                });
+                msgDiv.appendChild(thumb);
+            } else if (fname) {
+                var fileLink = document.createElement('a');
+                fileLink.href = imgUrl;
+                fileLink.textContent = '📎 ' + fname;
+                fileLink.style.cssText = 'display:inline-block; margin-top:0.5rem; font-size:0.85rem; color:#007bff;';
+                fileLink.target = '_blank';
+                msgDiv.appendChild(fileLink);
+            }
+        }
+
         async function restoreSession() {
             try {
                 var res = await fetch(API_BASE_URL + '/session', {
@@ -1241,7 +1321,15 @@
                     var data = await res.json();
                     if (data.messages && data.messages.length > 0) {
                         data.messages.forEach(function(msg) {
-                            appendMessage(msg.role === 'user' ? 'You' : 'DAO Assistant', msg.content, msg.role === 'user');
+                            var isUser = msg.role === 'user';
+                            var msgDiv = appendMessage(isUser ? 'You' : 'DAO Assistant', msg.content, isUser);
+                            // Re-render interactive proposal cards from embedded JSON blocks
+                            if (!isUser) {
+                                var proposals = parseProposalsFromText(msg.content);
+                                proposals.forEach(function(p) { renderProposal(p); });
+                                // Re-create image/file attachment thumbnails
+                                reAddImageAttachments(msgDiv, msg.content);
+                            }
                         });
                         return;
                     }
@@ -1261,6 +1349,11 @@
 
         sessionToggle.addEventListener('click', function() {
             sessionPanel.classList.toggle('open');
+        });
+        document.getElementById('pending-inline-badge').addEventListener('click', function() {
+            sessionPanel.classList.add('open');
+            var pendingSection = document.getElementById('pending-section');
+            if (pendingSection) pendingSection.scrollIntoView({ behavior: 'smooth' });
         });
         closePanelBtn.addEventListener('click', function() {
             sessionPanel.classList.remove('open');
