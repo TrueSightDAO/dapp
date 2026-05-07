@@ -1143,6 +1143,22 @@
             const text = inputEl.value.trim();
             if (!text && !pendingFile) return;
 
+            // If currently streaming, queue the message instead
+            if (_isStreaming) {
+                if (text) {
+                    // Show as pending bubble
+                    var pendingDiv = document.createElement('div');
+                    pendingDiv.className = 'message pending';
+                    pendingDiv.innerHTML = '<div class="sender">⏳ You (queued)</div><div class="text">' + text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+                    messagesEl.appendChild(pendingDiv);
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                    _addToQueue(text);
+                }
+                inputEl.value = '';
+                inputEl.style.height = '';
+                return;
+            }
+
             const hasFile = !!pendingFile;
             const isMultiFile = hasFile && pendingFile.length !== undefined && pendingFile.length > 1;
             const fileLabel = hasFile ? (' + ' + (isMultiFile ? pendingFile.length + ' files' : (pendingFile.name || 'file'))) : '';
@@ -1253,6 +1269,7 @@
                     return;
                 }
 
+                _isStreaming = true;
                 await readSSEStream(res, ensureBotMessage, botTextDiv, fullResponse, botMsgDiv);
             } catch (err) {
                 console.error(err);
@@ -1262,8 +1279,13 @@
                     botMsg.querySelector('.text').textContent = 'Could not reach the chat service. Is it running at ' + API_BASE_URL + '?';
                 }
             } finally {
+                _isStreaming = false;
                 sendBtn.disabled = false;
                 inputEl.focus();
+                // Check if there are queued messages — if so, the server will continue streaming
+                // in the same connection. We just keep listening if the stream is still open.
+                // If the stream ended but queue has items, the server will have already started
+                // processing the next one. The readSSEStream loop continues.
             }
         }
 
