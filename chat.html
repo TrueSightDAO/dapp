@@ -1179,11 +1179,17 @@
         async function removePendingProposal(p) {
             var key = p.qr_code || p.title || '';
             if (key) {
+                var body;
+                if (p.qr_code) {
+                    body = JSON.stringify({ qr_code: key, action: 'approved' });
+                } else {
+                    body = JSON.stringify({ title: key, action: 'approved' });
+                }
                 try {
                     await fetch(API_BASE_URL + '/pending/resolve', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-Public-Key': publicKey },
-                        body: JSON.stringify({ qr_code: key, action: 'approved' })
+                        body: body
                     });
                 } catch(e) {}
             }
