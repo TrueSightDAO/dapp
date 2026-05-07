@@ -1569,6 +1569,38 @@
                 authPromptEl.style.display = 'none';
                 chatUiEl.style.display = 'flex';
                 restoreSession();
+                // Restore pending attachment from sessionStorage (survives page refresh)
+                (function() {
+                    var stored = sessionStorage.getItem('pendingAttachment');
+                    if (stored) {
+                        try {
+                            var data = JSON.parse(stored);
+                            if (data.thumbnailDataUrl) {
+                                // Image with thumbnail — reconstruct File and show preview
+                                var restoredFile = dataURLtoFile(data.thumbnailDataUrl, data.filename);
+                                pendingFile = restoredFile;
+                                attachFilename.textContent = data.filename;
+                                attachFilesize.textContent = '(' + (data.size / 1024).toFixed(1) + ' KB)';
+                                var thumbImg = document.createElement('img');
+                                thumbImg.className = 'thumb';
+                                thumbImg.src = data.thumbnailDataUrl;
+                                thumbImg.alt = data.filename;
+                                attachPreview.insertBefore(thumbImg, attachPreview.firstChild);
+                                attachPreview.style.display = 'flex';
+                            } else if (data.filename) {
+                                // Non-image file — show filename only (can't reconstruct File without data)
+                                attachFilename.textContent = data.filename;
+                                attachFilesize.textContent = '(' + (data.size / 1024).toFixed(1) + ' KB)';
+                                attachPreview.style.display = 'flex';
+                                // We can't fully restore the File object for non-images from metadata alone,
+                                // but we show the preview so the user knows what was attached.
+                                // They'll need to re-attach the file to send it.
+                            }
+                        } catch(e) {
+                            sessionStorage.removeItem('pendingAttachment');
+                        }
+                    }
+                })();
             }
         } catch(e) {
             messagesEl.innerHTML = '<div class=\"message bot\"><div class=\"text\">Error loading chat: ' + e.message + '</div></div>';
