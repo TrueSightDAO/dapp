@@ -1034,6 +1034,43 @@
         // Attachment state
         let pendingFile = null;
 
+        // Helper: convert a data URL to a File object
+        function dataURLtoFile(dataurl, filename) {
+            var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+            var bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+            while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+            return new File([u8arr], filename, { type: mime });
+        }
+
+        // Helper: create a thumbnail from an image file (maxWidth px wide), returns a promise
+        function createImageThumbnail(file, maxWidth) {
+            return new Promise(function(resolve, reject) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var img = new Image();
+                    img.onload = function() {
+                        var canvas = document.createElement('canvas');
+                        var scale = Math.min(1, maxWidth / img.width);
+                        canvas.width = Math.round(img.width * scale);
+                        canvas.height = Math.round(img.height * scale);
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        var dataUrl = canvas.toDataURL(file.type || 'image/png');
+                        resolve({
+                            thumbnailDataUrl: dataUrl,
+                            filename: file.name,
+                            size: file.size,
+                            type: file.type
+                        });
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         attachBtn.addEventListener('click', function() {
             fileInput.click();
         });
@@ -1045,12 +1082,43 @@
                 pendingFile = fileList[0];
                 attachFilename.textContent = fileList[0].name;
                 attachFilesize.textContent = '(' + (fileList[0].size / 1024).toFixed(1) + ' KB)';
+                // Generate thumbnail for images and persist to sessionStorage
+                if (fileList[0].type.startsWith('image/')) {
+                    createImageThumbnail(fileList[0], 150).then(function(thumbData) {
+                        // Show thumbnail in preview
+                        var existingThumb = attachPreview.querySelector('.thumb');
+                        if (existingThumb) existingThumb.remove();
+                        var thumbImg = document.createElement('img');
+                        thumbImg.className = 'thumb';
+                        thumbImg.src = thumbData.thumbnailDataUrl;
+                        thumbImg.alt = thumbData.filename;
+                        attachPreview.insertBefore(thumbImg, attachPreview.firstChild);
+                        // Persist to sessionStorage
+                        sessionStorage.setItem('pendingAttachment', JSON.stringify(thumbData));
+                    }).catch(function() {
+                        // If thumbnail fails, store without thumbnail
+                        sessionStorage.setItem('pendingAttachment', JSON.stringify({
+                            filename: fileList[0].name,
+                            size: fileList[0].size,
+                            type: fileList[0].type
+                        }));
+                    });
+                } else {
+                    // Non-image: store metadata without thumbnail
+                    sessionStorage.setItem('pendingAttachment', JSON.stringify({
+                        filename: fileList[0].name,
+                        size: fileList[0].size,
+                        type: fileList[0].type
+                    }));
+                }
             } else {
                 pendingFile = fileList; // Store as FileList
                 var totalSize = 0;
                 for (var i = 0; i < fileList.length; i++) totalSize += fileList[i].size;
                 attachFilename.textContent = fileList.length + ' files selected';
                 attachFilesize.textContent = '(' + (totalSize / 1024).toFixed(1) + ' KB total)';
+                // For multiple files, clear any stored single-file attachment
+                sessionStorage.removeItem('pendingAttachment');
             }
             attachPreview.style.display = 'flex';
         });
@@ -1059,6 +1127,7 @@
             pendingFile = null;
             fileInput.value = '';
             attachPreview.style.display = 'none';
+            sessionStorage.removeItem('pendingAttachment');
         });
 
         async function readSSEStream(res, ensureBotMessage, botTextDiv, fullResponse, botMsgDiv) {
