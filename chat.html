@@ -882,6 +882,148 @@
             return { payload: payloadObj, signature };
         }
 
+        // Queue state
+        let _isStreaming = false;
+        let _queue = [];
+        const _queueBarEl = document.getElementById('queue-bar');
+        const _queueCountEl = document.getElementById('queue-count');
+        const _queuePluralEl = document.getElementById('queue-plural');
+        const _queuePopupEl = document.getElementById('queue-popup');
+
+        function _updateQueueUI() {
+            _queueCountEl.textContent = _queue.length;
+            _queuePluralEl.textContent = _queue.length === 1 ? '' : 's';
+            _queueBarEl.style.display = _queue.length > 0 ? 'block' : 'none';
+            _renderQueuePopup();
+        }
+
+        function _renderQueuePopup() {
+            _queuePopupEl.innerHTML = '';
+            if (_queue.length === 0) { _queuePopupEl.style.display = 'none'; return; }
+            _queue.forEach(function(item, idx) {
+                var div = document.createElement('div');
+                div.className = 'queue-item';
+                var textSpan = document.createElement('span');
+                textSpan.className = 'qi-text';
+                textSpan.textContent = item.text || '(empty)';
+                var editBtn = document.createElement('button');
+                editBtn.className = 'qi-edit';
+                editBtn.textContent = '✎';
+                editBtn.title = 'Edit';
+                editBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    inputEl.value = item.text || '';
+                    inputEl.focus();
+                });
+                var delBtn = document.createElement('button');
+                delBtn.className = 'qi-delete';
+                delBtn.textContent = '✕';
+                delBtn.title = 'Delete';
+                delBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    _removeQueuedMessage(idx);
+                });
+                div.appendChild(textSpan);
+                div.appendChild(editBtn);
+                div.appendChild(delBtn);
+                _queuePopupEl.appendChild(div);
+            });
+            _queuePopupEl.style.display = 'block';
+        }
+
+        function _removeQueuedMessage(idx) {
+            var item = _queue[idx];
+            if (!item) return;
+            // Remove from server
+            if (item.msg_id) {
+                fetch(API_BASE_URL + '/chat/queue/' + item.msg_id, {
+                    method: 'DELETE',
+                    headers: { 'X-Public-Key': publicKey }
+                }).catch(function() {});
+            }
+            _queue.splice(idx, 1);
+            _updateQueueUI();
+        }
+
+        function _addToQueue(text) {
+            // POST to server queue
+            var payloadObj = {
+                message: text,
+                timestamp: new Date().toISOString(),
+                nonce: crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2))
+            };
+            // Add locally first for instant UI feedback
+            var localItem = { text: text, msg_id: null, pending: true };
+            _queue.push(localItem);
+            _updateQueueUI();
+            // Then POST to server
+            (async function() {
+                try {
+                    var signed = await signPayload(payloadObj);
+                    var res = await fetch(API_BASE_URL + '/chat/queue', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Public-Key': publicKey,
+                            'X-Session-Id': SESSION_ID
+                        },
+                        body: JSON.stringify(signed)
+                    });
+                    if (res.ok) {
+                        var data = await res.json();
+                        if (data.msg_id) {
+                            localItem.msg_id = data.msg_id;
+                            localItem.pending = false;
+                        }
+                    }
+                } catch(e) {}
+            })();
+        }
+
+        function _pollQueue() {
+            fetch(API_BASE_URL + '/chat/queue', {
+                headers: { 'X-Public-Key': publicKey, 'X-Session-Id': SESSION_ID }
+            })
+            .then(function(r) { if (r.ok) return r.json(); else return null; })
+            .then(function(data) {
+                if (data && data.queue) {
+                    // Merge server queue with local — keep local edits, add missing
+                    var serverIds = {};
+                    data.queue.forEach(function(sItem) {
+                        serverIds[sItem.msg_id] = true;
+                        var found = _queue.find(function(lItem) { return lItem.msg_id === sItem.msg_id; });
+                        if (!found) {
+                            _queue.push({ text: sItem.text, msg_id: sItem.msg_id, pending: false });
+                        }
+                    });
+                    // Remove local items that are no longer on server (unless pending local-only)
+                    _queue = _queue.filter(function(lItem) {
+                        return lItem.pending || lItem.msg_id === null || serverIds[lItem.msg_id];
+                    });
+                    _updateQueueUI();
+                }
+            })
+            .catch(function() {});
+        }
+
+        // Queue bar click toggles popup
+        _queueBarEl.addEventListener('click', function() {
+            if (_queuePopupEl.style.display === 'block') {
+                _queuePopupEl.style.display = 'none';
+            } else {
+                _renderQueuePopup();
+            }
+        });
+        // Close popup when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!_queueBarEl.contains(e.target) && !_queuePopupEl.contains(e.target)) {
+                _queuePopupEl.style.display = 'none';
+            }
+        });
+
+        // Start queue polling every 5 seconds
+        setInterval(_pollQueue, 5000);
+
         // Attachment state
         let pendingFile = null;
 
