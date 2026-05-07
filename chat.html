@@ -588,6 +588,34 @@
             color: #555;
         }
         .copy-code-btn:hover { background: #e0e0e0; }
+        .message.pending {
+            background-color: #f0f0f0;
+            color: #888;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+            border: 1px dashed #ccc;
+            opacity: 0.8;
+        }
+        .message.pending .sender {
+            color: #999;
+        }
+        #queue-popup .queue-item {
+            display:flex; align-items:center; gap:0.4rem; padding:0.35rem 0.4rem;
+            border-bottom:1px solid #eee; font-size:0.8rem;
+        }
+        #queue-popup .queue-item:last-child { border-bottom:none; }
+        #queue-popup .queue-item .qi-text {
+            flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        }
+        #queue-popup .queue-item .qi-edit,
+        #queue-popup .queue-item .qi-delete {
+            cursor:pointer; font-size:0.75rem; padding:0.1rem 0.3rem;
+            border:none; border-radius:3px; background:none;
+        }
+        #queue-popup .queue-item .qi-edit { color:#007bff; }
+        #queue-popup .queue-item .qi-delete { color:#dc3545; }
+        #queue-popup .queue-item .qi-edit:hover { background:#e8f4fd; }
+        #queue-popup .queue-item .qi-delete:hover { background:#fde8e8; }
     </style>
 </head>
 <body>
@@ -637,7 +665,11 @@
                 <span id="attach-filesize"></span>
                 <span class="remove-attach" id="remove-attach">&times;</span>
             </div>
-            <div id="chat-input-area">
+            <div id="queue-bar" style="display:none; padding:0.3rem 0.5rem; background:#e8f4fd; border:1px solid #b8d4f0; border-radius:4px; font-size:0.8rem; color:#0056b3; cursor:pointer; flex-shrink:0; margin-bottom:0.25rem; text-align:center;">
+              📋 <span id="queue-count">0</span> message<span id="queue-plural">s</span> queued — click to review
+            </div>
+            <div id="queue-popup" style="display:none; position:absolute; bottom:100%; left:0; right:0; max-height:200px; overflow-y:auto; background:#fff; border:1px solid #b8d4f0; border-radius:6px; box-shadow:0 -2px 8px rgba(0,0,0,0.12); z-index:10; padding:0.5rem; margin-bottom:0.25rem;"></div>
+            <div id="chat-input-area" style="position:relative;">
                 <button id="attach-btn" title="Attach file">&#128206;</button>
                 <input type="file" id="file-input" accept="image/*,.pdf,.csv,.xlsx,.xls,.txt,.md,.json,.py,.js,.html,.css" multiple>
                 <textarea id="chat-input" placeholder="Ask about the DAO, Agroverse, codebases, or governance..." rows="2"></textarea>
@@ -850,6 +882,148 @@
             return { payload: payloadObj, signature };
         }
 
+        // Queue state
+        let _isStreaming = false;
+        let _queue = [];
+        const _queueBarEl = document.getElementById('queue-bar');
+        const _queueCountEl = document.getElementById('queue-count');
+        const _queuePluralEl = document.getElementById('queue-plural');
+        const _queuePopupEl = document.getElementById('queue-popup');
+
+        function _updateQueueUI() {
+            _queueCountEl.textContent = _queue.length;
+            _queuePluralEl.textContent = _queue.length === 1 ? '' : 's';
+            _queueBarEl.style.display = _queue.length > 0 ? 'block' : 'none';
+            _renderQueuePopup();
+        }
+
+        function _renderQueuePopup() {
+            _queuePopupEl.innerHTML = '';
+            if (_queue.length === 0) { _queuePopupEl.style.display = 'none'; return; }
+            _queue.forEach(function(item, idx) {
+                var div = document.createElement('div');
+                div.className = 'queue-item';
+                var textSpan = document.createElement('span');
+                textSpan.className = 'qi-text';
+                textSpan.textContent = item.text || '(empty)';
+                var editBtn = document.createElement('button');
+                editBtn.className = 'qi-edit';
+                editBtn.textContent = '✎';
+                editBtn.title = 'Edit';
+                editBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    inputEl.value = item.text || '';
+                    inputEl.focus();
+                });
+                var delBtn = document.createElement('button');
+                delBtn.className = 'qi-delete';
+                delBtn.textContent = '✕';
+                delBtn.title = 'Delete';
+                delBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    _removeQueuedMessage(idx);
+                });
+                div.appendChild(textSpan);
+                div.appendChild(editBtn);
+                div.appendChild(delBtn);
+                _queuePopupEl.appendChild(div);
+            });
+            _queuePopupEl.style.display = 'block';
+        }
+
+        function _removeQueuedMessage(idx) {
+            var item = _queue[idx];
+            if (!item) return;
+            // Remove from server
+            if (item.msg_id) {
+                fetch(API_BASE_URL + '/chat/queue/' + item.msg_id, {
+                    method: 'DELETE',
+                    headers: { 'X-Public-Key': publicKey }
+                }).catch(function() {});
+            }
+            _queue.splice(idx, 1);
+            _updateQueueUI();
+        }
+
+        function _addToQueue(text) {
+            // POST to server queue
+            var payloadObj = {
+                message: text,
+                timestamp: new Date().toISOString(),
+                nonce: crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2))
+            };
+            // Add locally first for instant UI feedback
+            var localItem = { text: text, msg_id: null, pending: true };
+            _queue.push(localItem);
+            _updateQueueUI();
+            // Then POST to server
+            (async function() {
+                try {
+                    var signed = await signPayload(payloadObj);
+                    var res = await fetch(API_BASE_URL + '/chat/queue', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Public-Key': publicKey,
+                            'X-Session-Id': SESSION_ID
+                        },
+                        body: JSON.stringify(signed)
+                    });
+                    if (res.ok) {
+                        var data = await res.json();
+                        if (data.msg_id) {
+                            localItem.msg_id = data.msg_id;
+                            localItem.pending = false;
+                        }
+                    }
+                } catch(e) {}
+            })();
+        }
+
+        function _pollQueue() {
+            fetch(API_BASE_URL + '/chat/queue', {
+                headers: { 'X-Public-Key': publicKey, 'X-Session-Id': SESSION_ID }
+            })
+            .then(function(r) { if (r.ok) return r.json(); else return null; })
+            .then(function(data) {
+                if (data && data.queue) {
+                    // Merge server queue with local — keep local edits, add missing
+                    var serverIds = {};
+                    data.queue.forEach(function(sItem) {
+                        serverIds[sItem.msg_id] = true;
+                        var found = _queue.find(function(lItem) { return lItem.msg_id === sItem.msg_id; });
+                        if (!found) {
+                            _queue.push({ text: sItem.text, msg_id: sItem.msg_id, pending: false });
+                        }
+                    });
+                    // Remove local items that are no longer on server (unless pending local-only)
+                    _queue = _queue.filter(function(lItem) {
+                        return lItem.pending || lItem.msg_id === null || serverIds[lItem.msg_id];
+                    });
+                    _updateQueueUI();
+                }
+            })
+            .catch(function() {});
+        }
+
+        // Queue bar click toggles popup
+        _queueBarEl.addEventListener('click', function() {
+            if (_queuePopupEl.style.display === 'block') {
+                _queuePopupEl.style.display = 'none';
+            } else {
+                _renderQueuePopup();
+            }
+        });
+        // Close popup when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!_queueBarEl.contains(e.target) && !_queuePopupEl.contains(e.target)) {
+                _queuePopupEl.style.display = 'none';
+            }
+        });
+
+        // Start queue polling every 5 seconds
+        setInterval(_pollQueue, 5000);
+
         // Attachment state
         let pendingFile = null;
 
@@ -953,6 +1127,16 @@
                                 renderProposal(event.proposal);
                             }
                             setStatus('');
+                            // Check if there are queued messages — server may continue streaming
+                            // the next response in the same connection. We just keep listening.
+                            // The _isStreaming flag stays true until the connection fully closes.
+                            if (event.queue_remaining && event.queue_remaining > 0) {
+                                // Server will continue with next queued message
+                                console.log('[Queue] ' + event.queue_remaining + ' messages remaining in queue');
+                            } else {
+                                // No more queued messages — poll server to sync
+                                _pollQueue();
+                            }
                         } else if (type === 'error') {
                             const td = ensureBotMessage();
                             td.textContent = 'Error: ' + (event.content || 'Unknown error');
@@ -968,6 +1152,22 @@
         async function sendMessage() {
             const text = inputEl.value.trim();
             if (!text && !pendingFile) return;
+
+            // If currently streaming, queue the message instead
+            if (_isStreaming) {
+                if (text) {
+                    // Show as pending bubble
+                    var pendingDiv = document.createElement('div');
+                    pendingDiv.className = 'message pending';
+                    pendingDiv.innerHTML = '<div class="sender">⏳ You (queued)</div><div class="text">' + text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+                    messagesEl.appendChild(pendingDiv);
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                    _addToQueue(text);
+                }
+                inputEl.value = '';
+                inputEl.style.height = '';
+                return;
+            }
 
             const hasFile = !!pendingFile;
             const isMultiFile = hasFile && pendingFile.length !== undefined && pendingFile.length > 1;
@@ -1079,6 +1279,7 @@
                     return;
                 }
 
+                _isStreaming = true;
                 await readSSEStream(res, ensureBotMessage, botTextDiv, fullResponse, botMsgDiv);
             } catch (err) {
                 console.error(err);
@@ -1088,8 +1289,13 @@
                     botMsg.querySelector('.text').textContent = 'Could not reach the chat service. Is it running at ' + API_BASE_URL + '?';
                 }
             } finally {
+                _isStreaming = false;
                 sendBtn.disabled = false;
                 inputEl.focus();
+                // Check if there are queued messages — if so, the server will continue streaming
+                // in the same connection. We just keep listening if the stream is still open.
+                // If the stream ended but queue has items, the server will have already started
+                // processing the next one. The readSSEStream loop continues.
             }
         }
 
