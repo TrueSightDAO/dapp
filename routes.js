@@ -75,6 +75,11 @@
   // Uses sessionStorage to guard against a reload loop if the probe itself
   // triggers a reload. On failure, flip localStorage to 'proxy' and reload.
   if (isWindow && mode === 'direct') {
+    // Skip probe on localhost — developer mode, no CORS to script.google.com.
+    var hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      // no-op: developer is running locally
+    } else {
     try {
       if (sessionStorage.getItem('routesProbed') !== 'true') {
         sessionStorage.setItem('routesProbed', 'true');
