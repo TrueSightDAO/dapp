@@ -110,5 +110,6 @@
     } catch (_) {
       // sessionStorage unavailable — skip probe.
     }
-  }
+    } // end else (non-localhost)
+  } // end if (isWindow && mode === 'direct')
 })(typeof self !== 'undefined' ? self : this);
