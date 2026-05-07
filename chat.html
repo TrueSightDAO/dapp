@@ -1403,6 +1403,7 @@
                         nameSpan.style.flex = '1';
                         nameSpan.addEventListener('click', function() {
                             sessionStorage.setItem('chatSessionId', s.id);
+                            setSessionHash(s.id);
                             location.reload();
                         });
                         var renameBtn = document.createElement('button');
