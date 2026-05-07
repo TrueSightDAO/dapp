@@ -12,6 +12,7 @@
     { title: 'Content Feedback Submission', url: './submit_feedback.html', section: 'Community Contributions' },
     { title: 'Capital Injection Reporter', url: './report_capital_injection.html', section: 'Inventory & ledger' },
     { title: 'Inventory Expense Reporter', url: './report_dao_expenses.html', section: 'Inventory & ledger' },
+    { title: 'Asset Receipt Reporter', url: './report_asset_receipt.html', section: 'Inventory & ledger' },
     { title: 'Inventory Movement Reporter', url: './report_inventory_movement.html', section: 'Inventory & ledger' },
     { title: 'Inventory Holdings by Manager', url: './view_inventory_holdings.html', section: 'Inventory & ledger' },
     { title: 'Batch QR Code Generator', url: './batch_qr_generator.html', section: 'Inventory & ledger' },
