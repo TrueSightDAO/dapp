@@ -637,7 +637,11 @@
                 <span id="attach-filesize"></span>
                 <span class="remove-attach" id="remove-attach">&times;</span>
             </div>
-            <div id="chat-input-area">
+            <div id="queue-bar" style="display:none; padding:0.3rem 0.5rem; background:#e8f4fd; border:1px solid #b8d4f0; border-radius:4px; font-size:0.8rem; color:#0056b3; cursor:pointer; flex-shrink:0; margin-bottom:0.25rem; text-align:center;">
+              📋 <span id="queue-count">0</span> message<span id="queue-plural">s</span> queued — click to review
+            </div>
+            <div id="queue-popup" style="display:none; position:absolute; bottom:100%; left:0; right:0; max-height:200px; overflow-y:auto; background:#fff; border:1px solid #b8d4f0; border-radius:6px; box-shadow:0 -2px 8px rgba(0,0,0,0.12); z-index:10; padding:0.5rem; margin-bottom:0.25rem;"></div>
+            <div id="chat-input-area" style="position:relative;">
                 <button id="attach-btn" title="Attach file">&#128206;</button>
                 <input type="file" id="file-input" accept="image/*,.pdf,.csv,.xlsx,.xls,.txt,.md,.json,.py,.js,.html,.css" multiple>
                 <textarea id="chat-input" placeholder="Ask about the DAO, Agroverse, codebases, or governance..." rows="2"></textarea>
