@@ -654,9 +654,27 @@
         const LOCAL_CHAT_URL = 'http://localhost:8001';
         const DEFAULT_CHAT_URL = isLocalhost ? LOCAL_CHAT_URL : PRODUCTION_CHAT_URL;
 
-        // Session ID — persists across refreshes in the same tab, unique per tab
-        if (!sessionStorage.getItem('chatSessionId')) {
-            sessionStorage.setItem('chatSessionId', crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+        // Session ID — from URL hash, sessionStorage, or generated
+        function getSessionIdFromHash() {
+            var match = window.location.hash.match(/[#&]session=([^&]+)/);
+            return match ? match[1] : null;
+        }
+        function setSessionHash(id) {
+            var hash = '#session=' + id;
+            window.location.hash = hash;
+        }
+        var hashSessionId = getSessionIdFromHash();
+        if (hashSessionId) {
+            // URL hash takes precedence — persist to sessionStorage for backup
+            sessionStorage.setItem('chatSessionId', hashSessionId);
+        } else if (!sessionStorage.getItem('chatSessionId')) {
+            // No hash, no stored session — generate a new one
+            var newId = crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2);
+            sessionStorage.setItem('chatSessionId', newId);
+            setSessionHash(newId);
+        } else {
+            // Restored from sessionStorage — sync hash
+            setSessionHash(sessionStorage.getItem('chatSessionId'));
         }
         const SESSION_ID = sessionStorage.getItem('chatSessionId');
 
@@ -1385,6 +1403,7 @@
                         nameSpan.style.flex = '1';
                         nameSpan.addEventListener('click', function() {
                             sessionStorage.setItem('chatSessionId', s.id);
+                            setSessionHash(s.id);
                             location.reload();
                         });
                         var renameBtn = document.createElement('button');
@@ -1422,6 +1441,7 @@
                 if (res.ok) {
                     var data = await res.json();
                     sessionStorage.setItem('chatSessionId', data.session_id);
+                    setSessionHash(data.session_id);
                     location.reload();
                 }
             } catch (e) {}
