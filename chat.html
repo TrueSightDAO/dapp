@@ -1440,6 +1440,7 @@
                 if (res.ok) {
                     var data = await res.json();
                     sessionStorage.setItem('chatSessionId', data.session_id);
+                    setSessionHash(data.session_id);
                     location.reload();
                 }
             } catch (e) {}
