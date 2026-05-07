@@ -1127,6 +1127,16 @@
                                 renderProposal(event.proposal);
                             }
                             setStatus('');
+                            // Check if there are queued messages — server may continue streaming
+                            // the next response in the same connection. We just keep listening.
+                            // The _isStreaming flag stays true until the connection fully closes.
+                            if (event.queue_remaining && event.queue_remaining > 0) {
+                                // Server will continue with next queued message
+                                console.log('[Queue] ' + event.queue_remaining + ' messages remaining in queue');
+                            } else {
+                                // No more queued messages — poll server to sync
+                                _pollQueue();
+                            }
                         } else if (type === 'error') {
                             const td = ensureBotMessage();
                             td.textContent = 'Error: ' + (event.content || 'Unknown error');
