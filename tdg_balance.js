@@ -95,11 +95,20 @@
             _source: 'github_cache'
           };
         })
-      : fetch(CACHE_URL, { cache: 'no-cache' })
-          .then(function(r) {
-            if (!r.ok) throw new Error('cache HTTP ' + r.status);
-            return r.json();
-          })
+      : (function() {
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function() { controller.abort(); }, 5000);
+            return fetch(CACHE_URL, { cache: 'no-cache', signal: controller.signal })
+              .then(function(r) {
+                clearTimeout(timeoutId);
+                if (!r.ok) throw new Error('cache HTTP ' + r.status);
+                return r.json();
+              })
+              .catch(function(err) {
+                clearTimeout(timeoutId);
+                throw err;
+              });
+          })()
           .then(function(snapshot) {
             var daoTotals = (snapshot && snapshot.dao_totals) || {};
             var assetPerRight = parseFloat(daoTotals.asset_per_circulated_voting_right);
