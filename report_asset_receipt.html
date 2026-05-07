@@ -252,14 +252,31 @@
             </div>
             
             <div class="form-row">
-                <label for="descriptionInput">Description</label>
+                <label for="descriptionInput">Description:</label>
                 <textarea id="descriptionInput" maxlength="500" placeholder="Include PDF URL and cash-leg reference" disabled></textarea>
                 <div class="char-count"><span id="charCount">0</span>/500 characters</div>
             </div>
-            
+
+            <div class="form-row" id="upload-section">
+                <label>Upload Proof of Purchase (PDF or Image):</label>
+                <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
+                <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
+            </div>
+
             <div class="form-row">
                 <div class="info-box">
-                    <div class="info">Event Text Preview:</div>
+                    <div class="info">Original File Name:</div>
+                    <div class="info-location" id="originalFileName">No file selected</div>
+                    <div class="info">Asset Receipt File Name:</div>
+                    <div class="info-location" id="assetReceiptFileName">Waiting for file selection...</div>
+                    <div class="info">Asset Receipt File Location:</div>
+                    <div class="info-location" id="assetReceiptLocation">Waiting for file selection...</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Event Preview:</label>
+                <div class="info-box">
                     <div class="info-location" id="eventPreview">Waiting for input...</div>
                 </div>
             </div>
@@ -272,11 +289,12 @@
 
     <script>
         const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
-        const DAO_FORMS_BASE = (window.Routes && window.Routes.gas && window.Routes.gas.daoForms)
-            || 'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec';
         const EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
             || 'https://edgar.truesight.me/dao/submit_contribution';
+        let file = null;
+        let fileName = '';
         let isPostSubmission = false;
+        let cachedAssetReceiptFileName = null;
 
         // Utility functions
         function base64ToArrayBuffer(base64) {
@@ -320,13 +338,82 @@
             charCount.textContent = descriptionInput.value.length;
         }
 
+        function generateAssetReceiptFileName(originalFileName) {
+            const timestamp = Date.now();
+            const extension = originalFileName.split('.').pop();
+            const nameWithoutExt = originalFileName.replace(/\.[^/.]+$/, '');
+            return `asset_receipt_${timestamp}_${nameWithoutExt}.${extension}`;
+        }
+
+        function updateFileInfo() {
+            const originalFileNameElement = document.getElementById('originalFileName');
+            const assetReceiptFileNameElement = document.getElementById('assetReceiptFileName');
+            const assetReceiptLocationElement = document.getElementById('assetReceiptLocation');
+
+            if (file) {
+                originalFileNameElement.textContent = fileName;
+                cachedAssetReceiptFileName = generateAssetReceiptFileName(fileName);
+                assetReceiptFileNameElement.textContent = cachedAssetReceiptFileName;
+                assetReceiptLocationElement.innerHTML = `${REPO_BASE_URL}${cachedAssetReceiptFileName}`;
+            } else {
+                originalFileNameElement.textContent = 'No file selected';
+                assetReceiptFileNameElement.textContent = 'Waiting for file selection...';
+                assetReceiptLocationElement.innerHTML = 'Waiting for file selection...';
+                cachedAssetReceiptFileName = null;
+            }
+        }
+
+        function triggerFileSelect() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,application/pdf';
+            input.onchange = (event) => {
+                if (event.target.files.length > 0) {
+                    handleFile(event.target.files[0]);
+                }
+            };
+            input.click();
+        }
+
+        function handleFile(selectedFile) {
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'application/pdf'];
+            if (!allowedTypes.includes(selectedFile.type)) {
+                const output = document.getElementById('outputMessage');
+                output.textContent = 'Unsupported file type. Please select a PDF or image file.';
+                output.className = 'error';
+                output.classList.remove('hidden');
+                return;
+            }
+
+            fileName = selectedFile.name;
+            file = selectedFile;
+            
+            const img = document.getElementById('uploaded-file-preview');
+            if (selectedFile.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                };
+                reader.readAsDataURL(selectedFile);
+            } else {
+                img.style.display = 'none';
+            }
+            
+            updateFileInfo();
+            updateEventPreview();
+        }
+
         function updateEventPreview() {
             const fundHandler = document.getElementById('fundHandlerInput').value.trim();
             const currency = document.getElementById('currencyInput').value.trim();
             const amount = document.getElementById('amountInput').value;
             const description = document.getElementById('descriptionInput').value.trim();
 
-            const preview = `[ASSET RECEIPT EVENT]\n- Currency: ${currency || '<pending>'}\n- Amount: ${amount || '<pending>'}\n- Description: ${description || '<pending>'}\n- Fund Handler: ${fundHandler || '<pending>'}\n- Attached Filename: N/A\n- Destination Contribution File Location: N/A\n--------`;
+            const attachedFilename = file ? fileName : 'N/A';
+            const destLocation = file ? `${REPO_BASE_URL}${cachedAssetReceiptFileName}` : 'N/A';
+
+            const preview = `[ASSET RECEIPT EVENT]\n- Currency: ${currency || '<pending>'}\n- Amount: ${amount || '<pending>'}\n- Description: ${description || '<pending>'}\n- Fund Handler: ${fundHandler || '<pending>'}\n- Attached Filename: ${attachedFilename}\n- Destination Contribution File Location: ${destLocation}\n--------`;
 
             document.getElementById('eventPreview').textContent = preview;
         }
@@ -362,7 +449,9 @@
                     throw new Error('Digital signature not found. Please generate your signature first.');
                 }
 
-                const requestText = `[ASSET RECEIPT EVENT]\n- Currency: ${currency}\n- Amount: ${amount}\n- Description: ${description}\n- Fund Handler: ${fundHandler}\n- Attached Filename: N/A\n- Destination Contribution File Location: N/A\n--------`;
+                const attachedFilename = file ? fileName : 'N/A';
+                const destLocation = file ? `${REPO_BASE_URL}${cachedAssetReceiptFileName || generateAssetReceiptFileName(fileName)}` : 'N/A';
+                const requestText = `[ASSET RECEIPT EVENT]\n- Currency: ${currency}\n- Amount: ${amount}\n- Description: ${description}\n- Fund Handler: ${fundHandler}\n- Attached Filename: ${attachedFilename}\n- Destination Contribution File Location: ${destLocation}\n--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     'pkcs8',
@@ -387,6 +476,9 @@
                 if (await isOnline()) {
                     const formData = new FormData();
                     formData.append('text', shareText);
+                    if (file) {
+                        formData.append('attachment', file, fileName);
+                    }
 
                     const resp = await fetch(EDGAR_SUBMIT, {
                         method: 'POST',
@@ -396,6 +488,13 @@
                     if (!resp.ok) throw new Error(await resp.text());
 
                     const result = await resp.json();
+
+                    // Make file location clickable after successful upload
+                    if (result.fileUploadedToGithub && file) {
+                        const assetReceiptLocationElement = document.getElementById('assetReceiptLocation');
+                        const locationUrl = assetReceiptLocationElement.textContent.trim();
+                        assetReceiptLocationElement.innerHTML = `<a href="${locationUrl}" target="_blank" style="color: #4CAF50; text-decoration: underline;">${locationUrl}</a>`;
+                    }
 
                     output.innerHTML = `Asset receipt report sent to Edgar successfully. <br>View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
@@ -479,6 +578,28 @@
                 updateSubmitButtonState();
             });
             document.getElementById('submitButton').addEventListener('click', submitReport);
+
+            // File upload event listeners
+            document.getElementById('paste-area').addEventListener('click', triggerFileSelect);
+            document.getElementById('paste-area').addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add('dragover');
+            });
+            document.getElementById('paste-area').addEventListener('dragleave', (e) => {
+                e.currentTarget.classList.remove('dragover');
+            });
+            document.getElementById('paste-area').addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+            document.addEventListener('paste', (e) => {
+                if (e.clipboardData && e.clipboardData.files.length > 0) {
+                    handleFile(e.clipboardData.files[0]);
+                }
+            });
 
             // Initialize
             updateEventPreview();
