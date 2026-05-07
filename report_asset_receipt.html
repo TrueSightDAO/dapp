@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Report a physical asset received for DAO inventory">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Receipt Report</title>
+
+    <!-- Open Graph tags for WhatsApp and social media previews -->
+    <meta property="og:title" content="Asset Receipt Report">
+    <meta property="og:description" content="Report a physical asset received for DAO inventory">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://truesightdao.github.io/dapp/">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./routes.js"></script>
+    <script src="./menu.js?v=20260430"></script>
+    <script src="./tdg_balance.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        #description {
+            font-style: italic;
+            color: #555;
+            line-height: 1.5;
+            margin: 0.8rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #backLink {
+            top: 1rem;
+            left: 1rem;
+            font-size: 1rem;
+            color: #007bff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: color 0.2s;
+        }
+        #backLink:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        #backLink::before {
+            content: "←";
+            font-size: 1.2rem;
+        }
+        #status {
+            margin: 1rem 0;
+            font-weight: bold;
+            min-height: 24px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #welcome {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0.8rem 0;
+            text-align: center;
+            display: none;
+        }
+        .status {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info-box {
+            margin: 1rem 0;
+            background-color: #f8f9fa;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            overflow: scroll;
+            max-height: 200px;
+        }
+        .info {
+            font-weight: bold;
+            margin: 0.3rem 0 0.1rem 0;
+        }
+        .info-location {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #666;
+            word-break: break-all;
+            margin-bottom: 0.5rem;
+        }
+        .form-row {
+            margin: 1rem 0;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+        select, input[type="number"], input[type="text"], textarea {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        select:disabled, input:disabled, textarea:disabled {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+        textarea {
+            resize: none;
+            min-height: 80px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            margin: 0.5rem auto;
+            width: 100%;
+            max-width: 300px;
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: scale(1.02);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .char-count {
+            text-align: right;
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.2rem;
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        .hidden {
+            display: none;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.8rem;
+                margin: 0.5rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            #description {
+                font-size: 0.95rem;
+            }
+            .form-row {
+                text-align: center;
+            }
+            label {
+                font-size: 0.9rem;
+            }
+            select, input[type="number"], input[type="text"], textarea {
+                font-size: 0.95rem;
+                padding: 0.6rem;
+            }
+            button {
+                padding: 0.8rem 1.5rem;
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div id="tdgBalanceBadge"></div>
+    <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>        
+        <h1>Asset Receipt Report</h1>
+        <p id="description">
+            Record a non-serialized physical asset purchased for the DAO. This creates the positive inventory leg on offchain transactions. For the cash outflow, use the <a href="./report_contribution.html">DAO Contribution Report</a> first.
+        </p>
+        
+        <div id="welcome" style="display: none;"></div>
+        <p id="status" class="fade-in">Loading...</p>
+        
+        <div id="info" style="display: none;">
+            <div class="form-row">
+                <label for="fundHandlerInput">Fund Handler</label>
+                <input type="text" id="fundHandlerInput" placeholder="Enter fund handler name" disabled>
+            </div>
+            
+            <div class="form-row">
+                <label for="currencyInput">Currency Name</label>
+                <input type="text" id="currencyInput" placeholder="Enter currency name (e.g. USD, EUR)" disabled>
+            </div>
+            
+            <div class="form-row">
+                <label for="amountInput">Amount</label>
+                <input type="number" id="amountInput" min="1" step="1" value="1" placeholder="Unit count" disabled>
+            </div>
+            
+            <div class="form-row">
+                <label for="descriptionInput">Description</label>
+                <textarea id="descriptionInput" maxlength="500" placeholder="Include PDF URL and cash-leg reference" disabled></textarea>
+                <div class="char-count"><span id="charCount">0</span>/500 characters</div>
+            </div>
+            
+            <div class="form-row">
+                <div class="info-box">
+                    <div class="info">Event Text Preview:</div>
+                    <div class="info-location" id="eventPreview">Waiting for input...</div>
+                </div>
+            </div>
+            
+            <button id="submitButton" disabled>Submit Asset Receipt Report</button>
+        </div>
+        
+        <div id="outputMessage" class="hidden"></div>
+    </div>
+
+    <script>
+        const REPO_BASE_URL = 'https://github.com/TrueSightDAO/.github/tree/main/assets/';
+        const DAO_FORMS_BASE = (window.Routes && window.Routes.gas && window.Routes.gas.daoForms)
+            || 'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec';
+        const EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
+            || 'https://edgar.truesight.me/dao/submit_contribution';
+        let isPostSubmission = false;
+
+        // Utility functions
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        async function isOnline() {
+            return navigator.onLine;
+        }
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        function updateCharCount() {
+            const descriptionInput = document.getElementById('descriptionInput');
+            const charCount = document.getElementById('charCount');
+            charCount.textContent = descriptionInput.value.length;
+        }
+
+        function updateEventPreview() {
+            const fundHandler = document.getElementById('fundHandlerInput').value.trim();
+            const currency = document.getElementById('currencyInput').value.trim();
+            const amount = document.getElementById('amountInput').value;
+            const description = document.getElementById('descriptionInput').value.trim();
+
+            const preview = `[ASSET RECEIPT EVENT]\n- Currency: ${currency || '<pending>'}\n- Amount: ${amount || '<pending>'}\n- Description: ${description || '<pending>'}\n- Fund Handler: ${fundHandler || '<pending>'}\n- Attached Filename: N/A\n- Destination Contribution File Location: N/A\n--------`;
+
+            document.getElementById('eventPreview').textContent = preview;
+        }
+
+        function updateSubmitButtonState() {
+            const submitBtn = document.getElementById('submitButton');
+            const fundHandler = document.getElementById('fundHandlerInput').value.trim();
+            const currency = document.getElementById('currencyInput').value.trim();
+            const amount = document.getElementById('amountInput').value;
+            const description = document.getElementById('descriptionInput').value.trim();
+            
+            const isValid = fundHandler && currency && amount && parseFloat(amount) > 0 && description;
+            
+            submitBtn.disabled = !isValid;
+        }
+
+        async function submitReport() {
+            const fundHandler = document.getElementById('fundHandlerInput').value.trim();
+            const currency = document.getElementById('currencyInput').value.trim();
+            const amount = document.getElementById('amountInput').value;
+            const description = document.getElementById('descriptionInput').value.trim();
+            const output = document.getElementById('outputMessage');
+            const submitBtn = document.getElementById('submitButton');
+
+            try {
+                submitBtn.disabled = true;
+                output.textContent = 'Submitting...';
+                output.className = 'loading';
+                output.classList.remove('hidden');
+
+                const publicKey = localStorage.getItem('publicKey');
+                if (!publicKey) {
+                    throw new Error('Digital signature not found. Please generate your signature first.');
+                }
+
+                const requestText = `[ASSET RECEIPT EVENT]\n- Currency: ${currency}\n- Amount: ${amount}\n- Description: ${description}\n- Fund Handler: ${fundHandler}\n- Attached Filename: N/A\n- Destination Contribution File Location: N/A\n--------`;
+
+                const privateKeyObj = await window.crypto.subtle.importKey(
+                    'pkcs8',
+                    base64ToArrayBuffer(localStorage.getItem('privateKey')),
+                    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+                    false,
+                    ['sign']
+                );
+                
+                const encoder = new TextEncoder();
+                const signature = await window.crypto.subtle.sign(
+                    'RSASSA-PKCS1-v1_5',
+                    privateKeyObj,
+                    encoder.encode(requestText)
+                );
+                const requestHash = arrayBufferToBase64(signature);
+                
+                const telegramLink = 'https://t.me/TrueSightDAO';
+                const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(requestText);
+                const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
+
+                if (await isOnline()) {
+                    const formData = new FormData();
+                    formData.append('text', shareText);
+
+                    const resp = await fetch(EDGAR_SUBMIT, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!resp.ok) throw new Error(await resp.text());
+
+                    const result = await resp.json();
+
+                    output.innerHTML = `Asset receipt report sent to Edgar successfully. <br>View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
+                    output.className = 'status';
+                    isPostSubmission = true;
+                } else {
+                    if (isMobileDevice()) {
+                        if (navigator.share) {
+                            const shareData = { text: shareText };
+                            await navigator.share(shareData);
+                            output.innerHTML = `Internet is not available. Please share the report to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
+                            output.className = 'error';
+                        } else {
+                            output.innerHTML = `Internet is not available and share API is not supported. Please copy the report below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>`;
+                            output.className = 'error';
+                            if (await copyToClipboard(shareText)) {
+                                output.innerHTML += '<br>Copied to clipboard!';
+                            }
+                        }
+                    } else {
+                        if (await copyToClipboard(shareText)) {
+                            output.innerHTML = `Internet is not available. Report copied to clipboard. Please paste it into our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
+                            output.className = 'error';
+                        } else {
+                            output.innerHTML = `Internet is not available and clipboard copy failed. Please manually copy the report below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>`;
+                            output.className = 'error';
+                        }
+                    }
+                }
+            } catch (err) {
+                output.innerHTML = `Error generating asset receipt report: ${err.message}. Please try again or contact support.`;
+                output.className = 'error';
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', async function() {
+            const statusElement = document.getElementById('status');
+            const publicKey = localStorage.getItem('publicKey');
+            
+            if (!publicKey) {
+                statusElement.textContent = 'No digital signature found. Please generate your digital signature first by visiting the main menu.';
+                statusElement.className = 'error';
+                return;
+            }
+
+            // Show signature verification and loading states
+            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.className = 'loading fade-in';
+            
+            // Simulate signature verification delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            statusElement.textContent = 'Ready';
+            statusElement.className = '';
+            document.getElementById('info').style.display = 'block';
+
+            // Enable form fields
+            document.getElementById('fundHandlerInput').disabled = false;
+            document.getElementById('currencyInput').disabled = false;
+            document.getElementById('amountInput').disabled = false;
+            document.getElementById('descriptionInput').disabled = false;
+
+            // Event listeners
+            document.getElementById('fundHandlerInput').addEventListener('input', () => {
+                updateEventPreview();
+                updateSubmitButtonState();
+            });
+            document.getElementById('currencyInput').addEventListener('input', () => {
+                updateEventPreview();
+                updateSubmitButtonState();
+            });
+            document.getElementById('amountInput').addEventListener('input', () => {
+                updateEventPreview();
+                updateSubmitButtonState();
+            });
+            document.getElementById('descriptionInput').addEventListener('input', () => {
+                updateCharCount();
+                updateEventPreview();
+                updateSubmitButtonState();
+            });
+            document.getElementById('submitButton').addEventListener('click', submitReport);
+
+            // Initialize
+            updateEventPreview();
+        });
+    </script>
+    <script src="./js/dapp_footer_links.js?v=1"></script>
+</body>
+</html>
