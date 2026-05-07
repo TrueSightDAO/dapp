@@ -1302,6 +1302,7 @@
                     pendingFile = null;
                     fileInput.value = '';
                     attachPreview.style.display = 'none';
+                    sessionStorage.removeItem('pendingAttachment');
 
                     res = await fetch(CHAT_API_URL + '/upload', {
                         method: 'POST',
