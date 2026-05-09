@@ -310,7 +310,24 @@
                 <input type="file" id="qrImageInput" accept="image/*">
             </div>
             <div class="form-row" id="qr-list-section">
-                <label for="qrSelectCombobox">Select QR Code:</label>
+                <div style="margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.8rem;">
+                    <label style="font-weight: normal; font-size: 0.9rem; margin: 0; cursor: pointer;">
+                        <input type="checkbox" id="batchModeToggle" style="width: auto; margin-right: 0.3rem;">Batch mode
+                    </label>
+                    <span id="batchCountBadge" style="display: none; background: #007bff; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;"></span>
+                </div>
+                <div id="batchList" style="display: none; margin-bottom: 0.8rem; max-height: 200px; overflow-y: auto;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <span style="font-size: 0.8rem; color: #666; font-weight: bold;">Batch list</span>
+                        <span id="copyBatchBtn" style="cursor: pointer; color: #007bff; font-size: 0.75rem; display: none;" title="Copy all QR codes">📋 Copy all</span>
+                    </div>
+                    <div id="batchListItems" style="font-size: 0.85rem;"></div>
+                </div>
+                <div id="qrSelectWrapper" style="position: relative;">
+                    <div id="qrSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="qrSelectDisplay" style="color: #999;">Select a QR code...</span>
+                        <span style="color: #666;">▼</span>
+                    </div>
                 <div style="position: relative;">
                     <div id="qrSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
                         <span id="qrSelectDisplay" style="color: #999;">Select a QR code...</span>
@@ -398,6 +415,7 @@
                 <input type="number" id="quantityInput" min="1" disabled>
             </div>
             <button id="reportButton" disabled aria-label="Report Inventory Movement">Report Inventory Movement</button>
+            <button id="batchSubmitButton" style="display: none; background-color: #28a745; margin-top: 0.5rem;" aria-label="Batch Submit">Batch Submit (0)</button>
             <div id="reportOutput" aria-live="polite"></div>
         </div>
     </div>
@@ -444,6 +462,8 @@
         let qrCodeDetailsMap = {}; // Map of QR code -> {currency, ledger_shortcut, manager_name}
         let lastQrParam = null;
         let scanning = false;
+        let batchQRList = []; // accumulated QR codes for batch submit
+        let batchSubmitting = false;
 
         function arrayBufferToBase64(buffer) {
             return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -677,40 +697,181 @@
             const qrSearchInput = document.getElementById('qrSearchInput');
             const autocompleteList = document.getElementById('qrAutocompleteList');
             const filterText = qrSearchInput.value.toLowerCase();
+            const batchMode = document.getElementById('batchModeToggle').checked;
             
-            // Filter QR codes based on search text
             filteredQrCodes = qrCodes.filter(qr => qr.name.toLowerCase().includes(filterText));
-            
-            // Clear previous list
             autocompleteList.innerHTML = '';
             
-            // Show all QR codes if no filter, otherwise show filtered results
             const qrCodesToShow = filterText ? filteredQrCodes : qrCodes;
             
             if (qrCodesToShow.length > 0) {
-                // Create list items for each QR code
                 qrCodesToShow.forEach(qr => {
                     const item = document.createElement('div');
-                    item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s;';
-                    item.textContent = qr.name;
-                    item.addEventListener('mouseenter', () => {
-                        item.style.backgroundColor = '#f0f0f0';
-                    });
-                    item.addEventListener('mouseleave', () => {
-                        item.style.backgroundColor = 'white';
-                    });
+                    item.style.cssText = 'padding: 6px 12px; cursor: pointer; border-bottom: 1px solid #eee; transition: background-color 0.2s; display: flex; align-items: center; gap: 6px;';
+                    
+                    if (batchMode) {
+                        const plus = document.createElement('span');
+                        plus.textContent = '+';
+                        plus.style.cssText = 'font-size: 1.2rem; color: #28a745; font-weight: bold; width: 20px; text-align: center;';
+                        item.appendChild(plus);
+                    }
+                    
+                    const label = document.createElement('span');
+                    label.textContent = qr.name;
+                    label.style.flex = '1';
+                    item.appendChild(label);
+                    
+                    item.addEventListener('mouseenter', () => { item.style.backgroundColor = '#f0f0f0'; });
+                    item.addEventListener('mouseleave', () => { item.style.backgroundColor = 'white'; });
                     item.addEventListener('click', () => {
-                        selectQRCode(qr.key, qr.name);
+                        if (batchMode) {
+                            addQRToBatch(qr.key, qr.name);
+                        } else {
+                            selectQRCode(qr.key, qr.name);
+                        }
                     });
                     autocompleteList.appendChild(item);
                 });
             } else {
-                // No matches found
                 const noResults = document.createElement('div');
                 noResults.style.cssText = 'padding: 8px 12px; color: #999; font-style: italic;';
                 noResults.textContent = 'No matching QR codes found';
                 autocompleteList.appendChild(noResults);
             }
+        }
+
+        function addQRToBatch(qrKey, qrName) {
+            if (!batchQRList.find(b => b.key === qrKey)) {
+                batchQRList.push({ key: qrKey, name: qrName });
+                refreshBatchList();
+            }
+        }
+
+        function removeQRFromBatch(qrKey) {
+            batchQRList = batchQRList.filter(b => b.key !== qrKey);
+            refreshBatchList();
+        }
+
+        function refreshBatchList() {
+            const batchList = document.getElementById('batchList');
+            const batchListItems = document.getElementById('batchListItems');
+            const batchBtn = document.getElementById('batchSubmitButton');
+            const batchBadge = document.getElementById('batchCountBadge');
+            const batchToggle = document.getElementById('batchModeToggle');
+            const copyBtn = document.getElementById('copyBatchBtn');
+            const reportBtn = document.getElementById('reportButton');
+            const qrDisplay = document.getElementById('qrSelectDisplay');
+            
+            if (batchToggle.checked) {
+                reportBtn.style.display = 'none';
+                batchBtn.style.display = 'block';
+                batchList.style.display = batchQRList.length > 0 ? 'block' : 'none';
+                batchBadge.style.display = batchQRList.length > 0 ? 'inline' : 'none';
+                batchBadge.textContent = batchQRList.length;
+                batchBtn.textContent = `Batch Submit (${batchQRList.length})`;
+                batchBtn.disabled = batchQRList.length === 0;
+                copyBtn.style.display = batchQRList.length > 0 ? 'inline' : 'none';
+                qrDisplay.textContent = batchQRList.length > 0 ? `${batchQRList.length} QR code(s) ready` : 'Click to add QR codes...';
+                qrDisplay.style.color = batchQRList.length > 0 ? '#333' : '#999';
+                
+                batchListItems.innerHTML = batchQRList.map(b => {
+                    const details = qrCodeDetailsMap[b.key] || {};
+                    const currency = details.currency || '';
+                    const manager = details.manager_name || '';
+                    const short = b.name.length > 36 ? b.name.substring(0, 34) + '…' : b.name;
+                    const meta = [];
+                    if (currency) meta.push(currency.length > 30 ? currency.substring(0, 28) + '…' : currency);
+                    if (manager) meta.push(manager);
+                    const metaStr = meta.length ? `<div style="font-size: 0.75rem; color: #666;">${meta.join(' · ')}</div>` : '';
+                    return `<div style="display: flex; align-items: flex-start; gap: 6px; padding: 6px 8px; margin: 3px 0; background: #f0f8ff; border-radius: 4px; border: 1px solid #e0e8f0;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-family: monospace; font-size: 0.85rem;">${short}</div>
+                            ${metaStr}
+                        </div>
+                        <span onclick="removeQRFromBatch('${b.key}')" style="cursor: pointer; color: #dc3545; font-weight: bold; font-size: 1.1rem; padding: 0 4px; flex-shrink: 0;" title="Remove">✕</span>
+                    </div>`;
+                }).join('');
+            } else {
+                batchList.style.display = 'none';
+                batchBtn.style.display = 'none';
+                batchBadge.style.display = 'none';
+                copyBtn.style.display = 'none';
+                reportBtn.style.display = 'block';
+            }
+        }
+
+        async function copyBatchQRs() {
+            const list = batchQRList.map(b => b.name).join('\n');
+            try {
+                await navigator.clipboard.writeText(list);
+                const copyBtn = document.getElementById('copyBatchBtn');
+                copyBtn.textContent = '✅ Copied!';
+                setTimeout(() => { copyBtn.textContent = '📋 Copy all'; }, 1500);
+            } catch {
+                alert('Failed to copy. Please copy manually.');
+            }
+        }
+
+        function toggleBatchMode() {
+            const qrInputMethod = document.getElementById('qrInputMethod');
+            const batchToggle = document.getElementById('batchModeToggle');
+            if (batchToggle.checked) {
+                qrInputMethod.value = 'list';
+                toggleQRInputMethod();
+            }
+            refreshBatchList();
+        }
+
+        async function onBatchSubmit() {
+            const batchBtn = document.getElementById('batchSubmitButton');
+            const output = document.getElementById('reportOutput');
+            const managerSelectDisplay = document.getElementById('managerSelectDisplay');
+            const managerName = managerSelectDisplay && managerSelectDisplay.style.color !== 'rgb(153, 153, 153)'
+                ? managerSelectDisplay.textContent : '';
+            const recipientName = getRecipientName();
+            const publicKey = localStorage.getItem('publicKey');
+            const privateKey = localStorage.getItem('privateKey');
+
+            if (!recipientName) { output.textContent = 'Please select a recipient.'; output.className = 'error'; return; }
+            if (!publicKey || !privateKey) { output.textContent = 'No digital signature.'; output.className = 'error'; return; }
+            if (batchQRList.length === 0) { output.textContent = 'No QR codes in batch list.'; output.className = 'error'; return; }
+
+            batchBtn.disabled = true;
+            batchSubmitting = true;
+            const codes = [...batchQRList];
+            let successCount = 0;
+            
+            for (let i = 0; i < codes.length; i++) {
+                const qr = codes[i];
+                batchBtn.textContent = `Submitting ${i + 1}/${codes.length}...`;
+                
+                const details = qrCodeDetailsMap[qr.key] || {};
+                const itemName = details.currency || qr.name;
+                const reqText = `[INVENTORY MOVEMENT]\n- Manager Name: ${managerName}\n- Recipient Name: ${recipientName}\n- Inventory Item: ${itemName}\n- QR Code: ${qr.key}\n- Quantity: 1\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Attached Filename: None\n- Destination Inventory File Location: No file attached\n- Submission Source: ${window.location.href}\n--------`;
+
+                try {
+                    const privateKeyObj = await window.crypto.subtle.importKey(
+                        "pkcs8", base64ToArrayBuffer(privateKey),
+                        { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+                    const signature = await window.crypto.subtle.sign(
+                        "RSASSA-PKCS1-v1_5", privateKeyObj, new TextEncoder().encode(reqText));
+                    const shareText = `${reqText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${arrayBufferToBase64(signature)}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
+
+                    const formData = new FormData();
+                    formData.append('text', shareText);
+                    const resp = await fetch(EDGAR_SUBMIT, { method: 'POST', body: formData });
+                    if (resp.ok) { successCount++; }
+                } catch (err) {
+                    console.error(`Failed to submit ${qr.key}:`, err);
+                }
+            }
+            
+            output.innerHTML = `Batch complete: ${successCount}/${codes.length} submitted. <a href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">View Telegram Chat Logs</a>`;
+            output.className = 'status';
+            batchQRList = [];
+            refreshBatchList();
+            batchBtn.disabled = false;
+            batchSubmitting = false;
         }
         
         function selectQRCode(qrKey, qrName) {
@@ -2905,6 +3066,19 @@
                 const reportButtonEl = document.getElementById('reportButton');
                 if (reportButtonEl) {
                     reportButtonEl.addEventListener('click', onReport);
+                }
+                // Batch mode handlers
+                const batchToggleEl = document.getElementById('batchModeToggle');
+                if (batchToggleEl) {
+                    batchToggleEl.addEventListener('change', toggleBatchMode);
+                }
+                const batchSubmitEl = document.getElementById('batchSubmitButton');
+                if (batchSubmitEl) {
+                    batchSubmitEl.addEventListener('click', onBatchSubmit);
+                }
+                const copyBatchEl = document.getElementById('copyBatchBtn');
+                if (copyBatchEl) {
+                    copyBatchEl.addEventListener('click', copyBatchQRs);
                 }
                 updateButtonText();
             } catch (error) {
