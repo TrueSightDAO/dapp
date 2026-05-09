@@ -304,31 +304,26 @@
                     <option value="camera">Use Camera</option>
                     <option value="list" selected>Select from List</option>
                 </select>
-            </div>
-            <div class="form-row" id="qr-upload-section" style="display: none;">
-                <label for="qrImageInput">Upload QR Code Image:</label>
-                <input type="file" id="qrImageInput" accept="image/*">
-            </div>
-            <div class="form-row" id="qr-list-section">
-                <div style="margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.8rem;">
+                <div style="margin-top: 0.8rem; display: flex; align-items: center; gap: 0.8rem;">
                     <label style="font-weight: normal; font-size: 0.9rem; margin: 0; cursor: pointer;">
                         <input type="checkbox" id="batchModeToggle" style="width: auto; margin-right: 0.3rem;">Batch mode
                     </label>
                     <span id="batchCountBadge" style="display: none; background: #007bff; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;"></span>
                 </div>
-                <div id="batchList" style="display: none; margin-bottom: 0.8rem; max-height: 200px; overflow-y: auto;">
+                <div id="batchList" style="display: none; margin-bottom: 0.8rem; margin-top: 0.5rem; max-height: 200px; overflow-y: auto;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                         <span style="font-size: 0.8rem; color: #666; font-weight: bold;">Batch list</span>
                         <span id="copyBatchBtn" style="cursor: pointer; color: #007bff; font-size: 0.75rem; display: none;" title="Copy all QR codes">📋 Copy all</span>
                     </div>
                     <div id="batchListItems" style="font-size: 0.85rem;"></div>
                 </div>
+            </div>
+            <div class="form-row" id="qr-upload-section" style="display: none;">
+                <label for="qrImageInput">Upload QR Code Image:</label>
+                <input type="file" id="qrImageInput" accept="image/*">
+            </div>
+            <div class="form-row" id="qr-list-section">
                 <div id="qrSelectWrapper" style="position: relative;">
-                    <div id="qrSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
-                        <span id="qrSelectDisplay" style="color: #999;">Select a QR code...</span>
-                        <span style="color: #666;">▼</span>
-                    </div>
-                <div style="position: relative;">
                     <div id="qrSelectCombobox" style="position: relative; cursor: pointer; padding: 0.8rem; font-size: 1rem; width: 100%; box-sizing: border-box; border: 1px solid #ccc; background-color: white; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
                         <span id="qrSelectDisplay" style="color: #999;">Select a QR code...</span>
                         <span style="color: #666;">▼</span>
@@ -726,6 +721,8 @@
                     item.addEventListener('click', () => {
                         if (batchMode) {
                             addQRToBatch(qr.key, qr.name);
+                            qrDropdownContainer.style.display = 'none';
+                            qrSearchInput.value = '';
                         } else {
                             selectQRCode(qr.key, qr.name);
                         }
@@ -744,6 +741,13 @@
             if (!batchQRList.find(b => b.key === qrKey)) {
                 batchQRList.push({ key: qrKey, name: qrName });
                 refreshBatchList();
+                const qrParamDisplay = document.getElementById('qr-param-display');
+                qrParamDisplay.textContent = `QR Code added to batch: ${qrName}`;
+                qrParamDisplay.style.display = 'block';
+            } else {
+                const qrParamDisplay = document.getElementById('qr-param-display');
+                qrParamDisplay.textContent = `QR Code already in batch: ${qrName}`;
+                qrParamDisplay.style.display = 'block';
             }
         }
 
@@ -761,7 +765,10 @@
             const copyBtn = document.getElementById('copyBatchBtn');
             const reportBtn = document.getElementById('reportButton');
             const qrDisplay = document.getElementById('qrSelectDisplay');
-            
+            const managerRow = document.getElementById('managerSelectCombobox') ? document.getElementById('managerSelectCombobox').closest('.form-row') : null;
+            const itemRow = document.getElementById('itemSelectCombobox') ? document.getElementById('itemSelectCombobox').closest('.form-row') : null;
+            const qtyRow = document.getElementById('quantityInput') ? document.getElementById('quantityInput').closest('.form-row') : null;
+
             if (batchToggle.checked) {
                 reportBtn.style.display = 'none';
                 batchBtn.style.display = 'block';
@@ -773,7 +780,10 @@
                 copyBtn.style.display = batchQRList.length > 0 ? 'inline' : 'none';
                 qrDisplay.textContent = batchQRList.length > 0 ? `${batchQRList.length} QR code(s) ready` : 'Click to add QR codes...';
                 qrDisplay.style.color = batchQRList.length > 0 ? '#333' : '#999';
-                
+                if (managerRow) managerRow.style.display = 'none';
+                if (itemRow) itemRow.style.display = 'none';
+                if (qtyRow) qtyRow.style.display = 'none';
+
                 batchListItems.innerHTML = batchQRList.map(b => {
                     const details = qrCodeDetailsMap[b.key] || {};
                     const currency = details.currency || '';
@@ -797,6 +807,9 @@
                 batchBadge.style.display = 'none';
                 copyBtn.style.display = 'none';
                 reportBtn.style.display = 'block';
+                if (managerRow) managerRow.style.display = '';
+                if (itemRow) itemRow.style.display = '';
+                if (qtyRow) qtyRow.style.display = '';
             }
         }
 
@@ -813,11 +826,11 @@
         }
 
         function toggleBatchMode() {
-            const qrInputMethod = document.getElementById('qrInputMethod');
             const batchToggle = document.getElementById('batchModeToggle');
-            if (batchToggle.checked) {
-                qrInputMethod.value = 'list';
-                toggleQRInputMethod();
+            if (batchToggle.checked && lastQrParam) {
+                // Transfer currently selected QR code into batch list
+                addQRToBatch(lastQrParam, lastQrParam);
+                clearQRCodeSelection();
             }
             refreshBatchList();
         }
@@ -825,9 +838,6 @@
         async function onBatchSubmit() {
             const batchBtn = document.getElementById('batchSubmitButton');
             const output = document.getElementById('reportOutput');
-            const managerSelectDisplay = document.getElementById('managerSelectDisplay');
-            const managerName = managerSelectDisplay && managerSelectDisplay.style.color !== 'rgb(153, 153, 153)'
-                ? managerSelectDisplay.textContent : '';
             const recipientName = getRecipientName();
             const publicKey = localStorage.getItem('publicKey');
             const privateKey = localStorage.getItem('privateKey');
@@ -840,14 +850,15 @@
             batchSubmitting = true;
             const codes = [...batchQRList];
             let successCount = 0;
-            
+
             for (let i = 0; i < codes.length; i++) {
                 const qr = codes[i];
                 batchBtn.textContent = `Submitting ${i + 1}/${codes.length}...`;
-                
+
                 const details = qrCodeDetailsMap[qr.key] || {};
                 const itemName = details.currency || qr.name;
-                const reqText = `[INVENTORY MOVEMENT]\n- Manager Name: ${managerName}\n- Recipient Name: ${recipientName}\n- Inventory Item: ${itemName}\n- QR Code: ${qr.key}\n- Quantity: 1\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Attached Filename: None\n- Destination Inventory File Location: No file attached\n- Submission Source: ${window.location.href}\n--------`;
+                const perQrManager = details.manager_name || 'Unknown';
+                const reqText = `[INVENTORY MOVEMENT]\n- Manager Name: ${perQrManager}\n- Recipient Name: ${recipientName}\n- Inventory Item: ${itemName}\n- QR Code: ${qr.key}\n- Quantity: 1\n- Latitude: ${latitude}\n- Longitude: ${longitude}\n- Attached Filename: None\n- Destination Inventory File Location: No file attached\n- Submission Source: ${window.location.href}\n--------`;
 
                 try {
                     const privateKeyObj = await window.crypto.subtle.importKey(
@@ -1034,14 +1045,23 @@
             try {
                 const urlObj = new URL(qrData);
                 if (urlObj.searchParams.has('qr_code')) {
-                    lastQrParam = urlObj.searchParams.get('qr_code');
+                    const qrKey = urlObj.searchParams.get('qr_code');
+
+                    // Batch mode: add to batch list instead of single selection
+                    const batchToggle = document.getElementById('batchModeToggle');
+                    if (batchToggle && batchToggle.checked) {
+                        addQRToBatch(qrKey, qrKey);
+                        return true;
+                    }
+
+                    lastQrParam = qrKey;
                     const qrParamDisplay = document.getElementById('qr-param-display');
                     qrParamDisplay.textContent = `QR Code: ${lastQrParam}`;
                     qrParamDisplay.style.display = 'block';
-                    
+
                     // Immediately populate fields from stored QR code details (no API call)
                     populateFieldsFromQRCode(lastQrParam);
-                    
+
                     updateReportButtonState();
                     return true;
                 } else {
@@ -1198,6 +1218,17 @@
         function toggleInputMethod() {
             const inputMethodEl = document.getElementById('inputMethod');
             const method = inputMethodEl ? inputMethodEl.value : '';
+
+            // When switching away from QR code mode, clear batch
+            if (method !== 'qr_code') {
+                const batchToggle = document.getElementById('batchModeToggle');
+                if (batchToggle && batchToggle.checked) {
+                    batchToggle.checked = false;
+                }
+                batchQRList = [];
+                refreshBatchList();
+            }
+
             const pasteArea = document.getElementById('paste-area');
             const qrSection = document.getElementById('qr-section');
             const qrUploadSection = document.getElementById('qr-upload-section');
@@ -1564,6 +1595,11 @@
                 inputMethodEl.value = 'qr_code';
                 toggleInputMethod();
             }
+            // Reset batch mode
+            const batchToggle = document.getElementById('batchModeToggle');
+            if (batchToggle) batchToggle.checked = false;
+            batchQRList = [];
+            refreshBatchList();
             updateFileInfo('');
             lastQrParam = null;
             
@@ -2847,7 +2883,14 @@
                                 ? qrCodes.filter(qr => qr.name && qr.name.toLowerCase().includes(filterText))
                                 : [];
                             if (matches.length > 0) {
-                                selectQRCode(matches[0].key, matches[0].name);
+                                const batchToggle = document.getElementById('batchModeToggle');
+                                if (batchToggle && batchToggle.checked) {
+                                    addQRToBatch(matches[0].key, matches[0].name);
+                                    qrDropdownContainer.style.display = 'none';
+                                    qrSearchInput.value = '';
+                                } else {
+                                    selectQRCode(matches[0].key, matches[0].name);
+                                }
                             }
                         } else if (e.key === 'Escape') {
                             qrDropdownContainer.style.display = 'none';
