@@ -18,6 +18,7 @@
     <script src="./routes.js"></script>
     <script src="./menu.js?v=20260510"></script>
     <script src="./tdg_balance.js"></script>
+    <script src="./js/treasury_cache.js"></script>
 
     <style>
         body {
@@ -226,6 +227,14 @@
             </div>
 
             <div class="form-row">
+                <label for="managerSelect">Warehouse Manager:</label>
+                <select id="managerSelect" disabled>
+                    <option value="">Loading managers…</option>
+                </select>
+                <div class="help-text">Whose balance the conversion happens against — both the source debit and target credit are recorded under this manager (Entity column on the Transactions tab). The conversion doesn't happen in thin air; pick the person whose accounts moved.</div>
+            </div>
+
+            <div class="form-row">
                 <label>Source (currency you're spending):</label>
                 <div class="currency-pair">
                     <input type="text" id="sourceCurrencyInput" list="commonCurrencies" placeholder="USD" maxlength="12" disabled autocapitalize="characters">
@@ -372,6 +381,32 @@
             }
         }
 
+        async function loadManagers() {
+            const managerSelect = document.getElementById('managerSelect');
+            try {
+                let members = null;
+                try { members = await TreasuryCache.getManagers(); } catch (_) {}
+                if (!members) {
+                    const res = await fetch(`${DAO_FORMS_BASE}?list=true`);
+                    members = await res.json();
+                }
+                const sorted = (members || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                managerSelect.innerHTML = '<option value="">Select a manager</option>';
+                sorted.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.name;
+                    opt.textContent = m.name;
+                    opt.setAttribute('title', m.name);
+                    if (m.key) opt.dataset.memberKey = m.key;
+                    managerSelect.appendChild(opt);
+                });
+                managerSelect.disabled = false;
+            } catch (error) {
+                console.error('Error loading managers:', error);
+                managerSelect.innerHTML = '<option value="">Error loading managers</option>';
+            }
+        }
+
         function generateConversionFileName(originalFileName) {
             const timestamp = Date.now();
             const extension = originalFileName.split('.').pop();
@@ -452,6 +487,7 @@
         function updateSubmitButtonState() {
             const submitBtn = document.getElementById('submitButton');
             const ledgerOk = !!document.getElementById('ledgerSelect').value;
+            const managerOk = !!document.getElementById('managerSelect').value;
             const sourceCurrency = getCurrencyCode('sourceCurrencyInput');
             const targetCurrency = getCurrencyCode('targetCurrencyInput');
             const sourceAmount = parseFloat(document.getElementById('sourceAmountInput').value);
@@ -460,7 +496,7 @@
             const descriptionOk = !!document.getElementById('descriptionInput').value.trim();
             const currenciesOk = sourceCurrency && targetCurrency && sourceCurrency !== targetCurrency;
             const amountsOk = sourceAmount > 0 && targetAmount > 0;
-            submitBtn.disabled = !(ledgerOk && currenciesOk && amountsOk && dateOk && descriptionOk);
+            submitBtn.disabled = !(ledgerOk && managerOk && currenciesOk && amountsOk && dateOk && descriptionOk);
         }
 
         function toggleInputMethod() {
@@ -581,6 +617,9 @@
             const ledgerName = (selectedLedger.dataset.ledgerName || selectedLedger.textContent).trim();
             const ledgerUrl = ledgerSelect.value;
 
+            const managerSelect = document.getElementById('managerSelect');
+            const managerName = (managerSelect.value || '').trim();
+
             try {
                 submitBtn.disabled = true;
                 output.textContent = 'Submitting…';
@@ -600,6 +639,7 @@
                     `[CURRENCY CONVERSION EVENT]\n` +
                     `- Ledger: ${ledgerName}\n` +
                     `- Ledger URL: ${ledgerUrl}\n` +
+                    `- Warehouse Manager: ${managerName}\n` +
                     `- Source Currency: ${sourceCurrency}\n` +
                     `- Source Amount: ${sourceAmount}\n` +
                     `- Target Currency: ${targetCurrency}\n` +
@@ -688,7 +728,7 @@
 
             statusElement.textContent = 'Loading ledger options…';
             statusElement.className = 'loading fade-in';
-            await loadLedgers();
+            await Promise.all([loadLedgers(), loadManagers()]);
 
             statusElement.textContent = '';
             statusElement.className = '';
@@ -734,6 +774,7 @@
                 updateLedgerLink();
                 updateSubmitButtonState();
             });
+            document.getElementById('managerSelect').addEventListener('change', updateSubmitButtonState);
             document.getElementById('submitButton').addEventListener('click', submitReport);
 
             toggleInputMethod();
