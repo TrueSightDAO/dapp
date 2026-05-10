@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="description" content="Report capital injection to TrueSight DAO">
+    <meta name="description" content="Report a currency conversion (e.g. USD→BRL via Wise) against a managed AGL ledger">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Capital Injection Report</title>
+    <title>Currency Conversion Report</title>
 
     <!-- Open Graph tags for WhatsApp and social media previews -->
-    <meta property="og:title" content="Capital Injection Report">
-    <meta property="og:description" content="Report capital injection to TrueSight DAO">
+    <meta property="og:title" content="Currency Conversion Report">
+    <meta property="og:description" content="Report a currency conversion against a managed AGL ledger">
     <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
     <meta property="og:url" content="https://truesightdao.github.io/dapp/">
     <meta property="og:type" content="website">
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
     <script src="./routes.js"></script>
@@ -53,25 +53,6 @@
             font-size: 1rem;
             text-align: center;
         }
-        #backLink {
-            top: 1rem;
-            left: 1rem;
-            font-size: 1rem;
-            color: #007bff;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-            transition: color 0.2s;
-        }
-        #backLink:hover {
-            color: #0056b3;
-            text-decoration: underline;
-        }
-        #backLink::before {
-            content: "←";
-            font-size: 1.2rem;
-        }
         #status {
             margin: 1rem 0;
             font-weight: bold;
@@ -86,12 +67,8 @@
             text-align: center;
             display: none;
         }
-        .status {
-            color: #28a745;
-        }
-        .error {
-            color: #dc3545;
-        }
+        .status { color: #28a745; }
+        .error { color: #dc3545; }
         .info-box {
             margin: 1rem 0;
             background-color: #f8f9fa;
@@ -99,13 +76,10 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 0.95rem;
-            overflow: scroll;
+            overflow: auto;
             max-height: 200px;
         }
-        .info {
-            font-weight: bold;
-            margin: 0.3rem 0 0.1rem 0;
-        }
+        .info { font-weight: bold; margin: 0.3rem 0 0.1rem 0; }
         .info-location {
             font-family: monospace;
             font-size: 0.9rem;
@@ -113,16 +87,8 @@
             word-break: break-all;
             margin-bottom: 0.5rem;
         }
-        .form-row {
-            margin: 1rem 0;
-            text-align: left;
-        }
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: bold;
-            color: #333;
-        }
+        .form-row { margin: 1rem 0; text-align: left; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #333; }
         select, input[type="number"], input[type="text"], textarea {
             width: 100%;
             padding: 0.8rem;
@@ -135,10 +101,22 @@
             background-color: #f0f0f0;
             cursor: not-allowed;
         }
-        textarea {
-            resize: none;
-            min-height: 80px;
+        textarea { resize: none; min-height: 80px; }
+        .currency-pair {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 0.5rem;
         }
+        .rate-display {
+            background: #eef5ff;
+            border: 1px solid #cfe0f7;
+            color: #1d3a66;
+            padding: 0.6rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            margin-top: 0.4rem;
+        }
+        .rate-display.empty { color: #888; background: #f5f5f5; border-color: #ddd; }
         button {
             background-color: #007bff;
             color: white;
@@ -152,18 +130,9 @@
             width: 100%;
             max-width: 300px;
         }
-        button:hover {
-            background-color: #0056b3;
-            transform: scale(1.02);
-        }
-        button:active {
-            transform: scale(0.98);
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-            transform: none;
-        }
+        button:hover { background-color: #0056b3; transform: scale(1.02); }
+        button:active { transform: scale(0.98); }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; transform: none; }
         .paste-area {
             border: 2px dashed #ccc;
             padding: 2rem;
@@ -173,80 +142,40 @@
             border-radius: 8px;
             transition: background-color 0.2s;
         }
-        .paste-area:hover {
-            background-color: #f0f0f0;
-        }
-        .paste-area.dragover {
-            background-color: #e8f4fd;
-            border-color: #007bff;
-        }
-        #video-holder {
-            display: none;
-            text-align: center;
-            margin: 1rem 0;
-        }
+        .paste-area:hover { background-color: #f0f0f0; }
+        .paste-area.dragover { background-color: #e8f4fd; border-color: #007bff; }
+        #video-holder { display: none; text-align: center; margin: 1rem 0; }
         #uploaded-file-preview {
             max-width: 100%;
             height: auto;
             border-radius: 8px;
             margin: 1rem 0;
         }
-        .char-count {
-            text-align: right;
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 0.2rem;
-        }
-        .loading {
-            color: #6c757d;
-            font-style: italic;
-            animation: pulse 2s infinite ease-in-out;
-        }
+        .char-count { text-align: right; font-size: 0.8rem; color: #666; margin-top: 0.2rem; }
+        .loading { color: #6c757d; font-style: italic; animation: pulse 2s infinite ease-in-out; }
         @keyframes pulse {
             0% { opacity: 0.5; }
             50% { opacity: 1; }
             100% { opacity: 0.5; }
         }
-        .hidden {
-            display: none;
-        }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        /* Mobile responsiveness */
+        .hidden { display: none; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .help-text { font-size: 0.85rem; color: #666; margin-top: 0.3rem; }
+
         @media (max-width: 768px) {
-            .container {
-                padding: 0.8rem;
-                margin: 0.5rem;
-            }
-            h1 {
-                font-size: 1.5rem;
-            }
-            #description {
-                font-size: 0.95rem;
-            }
-            .form-row {
-                text-align: center;
-            }
-            label {
-                font-size: 0.9rem;
-            }
+            .container { padding: 0.8rem; margin: 0.5rem; }
+            h1 { font-size: 1.5rem; }
+            #description { font-size: 0.95rem; }
+            .form-row { text-align: center; }
+            label { font-size: 0.9rem; }
             select, input[type="number"], input[type="text"], textarea {
                 font-size: 0.95rem;
                 padding: 0.6rem;
             }
-            button {
-                padding: 0.8rem 1.5rem;
-                font-size: 0.95rem;
-            }
-            .paste-area {
-                padding: 1.5rem;
-            }
+            button { padding: 0.8rem 1.5rem; font-size: 0.95rem; }
+            .paste-area { padding: 1.5rem; }
+            .currency-pair { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -256,25 +185,25 @@
     <div class="container">
         <div style="text-align: center;">
             <img id="logo" height="200px" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
-        </div>        
-        <h1>Capital Injection Report</h1>
+        </div>
+        <h1>Currency Conversion Report</h1>
         <p id="description">
-            <strong>For external investors only.</strong> Use this to report funds wired directly into an AGL-managed contract or ledger. If you paid for DAO operations out-of-pocket (software, travel, supplies), use the <a href="./report_contribution.html">DAO Contribution Report</a> instead.
+            Report a currency conversion against a managed AGL ledger — e.g. USD→BRL via Wise/Rendimento, USD→EUR via a SEPA transfer. Books a double-entry pair (source debit + target credit) on the ledger's <code>Transactions</code> tab. Attach the converter receipt (Wise, Rendimento, etc.) as proof.
         </p>
-        
+
         <div id="welcome" style="display: none;"></div>
-        <p id="status" class="fade-in">Loading ledger options...</p>
-        
+        <p id="status" class="fade-in">Verifying your digital signature…</p>
+
         <div id="info" style="display: none;">
             <div class="form-row">
-                <label for="inputMethod">Input Method:</label>
+                <label for="inputMethod">Conversion Receipt:</label>
                 <select id="inputMethod">
-                    <option value="upload" selected>Upload File or Image</option>                    
+                    <option value="upload" selected>Upload File or Image</option>
                     <option value="camera">Use Camera</option>
                 </select>
             </div>
             <div class="form-row" id="upload-section" style="display: none;">
-                <label>Upload File or Image:</label>
+                <label>Upload Receipt (Wise / Rendimento / bank statement):</label>
                 <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
             </div>
             <div id="video-holder">
@@ -282,44 +211,83 @@
                 <button id="capture-btn" style="display: none;">Capture Photo</button>
             </div>
             <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
-            
+
             <div class="form-row">
-                <label for="ledgerSelect">Ledger:</label>
+                <label for="ledgerSelect">Managed Ledger:</label>
                 <select id="ledgerSelect" disabled>
-                    <option value="">Loading ledgers...</option>
+                    <option value="">Loading ledgers…</option>
                 </select>
                 <div id="ledgerLink" style="display: none; margin-top: 0.5rem;">
                     <a id="ledgerLinkAnchor" href="#" target="_blank" style="color: #007bff; text-decoration: none; font-size: 0.9rem;">
                         View Ledger →
                     </a>
                 </div>
+                <div class="help-text">Pick the AGL ledger whose <code>Balance</code> tab tracks the currencies you're converting between.</div>
             </div>
-            
+
             <div class="form-row">
-                <label for="amountInput">Capital Amount (USD):</label>
-                <input type="number" id="amountInput" min="0.01" step="0.01" placeholder="Enter amount in USD" disabled>
+                <label>Source (currency you're spending):</label>
+                <div class="currency-pair">
+                    <input type="text" id="sourceCurrencyInput" list="commonCurrencies" placeholder="USD" maxlength="12" disabled autocapitalize="characters">
+                    <input type="number" id="sourceAmountInput" min="0.00000001" step="any" placeholder="Amount out (e.g. 1000.00)" disabled>
+                </div>
+                <div class="help-text">The amount that LEFT this currency's account, as shown on the receipt (includes any provider fee).</div>
             </div>
-            
+
+            <div class="form-row">
+                <label>Target (currency you received):</label>
+                <div class="currency-pair">
+                    <input type="text" id="targetCurrencyInput" list="commonCurrencies" placeholder="BRL" maxlength="12" disabled autocapitalize="characters">
+                    <input type="number" id="targetAmountInput" min="0.00000001" step="any" placeholder="Amount received (e.g. 4985.00)" disabled>
+                </div>
+                <div class="help-text">The amount that ARRIVED in this currency's account, as shown on the receipt.</div>
+                <datalist id="commonCurrencies">
+                    <option value="USD">
+                    <option value="BRL">
+                    <option value="EUR">
+                    <option value="GBP">
+                    <option value="AUD">
+                    <option value="SGD">
+                    <option value="MYR">
+                    <option value="CAD">
+                    <option value="CNY">
+                    <option value="JPY">
+                    <option value="HKD">
+                    <option value="MXN">
+                    <option value="ARS">
+                </datalist>
+            </div>
+
+            <div class="form-row">
+                <div id="rateDisplay" class="rate-display empty">Implied FX rate will appear here once both amounts are entered.</div>
+            </div>
+
+            <div class="form-row">
+                <label for="conversionDateInput">Conversion Date:</label>
+                <input type="text" id="conversionDateInput" placeholder="YYYYMMDD" maxlength="8" pattern="\d{8}" disabled>
+                <div class="help-text">Date the funds settled in the target account (defaults to today).</div>
+            </div>
+
             <div class="form-row">
                 <label for="descriptionInput">Description:</label>
-                <textarea id="descriptionInput" maxlength="500" placeholder="Enter description of the capital injection" disabled></textarea>
+                <textarea id="descriptionInput" maxlength="500" placeholder="e.g. Wise transfer USD→BRL to Rendimento, in preparation for Bico Duro May payout" disabled></textarea>
                 <div class="char-count"><span id="charCount">0</span>/500 characters</div>
             </div>
-            
+
             <div class="form-row">
                 <div class="info-box">
                     <div class="info">Original File Name:</div>
                     <div class="info-location" id="originalFileName">No file selected</div>
-                    <div class="info">Capital Injection File Name:</div>
-                    <div class="info-location" id="contributionFileName">Waiting for file selection...</div>
-                    <div class="info">Capital Injection File Location:</div>
-                    <div class="info-location" id="contributionLocation">Waiting for file selection...</div>
+                    <div class="info">Currency Conversion File Name:</div>
+                    <div class="info-location" id="contributionFileName">Waiting for file selection…</div>
+                    <div class="info">Currency Conversion File Location:</div>
+                    <div class="info-location" id="contributionLocation">Waiting for file selection…</div>
                 </div>
             </div>
-            
-            <button id="submitButton" disabled>Submit Capital Injection Report</button>
+
+            <button id="submitButton" disabled>Submit Currency Conversion Report</button>
         </div>
-        
+
         <div id="outputMessage" class="hidden"></div>
     </div>
 
@@ -329,28 +297,23 @@
             || 'https://script.google.com/macros/s/AKfycbztpV3TUIRn3ftNW1aGHAKw32OBJrp_p1Pr9mMAttoyWFZyQgBRPU2T6eGhkmJtz7xV/exec';
         const EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
             || 'https://edgar.truesight.me/dao/submit_contribution';
+
         let file = null;
         let fileName = '';
-        let contributionLocation = '';
         let isPostSubmission = false;
-        let cachedCapitalInjectionFileName = null;  // Store the capital injection filename to ensure consistency
+        let cachedConversionFileName = null;
 
-        // Utility functions
         function base64ToArrayBuffer(base64) {
             const binaryString = window.atob(base64);
             const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
+            for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
             return bytes.buffer;
         }
 
         function arrayBufferToBase64(buffer) {
             let binary = '';
             const bytes = new Uint8Array(buffer);
-            for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
+            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
             return window.btoa(binary);
         }
 
@@ -358,28 +321,33 @@
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         }
 
-        async function isOnline() {
-            return navigator.onLine;
-        }
+        async function isOnline() { return navigator.onLine; }
 
         async function copyToClipboard(text) {
-            try {
-                await navigator.clipboard.writeText(text);
-                return true;
-            } catch (err) {
-                return false;
-            }
+            try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
         }
 
-        // Load ledgers from the API endpoint
+        function todayYyyymmdd() {
+            const d = new Date();
+            return '' + d.getFullYear()
+                + String(d.getMonth() + 1).padStart(2, '0')
+                + String(d.getDate()).padStart(2, '0');
+        }
+
+        function formatNumber(n, maxDecimals) {
+            if (!isFinite(n)) return '';
+            const s = n.toFixed(maxDecimals);
+            return s.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+        }
+
         async function loadLedgers() {
             const ledgerSelect = document.getElementById('ledgerSelect');
             try {
                 const response = await fetch(`${DAO_FORMS_BASE}?ledgers=true`);
                 const ledgers = await response.json();
-                
+
                 ledgerSelect.innerHTML = '<option value="">Select a ledger</option>';
-                ledgers.forEach(ledger => {
+                (ledgers || []).forEach(ledger => {
                     const option = document.createElement('option');
                     option.value = ledger.ledger_url;
                     option.textContent = ledger.ledger_name;
@@ -388,21 +356,27 @@
                     ledgerSelect.appendChild(option);
                 });
                 ledgerSelect.disabled = false;
-                
-                // Enable form fields after ledgers are loaded
-                document.getElementById('amountInput').disabled = false;
+
+                document.getElementById('sourceCurrencyInput').disabled = false;
+                document.getElementById('sourceAmountInput').disabled = false;
+                document.getElementById('targetCurrencyInput').disabled = false;
+                document.getElementById('targetAmountInput').disabled = false;
+                document.getElementById('conversionDateInput').disabled = false;
                 document.getElementById('descriptionInput').disabled = false;
+
+                const dateInput = document.getElementById('conversionDateInput');
+                if (!dateInput.value) dateInput.value = todayYyyymmdd();
             } catch (error) {
                 console.error('Error loading ledgers:', error);
                 ledgerSelect.innerHTML = '<option value="">Error loading ledgers</option>';
             }
         }
 
-        function generateCapitalInjectionFileName(originalFileName) {
+        function generateConversionFileName(originalFileName) {
             const timestamp = Date.now();
             const extension = originalFileName.split('.').pop();
             const nameWithoutExt = originalFileName.replace(/\.[^/.]+$/, '');
-            return `capital_injection_${timestamp}_${nameWithoutExt}.${extension}`;
+            return `currency_conversion_${timestamp}_${nameWithoutExt}.${extension}`;
         }
 
         function updateFileInfo() {
@@ -412,34 +386,31 @@
 
             if (file) {
                 originalFileNameElement.textContent = fileName;
-                // Generate and cache the capital injection filename to ensure consistency between preview and submission
-                cachedCapitalInjectionFileName = generateCapitalInjectionFileName(fileName);
-                contributionFileNameElement.textContent = cachedCapitalInjectionFileName;
-                contributionLocationElement.innerHTML = `${REPO_BASE_URL}${cachedCapitalInjectionFileName}`;
+                cachedConversionFileName = generateConversionFileName(fileName);
+                contributionFileNameElement.textContent = cachedConversionFileName;
+                contributionLocationElement.innerHTML = `${REPO_BASE_URL}${cachedConversionFileName}`;
             } else {
                 originalFileNameElement.textContent = 'No file selected';
-                contributionFileNameElement.textContent = 'Waiting for file selection...';
-                contributionLocationElement.innerHTML = 'Waiting for file selection...';
-                cachedCapitalInjectionFileName = null;  // Clear cached filename
+                contributionFileNameElement.textContent = 'Waiting for file selection…';
+                contributionLocationElement.innerHTML = 'Waiting for file selection…';
+                cachedConversionFileName = null;
             }
         }
 
         function updateCharCount() {
             const descriptionInput = document.getElementById('descriptionInput');
-            const charCount = document.getElementById('charCount');
-            charCount.textContent = descriptionInput.value.length;
+            document.getElementById('charCount').textContent = descriptionInput.value.length;
         }
 
         function updateLedgerLink() {
             const ledgerSelect = document.getElementById('ledgerSelect');
             const ledgerLink = document.getElementById('ledgerLink');
             const ledgerLinkAnchor = document.getElementById('ledgerLinkAnchor');
-            
+
             if (ledgerSelect.value && ledgerSelect.selectedIndex > 0) {
                 const selectedOption = ledgerSelect.options[ledgerSelect.selectedIndex];
                 const ledgerName = selectedOption.dataset.ledgerName;
                 const ledgerUrl = selectedOption.dataset.ledgerUrl;
-                
                 ledgerLinkAnchor.href = ledgerUrl;
                 ledgerLinkAnchor.textContent = `View ${ledgerName} Ledger →`;
                 ledgerLink.style.display = 'block';
@@ -448,18 +419,48 @@
             }
         }
 
+        function getCurrencyCode(id) {
+            return (document.getElementById(id).value || '').trim().toUpperCase();
+        }
+
+        function updateRateDisplay() {
+            const sourceCurrency = getCurrencyCode('sourceCurrencyInput');
+            const targetCurrency = getCurrencyCode('targetCurrencyInput');
+            const sourceAmount = parseFloat(document.getElementById('sourceAmountInput').value);
+            const targetAmount = parseFloat(document.getElementById('targetAmountInput').value);
+            const rateEl = document.getElementById('rateDisplay');
+
+            if (!(sourceCurrency && targetCurrency && sourceAmount > 0 && targetAmount > 0)) {
+                rateEl.className = 'rate-display empty';
+                rateEl.textContent = 'Implied FX rate will appear here once both amounts are entered.';
+                return;
+            }
+            if (sourceCurrency === targetCurrency) {
+                rateEl.className = 'rate-display empty';
+                rateEl.textContent = 'Source and target currencies must differ.';
+                return;
+            }
+
+            const forward = targetAmount / sourceAmount;
+            const inverse = sourceAmount / targetAmount;
+            rateEl.className = 'rate-display';
+            rateEl.innerHTML =
+                `1 ${sourceCurrency} = <strong>${formatNumber(forward, 6)}</strong> ${targetCurrency}` +
+                ` &nbsp;·&nbsp; 1 ${targetCurrency} = <strong>${formatNumber(inverse, 6)}</strong> ${sourceCurrency}`;
+        }
+
         function updateSubmitButtonState() {
             const submitBtn = document.getElementById('submitButton');
-            const ledgerSelect = document.getElementById('ledgerSelect');
-            const amountInput = document.getElementById('amountInput');
-            const descriptionInput = document.getElementById('descriptionInput');
-            
-            const isValid = ledgerSelect.value && 
-                           amountInput.value && 
-                           parseFloat(amountInput.value) > 0 && 
-                           descriptionInput.value.trim();
-            
-            submitBtn.disabled = !isValid;
+            const ledgerOk = !!document.getElementById('ledgerSelect').value;
+            const sourceCurrency = getCurrencyCode('sourceCurrencyInput');
+            const targetCurrency = getCurrencyCode('targetCurrencyInput');
+            const sourceAmount = parseFloat(document.getElementById('sourceAmountInput').value);
+            const targetAmount = parseFloat(document.getElementById('targetAmountInput').value);
+            const dateOk = /^\d{8}$/.test((document.getElementById('conversionDateInput').value || '').trim());
+            const descriptionOk = !!document.getElementById('descriptionInput').value.trim();
+            const currenciesOk = sourceCurrency && targetCurrency && sourceCurrency !== targetCurrency;
+            const amountsOk = sourceAmount > 0 && targetAmount > 0;
+            submitBtn.disabled = !(ledgerOk && currenciesOk && amountsOk && dateOk && descriptionOk);
         }
 
         function toggleInputMethod() {
@@ -486,23 +487,22 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 const video = document.getElementById('video');
                 video.srcObject = stream;
-                
                 const captureBtn = document.getElementById('capture-btn');
                 captureBtn.style.display = 'block';
                 captureBtn.onclick = () => capturePhoto();
             } catch (error) {
                 console.error('Error accessing camera:', error);
-                document.getElementById('outputMessage').textContent = 'Camera access denied. Please use file upload instead.';
-                document.getElementById('outputMessage').className = 'error';
-                document.getElementById('outputMessage').classList.remove('hidden');
+                const out = document.getElementById('outputMessage');
+                out.textContent = 'Camera access denied. Please use file upload instead.';
+                out.className = 'error';
+                out.classList.remove('hidden');
             }
         }
 
         function stopCamera() {
             const video = document.getElementById('video');
             if (video.srcObject) {
-                const tracks = video.srcObject.getTracks();
-                tracks.forEach(track => track.stop());
+                video.srcObject.getTracks().forEach(t => t.stop());
                 video.srcObject = null;
             }
             document.getElementById('capture-btn').style.display = 'none';
@@ -511,23 +511,17 @@
         function capturePhoto() {
             const video = document.getElementById('video');
             const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-            
+            canvas.getContext('2d').drawImage(video, 0, 0);
             canvas.toBlob((blob) => {
                 file = blob;
-                fileName = 'capital_injection_capture.png';
-                
+                fileName = 'currency_conversion_capture.png';
                 const img = document.getElementById('uploaded-file-preview');
                 img.src = canvas.toDataURL();
                 img.style.display = 'block';
-                
                 updateFileInfo();
                 updateSubmitButtonState();
-                
                 stopCamera();
                 document.getElementById('inputMethod').value = 'upload';
                 document.getElementById('upload-section').style.display = 'block';
@@ -537,14 +531,11 @@
         function triggerFileSelect() {
             const inputMethod = document.getElementById('inputMethod').value;
             if (inputMethod !== 'upload') return;
-
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*,application/pdf,.doc,.docx,.txt';
             input.onchange = (event) => {
-                if (event.target.files.length > 0) {
-                    handleFile(event.target.files[0]);
-                }
+                if (event.target.files.length > 0) handleFile(event.target.files[0]);
             };
             input.click();
         }
@@ -552,15 +543,14 @@
         function handleFile(selectedFile) {
             const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
             if (!allowedTypes.includes(selectedFile.type)) {
-                document.getElementById('outputMessage').textContent = 'Unsupported file type. Please select or paste an image, PDF, or text file.';
-                document.getElementById('outputMessage').className = 'error';
-                document.getElementById('outputMessage').classList.remove('hidden');
+                const out = document.getElementById('outputMessage');
+                out.textContent = 'Unsupported file type. Please select or paste an image, PDF, or text file.';
+                out.className = 'error';
+                out.classList.remove('hidden');
                 return;
             }
-
             fileName = selectedFile.name;
             file = selectedFile;
-            
             const img = document.getElementById('uploaded-file-preview');
             if (selectedFile.type.startsWith('image/')) {
                 const reader = new FileReader();
@@ -572,26 +562,28 @@
             } else {
                 img.style.display = 'none';
             }
-            
             updateFileInfo();
             updateSubmitButtonState();
         }
 
         async function submitReport() {
             const ledgerSelect = document.getElementById('ledgerSelect');
-            const amountInput = document.getElementById('amountInput');
+            const sourceCurrency = getCurrencyCode('sourceCurrencyInput');
+            const targetCurrency = getCurrencyCode('targetCurrencyInput');
+            const sourceAmount = parseFloat(document.getElementById('sourceAmountInput').value);
+            const targetAmount = parseFloat(document.getElementById('targetAmountInput').value);
+            const conversionDate = (document.getElementById('conversionDateInput').value || '').trim();
             const description = document.getElementById('descriptionInput').value;
             const output = document.getElementById('outputMessage');
             const submitBtn = document.getElementById('submitButton');
-            
+
             const selectedLedger = ledgerSelect.options[ledgerSelect.selectedIndex];
-            const ledgerName = selectedLedger.textContent.split(' (')[0];
-            const ledgerUrl = selectedLedger.value;
-            const amount = parseFloat(amountInput.value);
+            const ledgerName = (selectedLedger.dataset.ledgerName || selectedLedger.textContent).trim();
+            const ledgerUrl = ledgerSelect.value;
 
             try {
                 submitBtn.disabled = true;
-                output.textContent = 'Submitting...';
+                output.textContent = 'Submitting…';
                 output.className = 'loading';
                 output.classList.remove('hidden');
 
@@ -600,10 +592,24 @@
                     throw new Error('Digital signature not found. Please generate your signature first.');
                 }
 
-                // Use cached capital injection filename to match what was shown in the info box
-                const capitalInjectionFileName = cachedCapitalInjectionFileName || (fileName ? generateCapitalInjectionFileName(fileName) : '');
-                const capitalInjectionLocation = fileName ? `${REPO_BASE_URL}${capitalInjectionFileName}` : 'No file attached';
-                const requestText = `[CAPITAL INJECTION EVENT]\n- Ledger: ${ledgerName}\n- Ledger URL: ${ledgerUrl}\n- Amount: $${amount.toFixed(2)} USD\n- Description: ${description}\n- Attached Filename: ${fileName || 'None'}\n- Destination Capital Injection File Location: ${capitalInjectionLocation}\n--------`;
+                const conversionFileName = cachedConversionFileName || (fileName ? generateConversionFileName(fileName) : '');
+                const conversionLocation = fileName ? `${REPO_BASE_URL}${conversionFileName}` : 'No file attached';
+                const impliedRate = formatNumber(targetAmount / sourceAmount, 6);
+
+                const requestText =
+                    `[CURRENCY CONVERSION EVENT]\n` +
+                    `- Ledger: ${ledgerName}\n` +
+                    `- Ledger URL: ${ledgerUrl}\n` +
+                    `- Source Currency: ${sourceCurrency}\n` +
+                    `- Source Amount: ${sourceAmount}\n` +
+                    `- Target Currency: ${targetCurrency}\n` +
+                    `- Target Amount: ${targetAmount}\n` +
+                    `- Implied Rate: 1 ${sourceCurrency} = ${impliedRate} ${targetCurrency}\n` +
+                    `- Conversion Date: ${conversionDate}\n` +
+                    `- Description: ${description}\n` +
+                    `- Attached Filename: ${fileName || 'None'}\n` +
+                    `- Destination Currency Conversion File Location: ${conversionLocation}\n` +
+                    `--------`;
 
                 const privateKeyObj = await window.crypto.subtle.importKey(
                     'pkcs8',
@@ -612,107 +618,82 @@
                     false,
                     ['sign']
                 );
-                
-                const encoder = new TextEncoder();
                 const signature = await window.crypto.subtle.sign(
                     'RSASSA-PKCS1-v1_5',
                     privateKeyObj,
-                    encoder.encode(requestText)
+                    new TextEncoder().encode(requestText)
                 );
                 const requestHash = arrayBufferToBase64(signature);
-                
+
                 const telegramLink = 'https://t.me/TrueSightDAO';
-                const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(requestText);
                 const shareText = `${requestText}\n\nMy Digital Signature: ${publicKey}\n\nRequest Transaction ID: ${requestHash}\n\nThis submission was generated using ${window.location.href}\n\nVerify submission here: https://dapp.truesight.me/verify_request.html`;
+                const whatsappLink = 'https://wa.me/?text=' + encodeURIComponent(shareText);
 
                 if (await isOnline()) {
                     const formData = new FormData();
                     formData.append('text', shareText);
-                    if (file) {
-                        formData.append('attachment', file, fileName);
-                    }
+                    if (file) formData.append('attachment', file, fileName);
 
-                    const resp = await fetch(EDGAR_SUBMIT, {
-                        method: 'POST',
-                        body: formData
-                    });
-
+                    const resp = await fetch(EDGAR_SUBMIT, { method: 'POST', body: formData });
                     if (!resp.ok) throw new Error(await resp.text());
-
                     const result = await resp.json();
-                    
-                    // Make contribution location clickable after successful upload
+
                     if (result.fileUploadedToGithub && fileName) {
                         const contributionLocationElement = document.getElementById('contributionLocation');
                         const locationUrl = contributionLocationElement.textContent.trim();
                         contributionLocationElement.innerHTML = `<a href="${locationUrl}" target="_blank" style="color: #4CAF50; text-decoration: underline;">${locationUrl}</a>`;
                     }
 
-                    output.innerHTML = `Capital injection report sent to Edgar successfully. <br>View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
+                    output.innerHTML = `Currency conversion report sent to Edgar successfully.<br>View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
                     isPostSubmission = true;
                 } else {
-                    if (isMobileDevice()) {
-                        if (navigator.share) {
-                            const shareData = { text: shareText };
-                            if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-                                shareData.files = [file];
-                            }
-                            await navigator.share(shareData);
-                            output.innerHTML = `Internet is not available. Please share the report to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
-                            output.className = 'error';
-                        } else {
-                            output.innerHTML = `Internet is not available and share API is not supported. Please copy the report below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>`;
-                            output.className = 'error';
-                            if (await copyToClipboard(shareText)) {
-                                output.innerHTML += '<br>Copied to clipboard!';
-                            }
+                    if (isMobileDevice() && navigator.share) {
+                        const shareData = { text: shareText };
+                        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+                            shareData.files = [file];
                         }
+                        await navigator.share(shareData);
+                        output.innerHTML = `Internet is not available. Please share the report to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
+                        output.className = 'error';
+                    } else if (await copyToClipboard(shareText)) {
+                        output.innerHTML = `Internet is not available. Report copied to clipboard. Please paste it into our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
+                        output.className = 'error';
                     } else {
-                        if (await copyToClipboard(shareText)) {
-                            output.innerHTML = `Internet is not available. Report copied to clipboard. Please paste it into our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels.`;
-                            output.className = 'error';
-                        } else {
-                            output.innerHTML = `Internet is not available and clipboard copy failed. Please manually copy the report below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>`;
-                            output.className = 'error';
-                        }
+                        output.innerHTML = `Internet is not available and clipboard copy failed. Please manually copy the report below and share it to our <a href="${telegramLink}" target="_blank">Telegram</a> or <a href="${whatsappLink}" target="_blank">WhatsApp</a> channels:<br><br><pre>${shareText}</pre>`;
+                        output.className = 'error';
                     }
                 }
             } catch (err) {
-                output.innerHTML = `Error generating capital injection report: ${err.message}. Please try again or contact support.`;
+                output.innerHTML = `Error generating currency conversion report: ${err.message}. Please try again or contact support.`;
                 output.className = 'error';
             } finally {
                 submitBtn.disabled = false;
             }
         }
 
-        // Event listeners
         document.addEventListener('DOMContentLoaded', async function() {
             const statusElement = document.getElementById('status');
             const publicKey = localStorage.getItem('publicKey');
-            
+
             if (!publicKey) {
                 statusElement.textContent = 'No digital signature found. Please generate your digital signature first by visiting the main menu.';
                 statusElement.className = 'error';
                 return;
             }
 
-            // Show signature verification and loading states
-            statusElement.textContent = 'Verifying your digital signature...';
+            statusElement.textContent = 'Verifying your digital signature…';
             statusElement.className = 'loading fade-in';
-            
-            // Simulate signature verification delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            statusElement.textContent = 'Loading ledger options...';
+            await new Promise(r => setTimeout(r, 600));
+
+            statusElement.textContent = 'Loading ledger options…';
             statusElement.className = 'loading fade-in';
             await loadLedgers();
-            
+
             statusElement.textContent = '';
             statusElement.className = '';
             document.getElementById('info').style.display = 'block';
 
-            // Event listeners
             document.getElementById('inputMethod').addEventListener('change', toggleInputMethod);
             document.getElementById('paste-area').addEventListener('click', triggerFileSelect);
             document.getElementById('paste-area').addEventListener('dragover', (e) => {
@@ -725,30 +706,36 @@
             document.getElementById('paste-area').addEventListener('drop', (e) => {
                 e.preventDefault();
                 e.currentTarget.classList.remove('dragover');
-                if (e.dataTransfer.files.length > 0) {
-                    handleFile(e.dataTransfer.files[0]);
-                }
+                if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
             });
-
             document.addEventListener('paste', (e) => {
-                if (e.clipboardData && e.clipboardData.files.length > 0) {
-                    handleFile(e.clipboardData.files[0]);
-                }
+                if (e.clipboardData && e.clipboardData.files.length > 0) handleFile(e.clipboardData.files[0]);
             });
 
+            ['sourceCurrencyInput', 'targetCurrencyInput'].forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    document.getElementById(id).value = (document.getElementById(id).value || '').toUpperCase();
+                    updateRateDisplay();
+                    updateSubmitButtonState();
+                });
+            });
+            ['sourceAmountInput', 'targetAmountInput'].forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    updateRateDisplay();
+                    updateSubmitButtonState();
+                });
+            });
+            document.getElementById('conversionDateInput').addEventListener('input', updateSubmitButtonState);
             document.getElementById('descriptionInput').addEventListener('input', () => {
                 updateCharCount();
                 updateSubmitButtonState();
             });
-
             document.getElementById('ledgerSelect').addEventListener('change', () => {
                 updateLedgerLink();
                 updateSubmitButtonState();
             });
-            document.getElementById('amountInput').addEventListener('input', updateSubmitButtonState);
             document.getElementById('submitButton').addEventListener('click', submitReport);
 
-            // Initialize
             toggleInputMethod();
         });
     </script>
