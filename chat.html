@@ -681,6 +681,7 @@
                 <input type="file" id="file-input" accept="image/*,.pdf,.csv,.xlsx,.xls,.txt,.md,.json,.py,.js,.html,.css" multiple>
                 <textarea id="chat-input" placeholder="Ask about the DAO, Agroverse, codebases, or governance..." rows="2"></textarea>
                 <button id="send-btn" class="btn">Send</button>
+                <button id="cancel-btn" class="btn" style="display:none; background:#dc3545; color:#fff;" title="Stop the autopilot mid-task">⏹ Stop</button>
             </div>
         </div>
     </div>
@@ -759,6 +760,36 @@
         const statusBar = document.getElementById('status-bar');
         const inputEl = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+
+        // Cancel an in-flight /chat stream by hitting DELETE /chat/active/{session_short}.
+        // The server side (PR #29) sets a flag the streaming loop checks at every round
+        // boundary and inside _heartbeat_until_done, so propagation is bounded by the
+        // 15s heartbeat interval. The cancellation event then arrives via SSE and the
+        // 'cancelled' handler in readSSEStream surfaces it in the status bar.
+        cancelBtn.addEventListener('click', async function() {
+            if (!publicKey) return;
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = '⏹ Stopping…';
+            statusBar.textContent = '⏹ Stopping (waiting up to 15s for next round boundary)…';
+            statusBar.style.display = 'block';
+            try {
+                var sid = publicKey.substring(0, 16);
+                var res = await fetch(API_BASE_URL + '/chat/active/' + encodeURIComponent(sid), {
+                    method: 'DELETE',
+                    headers: { 'X-Public-Key': publicKey },
+                });
+                if (!res.ok) {
+                    var body = await res.text();
+                    statusBar.textContent = '⚠ Cancel failed (' + res.status + '): ' + body.slice(0, 120);
+                }
+            } catch (e) {
+                statusBar.textContent = '⚠ Cancel network error: ' + e.message;
+            } finally {
+                cancelBtn.disabled = false;
+                cancelBtn.textContent = '⏹ Stop';
+            }
+        });
         const attachBtn = document.getElementById('attach-btn');
         const fileInput = document.getElementById('file-input');
         const attachPreview = document.getElementById('attachment-preview');
@@ -1162,18 +1193,59 @@
                                 td.textContent = fullResponse;
                             }
                             messagesEl.scrollTop = messagesEl.scrollHeight;
+                            // Once tokens start flowing the working banner is stale
+                            statusBar.style.display = 'none';
                         } else if (type === 'tool') {
                             const td = ensureBotMessage();
                             if (event.status === 'calling') {
                                 const step = td.innerHTML ? td.innerHTML + '<br>' : '';
                                 td.innerHTML = step + '<span style="color:#666;font-style:italic;">🔧 ' + event.tool + '...</span>';
+                                statusBar.textContent = '🔧 Calling ' + event.tool + '…';
+                                statusBar.style.display = 'block';
                             } else {
                                 td.innerHTML = td.innerHTML.replace(
                                     '<span style="color:#666;font-style:italic;">🔧 ' + event.tool + '...</span>',
                                     '<span style="color:#28a745;">✅ ' + event.tool + ' done</span>'
                                 );
+                                statusBar.textContent = '✅ ' + event.tool + ' done — thinking…';
+                                statusBar.style.display = 'block';
                             }
                             messagesEl.scrollTop = messagesEl.scrollHeight;
+                        } else if (type === 'heartbeat') {
+                            // Server-side liveness ping every 15s during long LLM/tool waits.
+                            // Surface it so the user knows the autopilot is still working
+                            // (instead of just staring at an unchanging screen).
+                            var phase = event.phase || 'work';
+                            var elapsed = (event.elapsed_s != null ? event.elapsed_s : '?') + 's';
+                            var label = phase === 'tool'
+                                ? '🔧 Still running ' + (event.tool || 'tool') + '… (' + elapsed + ')'
+                                : '⏳ Still thinking… (' + elapsed + ' on round ' + (event.round || '?') + ')';
+                            statusBar.textContent = label;
+                            statusBar.style.display = 'block';
+                        } else if (type === 'cancelled') {
+                            // Server confirmed the cancel reached it. Stop showing
+                            // any in-flight banner and surface a brief notice.
+                            statusBar.textContent = '⏹ Cancelled by you' + (event.tool ? ' (during ' + event.tool + ')' : '') + '.';
+                            statusBar.style.display = 'block';
+                            setTimeout(function() { statusBar.style.display = 'none'; }, 4000);
+                        } else if (type === 'wanted_more_rounds') {
+                            // Model exhausted the per-turn tool-call budget. Show
+                            // a small badge in-line so the user knows the response
+                            // may be truncated and can retry / split the task.
+                            var td2 = ensureBotMessage();
+                            var used = event.rounds_used || '?';
+                            var cap = event.round_cap || '?';
+                            td2.innerHTML += '<div style="margin-top:0.5rem; padding:0.4rem 0.6rem; background:#fff3cd; border-left:3px solid #ffc107; font-size:0.85rem; color:#856404;">⚠️ Model wanted more tool-call rounds than the budget allowed (' + used + '/' + cap + ' used). The response may be incomplete — try splitting the task into smaller asks, or set <code>CHAT_MAX_TOOL_ROUNDS</code> higher on the server.</div>';
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                        } else if (type === 'queue' && event.status === 'interjected') {
+                            // The user fired a follow-up via /chat/queue and the
+                            // autopilot picked it up mid-stream. Brief toast so
+                            // they know the interjection landed (not just queued).
+                            statusBar.textContent = '📨 Your follow-up was picked up mid-task.';
+                            statusBar.style.display = 'block';
+                            setTimeout(function() {
+                                if (statusBar.textContent.indexOf('📨') === 0) statusBar.style.display = 'none';
+                            }, 3500);
                         } else if (type === 'status') {
                             var msg = event.message || event.stage || '';
                             statusBar.textContent = '⏳ ' + msg;
@@ -1357,6 +1429,9 @@
                 }
 
                 _isStreaming = true;
+                cancelBtn.style.display = 'inline-block';
+                statusBar.textContent = '⏳ Sending to autopilot…';
+                statusBar.style.display = 'block';
                 await readSSEStream(res, ensureBotMessage, botTextDiv, fullResponse, botMsgDiv);
             } catch (err) {
                 console.error(err);
@@ -1367,6 +1442,12 @@
                 }
             } finally {
                 _isStreaming = false;
+                cancelBtn.style.display = 'none';
+                // If the working banner is still up after stream end, fade it
+                if (statusBar.style.display !== 'none' && statusBar.textContent.indexOf('⏳') === 0) {
+                    statusBar.textContent = '✓ Done';
+                    setTimeout(function() { statusBar.style.display = 'none'; }, 1500);
+                }
                 sendBtn.disabled = false;
                 inputEl.focus();
                 // Check if there are queued messages — if so, the server will continue streaming
