@@ -250,21 +250,7 @@
                     <input type="number" id="targetAmountInput" min="0.00000001" step="any" placeholder="Amount received (e.g. 4985.00)" disabled>
                 </div>
                 <div class="help-text">The amount that ARRIVED in this currency's account, as shown on the receipt.</div>
-                <datalist id="commonCurrencies">
-                    <option value="USD">
-                    <option value="BRL">
-                    <option value="EUR">
-                    <option value="GBP">
-                    <option value="AUD">
-                    <option value="SGD">
-                    <option value="MYR">
-                    <option value="CAD">
-                    <option value="CNY">
-                    <option value="JPY">
-                    <option value="HKD">
-                    <option value="MXN">
-                    <option value="ARS">
-                </datalist>
+                <datalist id="commonCurrencies"></datalist>
             </div>
 
             <div class="form-row">
@@ -356,6 +342,20 @@
                 const ledgers = await response.json();
 
                 ledgerSelect.innerHTML = '<option value="">Select a ledger</option>';
+
+                // Default offchain (Main Ledger) option — matches report_dao_expenses.html.
+                // Carries an empty ledger URL; submitReport translates this to
+                // "Ledger: offchain" with no URL in the signed payload. Note the
+                // GAS validateManagedLedger() currently rejects offchain — this option
+                // is here for UX parity; pick a managed AGL ledger if you want the
+                // GAS to actually book the double-entry today.
+                const offchainOpt = document.createElement('option');
+                offchainOpt.value = 'offchain';
+                offchainOpt.textContent = 'offchain (Main Ledger - Default)';
+                offchainOpt.dataset.ledgerName = 'offchain';
+                offchainOpt.dataset.ledgerUrl = '';
+                ledgerSelect.appendChild(offchainOpt);
+
                 (ledgers || []).forEach(ledger => {
                     const option = document.createElement('option');
                     option.value = ledger.ledger_url;
@@ -378,6 +378,31 @@
             } catch (error) {
                 console.error('Error loading ledgers:', error);
                 ledgerSelect.innerHTML = '<option value="">Error loading ledgers</option>';
+            }
+        }
+
+        // Canonical currency list lives in TrueSightDAO/agroverse-inventory/currencies.json
+        // (rewritten by repackaging-currency-ingest GAS — see
+        // agentic_ai_context/LEDGER_CONVERSION_AND_REPACKAGING.md). It's a flat array
+        // mixing fiat names (e.g. "Brazilian Reis"), product SKUs, and equipment;
+        // the user picks whatever matches their actual conversion. The free-text
+        // input means a missing currency can still be typed by hand.
+        const CURRENCIES_JSON_URL = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/currencies.json';
+
+        async function loadCurrencies() {
+            const datalist = document.getElementById('commonCurrencies');
+            try {
+                const res = await fetch(CURRENCIES_JSON_URL, { cache: 'no-cache' });
+                const data = await res.json();
+                const names = (Array.isArray(data) ? data : (data.currencies || []))
+                    .map(s => String(s).trim())
+                    .filter(Boolean)
+                    .sort((a, b) => a.localeCompare(b));
+                datalist.innerHTML = names.map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
+                console.log(`[currencies] loaded ${names.length} from agroverse-inventory/currencies.json`);
+            } catch (err) {
+                console.error('Error loading currencies.json — falling back to no datalist (free-text still works):', err);
+                datalist.innerHTML = '';
             }
         }
 
@@ -446,9 +471,13 @@
                 const selectedOption = ledgerSelect.options[ledgerSelect.selectedIndex];
                 const ledgerName = selectedOption.dataset.ledgerName;
                 const ledgerUrl = selectedOption.dataset.ledgerUrl;
-                ledgerLinkAnchor.href = ledgerUrl;
-                ledgerLinkAnchor.textContent = `View ${ledgerName} Ledger →`;
-                ledgerLink.style.display = 'block';
+                if (ledgerUrl) {
+                    ledgerLinkAnchor.href = ledgerUrl;
+                    ledgerLinkAnchor.textContent = `View ${ledgerName} Ledger →`;
+                    ledgerLink.style.display = 'block';
+                } else {
+                    ledgerLink.style.display = 'none';
+                }
             } else {
                 ledgerLink.style.display = 'none';
             }
@@ -615,7 +644,10 @@
 
             const selectedLedger = ledgerSelect.options[ledgerSelect.selectedIndex];
             const ledgerName = (selectedLedger.dataset.ledgerName || selectedLedger.textContent).trim();
-            const ledgerUrl = ledgerSelect.value;
+            // Offchain (Main Ledger) carries an empty ledger URL — emit empty string in
+            // the payload (not "offchain") so the receiving GAS sees no URL and routes
+            // accordingly. Managed AGL ledgers carry their actual /edit URL as the value.
+            const ledgerUrl = (ledgerSelect.value === 'offchain' || !selectedLedger.dataset.ledgerUrl) ? '' : ledgerSelect.value;
 
             const managerSelect = document.getElementById('managerSelect');
             const managerName = (managerSelect.value || '').trim();
@@ -728,7 +760,7 @@
 
             statusElement.textContent = 'Loading ledger options…';
             statusElement.className = 'loading fade-in';
-            await Promise.all([loadLedgers(), loadManagers()]);
+            await Promise.all([loadLedgers(), loadManagers(), loadCurrencies()]);
 
             statusElement.textContent = '';
             statusElement.className = '';
