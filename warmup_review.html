@@ -175,6 +175,12 @@
     }
     pre.body.full { border-left: 3px solid #007bff; max-height: 600px; }
     pre.body.reply { border-left: 3px solid #f0ad4e; background: #fffdf5; max-height: 400px; }
+    .detail-header {
+      font-size: 0.85rem; font-weight: 600; color: #333;
+      margin-top: 0.5rem; padding-bottom: 0.25rem;
+      border-bottom: 1px solid #eee;
+    }
+    .detail-header .meta { font-weight: 400; color: #777; margin-left: 0.4rem; }
     .no-full-body, .no-reply { font-size: 0.8rem; color: #999; font-style: italic; margin-top: 0.3rem; }
     .empty { text-align: center; padding: 2rem 0; color: #888; }
     .toast {
@@ -438,15 +444,28 @@
             '<a class="open-gmail" href="' + gmailLink + '" target="_blank" rel="noopener">Edit in Gmail</a>' +
             '<span class="row-status" data-status></span>' +
           '</div>' +
-          (d.body_preview
-              ? '<details><summary>Show body preview (≤500 chars)</summary><pre class="body">' + escapeHtml(d.body_preview) + '</pre></details>'
-              : '') +
-          (d.body_full
-              ? '<details><summary>Expand full body</summary><pre class="body full">' + escapeHtml(d.body_full) + '</pre></details>'
-              : (d.body_preview ? '<div class="no-full-body">Full body not available (draft may have been sent or deleted)</div>' : '')) +
-          (d.prospect_reply_body
-              ? '<details><summary>Show original reply</summary><pre class="body reply">' + escapeHtml(d.prospect_reply_body) + '</pre></details>'
-              : (activeLabel === 'AI/Prospect Replied' ? '<div class="no-reply">Reply content not found in DApp Remarks</div>' : '')) +
+          (function () {
+            const headerHtml = '<div class="detail-header">' +
+              escapeHtml(d.shop_name || '(no shop)') +
+              '<span class="meta">' + escapeHtml(d.to_email || '') +
+              (d.city_state ? ' · ' + escapeHtml(d.city_state) : '') +
+              '</span></div>';
+            let out = '';
+            if (d.body_preview) {
+              out += '<details><summary>Show body preview (≤500 chars)</summary>' + headerHtml + '<pre class="body">' + escapeHtml(d.body_preview) + '</pre></details>';
+            }
+            if (d.body_full) {
+              out += '<details><summary>Expand full body</summary>' + headerHtml + '<pre class="body full">' + escapeHtml(d.body_full) + '</pre></details>';
+            } else if (d.body_preview) {
+              out += '<div class="no-full-body">Full body not available (draft may have been sent or deleted)</div>';
+            }
+            if (d.prospect_reply_body) {
+              out += '<details><summary>Show original reply</summary>' + headerHtml + '<pre class="body reply">' + escapeHtml(d.prospect_reply_body) + '</pre></details>';
+            } else if (activeLabel === 'AI/Prospect Replied') {
+              out += '<div class="no-reply">Reply content not found in DApp Remarks</div>';
+            }
+            return out;
+          })() +
         '</div>';
     }
 
