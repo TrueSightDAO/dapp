@@ -484,6 +484,7 @@
           '<div class="actions">' +
             '<button class="btn-send" type="button" data-act="send">Send</button>' +
             '<a class="open-gmail" href="' + gmailLink + '" target="_blank" rel="noopener">Edit in Gmail</a>' +
+            (d.to_email ? '<a class="open-gmail" href="https://mail.google.com/mail/u/0/#search/' + encodeURIComponent(d.to_email) + '" target="_blank" rel="noopener" title="Open Gmail search for all threads with this recipient">All correspondence</a>' : '') +
             '<span class="row-status" data-status></span>' +
           '</div>' +
           (function () {
