@@ -418,16 +418,21 @@
       Array.prototype.forEach.call(listEl.querySelectorAll('.draft'), function (card) {
         const id = card.getAttribute('data-draft-id');
         if (!id) return;
+        function focusThisCard() {
+          focusedDraftId = id;
+          writeHash();
+          // Drop the highlight ring once the user is interacting — they no
+          // longer need the "this is the one" hint.
+          card.classList.remove('deeplinked');
+        }
         Array.prototype.forEach.call(card.querySelectorAll('details'), function (det) {
-          det.addEventListener('toggle', function () {
-            if (det.open) {
-              focusedDraftId = id;
-              writeHash();
-              // Drop the highlight ring once the user is interacting — they no
-              // longer need the "this is the one" hint.
-              card.classList.remove('deeplinked');
-            }
-          });
+          det.addEventListener('toggle', function () { if (det.open) focusThisCard(); });
+        });
+        // Clicking either Gmail link should also pin the draft id in the URL —
+        // user might want to grab the URL right after jumping to Gmail without
+        // having expanded any details panel first.
+        Array.prototype.forEach.call(card.querySelectorAll('.open-gmail'), function (a) {
+          a.addEventListener('click', focusThisCard);
         });
       });
     }
