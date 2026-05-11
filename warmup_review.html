@@ -164,6 +164,7 @@
     .btn-send:active { transform: scale(0.97); }
     .open-gmail { color: #06c; text-decoration: none; font-size: 0.9rem; padding: 0.5rem 0; }
     .open-gmail:hover { text-decoration: underline; }
+    .draft.deeplinked { box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.5); }
     .row-status { font-size: 0.8rem; color: #555; margin-left: auto; }
     .row-status.error { color: #c00; }
     details > summary { cursor: pointer; font-size: 0.85rem; color: #555; margin-top: 0.5rem; user-select: none; }
@@ -403,8 +404,49 @@
       } else {
         listEl.innerHTML = filtered.map(renderDraft).join('');
         attachSendHandlers();
+        attachDeepLinkHandlers();
+        applyDeepLink();
       }
       lastFetchedEl.textContent = 'Last refreshed ' + new Date().toLocaleTimeString();
+    }
+
+    // When a user opens any <details> inside a draft card, record that card as
+    // the focused draft and write its gmail_draft_id into the URL hash so they
+    // can paste the URL into any LLM CLI ("here's the draft I want to redo: <URL>")
+    // — see agentic_ai_context/PARTNER_OUTREACH_PROTOCOL.md for the conventions.
+    function attachDeepLinkHandlers() {
+      Array.prototype.forEach.call(listEl.querySelectorAll('.draft'), function (card) {
+        const id = card.getAttribute('data-draft-id');
+        if (!id) return;
+        Array.prototype.forEach.call(card.querySelectorAll('details'), function (det) {
+          det.addEventListener('toggle', function () {
+            if (det.open) {
+              focusedDraftId = id;
+              writeHash();
+              // Drop the highlight ring once the user is interacting — they no
+              // longer need the "this is the one" hint.
+              card.classList.remove('deeplinked');
+            }
+          });
+        });
+      });
+    }
+
+    // On first render after a deep-linked URL load, scroll to + highlight the
+    // referenced card. Idempotent across re-renders (only acts while
+    // focusedDraftId is set and the card exists in the current cohort).
+    let _deepLinkApplied = false;
+    function applyDeepLink() {
+      if (!focusedDraftId || _deepLinkApplied) return;
+      const card = document.getElementById('d-' + focusedDraftId);
+      if (!card) return; // card may not be in this cohort/filter — leave for later
+      _deepLinkApplied = true;
+      card.classList.add('deeplinked');
+      // Auto-expand the full body so an LLM-redirected user can read the draft
+      // immediately without clicking anything.
+      const full = card.querySelector('details:nth-of-type(2)');
+      if (full) full.open = true;
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function renderDraft(d) {
@@ -473,13 +515,36 @@
     let isLoading = false;
     let activeLabel = 'AI/Warm-up'; // current cohort tab
     let activeChip = 'all';         // current filter chip
+    let focusedDraftId = null;      // draft_id encoded in URL (#tab/d-{id}); deep-link target
 
-    // Initial label from URL hash if provided (#followup, #prospect, or #warmup).
+    // Initial label + optional draft id from URL hash.
+    // Hash forms: #warmup | #followup | #prospect | #followup/d-{gmail_draft_id}
     (function initLabelFromHash() {
-      const h = (window.location.hash || '').replace(/^#/, '').toLowerCase();
-      if (h === 'followup' || h === 'follow-up') activeLabel = 'AI/Follow-up';
-      else if (h === 'prospect' || h === 'prospects') activeLabel = 'AI/Prospect Replied';
+      const parts = (window.location.hash || '').replace(/^#/, '').toLowerCase().split('/');
+      const tab = parts[0];
+      if (tab === 'followup' || tab === 'follow-up') activeLabel = 'AI/Follow-up';
+      else if (tab === 'prospect' || tab === 'prospects') activeLabel = 'AI/Prospect Replied';
+      // Preserve case for the draft id (gmail draft ids are case-sensitive)
+      const rawParts = (window.location.hash || '').replace(/^#/, '').split('/');
+      if (rawParts.length > 1 && rawParts[1].indexOf('d-') === 0) {
+        focusedDraftId = rawParts[1].slice(2);
+      }
     })();
+
+    function tabSlug(label) {
+      return label === 'AI/Follow-up' ? 'followup'
+           : label === 'AI/Prospect Replied' ? 'prospect'
+           : 'warmup';
+    }
+
+    function writeHash() {
+      const base = tabSlug(activeLabel);
+      const hash = focusedDraftId ? base + '/d-' + focusedDraftId : base;
+      // Avoid triggering hashchange listeners if no actual change
+      if (window.location.hash.replace(/^#/, '') !== hash) {
+        history.replaceState(null, '', '#' + hash);
+      }
+    }
 
     function setActiveLabelUI() {
       Array.prototype.forEach.call(document.querySelectorAll('.tab-btn'), function (btn) {
@@ -487,7 +552,7 @@
         btn.classList.toggle('active', isActive);
         btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
       });
-      window.location.hash = activeLabel === 'AI/Follow-up' ? 'followup' : activeLabel === 'AI/Prospect Replied' ? 'prospect' : 'warmup';
+      writeHash();
       // Render from cached data if available
       if (allDraftsByLabel) renderActiveTab();
     }
