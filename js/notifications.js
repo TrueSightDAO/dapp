@@ -1,0 +1,279 @@
+// DApp notification badge — Facebook-style red counter for action items
+// across DApp modules. Loaded by menu.js on every page so the operator
+// can spot pending work without loading each module.
+//
+// Architecture
+// ------------
+// Each module is a "source" registered via Notifications.register({...}).
+// A source's fetch() returns either null (no items / fetch failed — module
+// hidden from popup) or an object of the shape:
+//
+//   {
+//     count: <int>,                  // number contributed to the red badge
+//     label: <string>,               // module name shown in popup
+//     sublabel: <string>,            // short description e.g. "drafts to review"
+//     link: <string>,                // where clicking the entry sends the user
+//     items: [                       // optional, top N items shown nested in popup
+//       { title: <string>, link: <string>, since: <string> }
+//     ]
+//   }
+//
+// Sources fetch in parallel. The badge totals counts; null sources are
+// silently skipped. A source that throws is treated as null + logged.
+//
+// To add a new module: append a source via Notifications.register() in
+// this file (or from another script loaded after notifications.js). The
+// JSON contract above is the only thing the popup understands; new
+// modules don't need any change to this widget.
+
+(function (global) {
+  'use strict';
+
+  var STATE = {
+    sources: [],
+    results: {},          // id -> result (or null)
+    refreshing: false,
+    rendered: false,
+    open: false
+  };
+
+  var REFRESH_INTERVAL_MS = 5 * 60 * 1000;  // 5 minutes
+
+  // ----- Public API ---------------------------------------------------------
+
+  function register(source) {
+    if (!source || !source.id || typeof source.fetch !== 'function') {
+      console.warn('[notifications] register() expects {id, fetch}', source);
+      return;
+    }
+    STATE.sources.push(source);
+    // If the widget has already booted, refresh so the new source shows.
+    if (STATE.rendered) refresh();
+  }
+
+  function refresh() {
+    if (STATE.refreshing) return;
+    STATE.refreshing = true;
+    var pending = STATE.sources.map(function (src) {
+      return Promise.resolve()
+        .then(function () { return src.fetch(); })
+        .then(function (result) { STATE.results[src.id] = result || null; })
+        .catch(function (err) {
+          console.warn('[notifications] source "' + src.id + '" failed:', err);
+          STATE.results[src.id] = null;
+        });
+    });
+    return Promise.all(pending).finally(function () {
+      STATE.refreshing = false;
+      renderBadge();
+      renderPopup();
+    });
+  }
+
+  // ----- DOM ----------------------------------------------------------------
+
+  function ensureChrome() {
+    if (document.getElementById('tsd-notif-root')) return;
+    var root = document.createElement('div');
+    root.id = 'tsd-notif-root';
+    root.innerHTML = [
+      '<style>',
+      '  #tsd-notif-root { position: fixed; top: 0.75rem; right: 0.75rem; z-index: 9999; font-family: inherit; }',
+      '  #tsd-notif-btn { position: relative; width: 40px; height: 40px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.18); border: 1px solid #e1ddd4; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }',
+      '  #tsd-notif-btn svg { width: 20px; height: 20px; fill: #4a4a4a; }',
+      '  #tsd-notif-btn:hover { background: #faf7f1; }',
+      '  #tsd-notif-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #d64545; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; box-sizing: border-box; display: none; }',
+      '  #tsd-notif-badge.has-count { display: inline-block; }',
+      '  #tsd-notif-popup { position: absolute; top: 48px; right: 0; min-width: 280px; max-width: 360px; background: #fff; border: 1px solid #e1ddd4; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.16); padding: 0.5rem 0; display: none; }',
+      '  #tsd-notif-popup.open { display: block; }',
+      '  .tsd-notif-header { padding: 0.5rem 0.85rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8a8275; border-bottom: 1px solid #f0ece4; }',
+      '  .tsd-notif-empty { padding: 0.85rem; color: #8a8275; font-size: 0.875rem; text-align: center; }',
+      '  .tsd-notif-entry { display: block; padding: 0.7rem 0.85rem; color: inherit; text-decoration: none; border-bottom: 1px solid #f6f3eb; }',
+      '  .tsd-notif-entry:last-child { border-bottom: none; }',
+      '  .tsd-notif-entry:hover { background: #faf7f1; }',
+      '  .tsd-notif-entry-title { font-weight: 600; font-size: 0.9375rem; color: #2a2a2a; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }',
+      '  .tsd-notif-entry-count { background: #d64545; color: #fff; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 20px; text-align: center; box-sizing: border-box; }',
+      '  .tsd-notif-entry-sub { font-size: 0.8125rem; color: #6f6859; margin-top: 0.15rem; }',
+      '  .tsd-notif-items { margin: 0.4rem 0 0 0; padding: 0; list-style: none; font-size: 0.8125rem; color: #6f6859; }',
+      '  .tsd-notif-items li { padding: 0.15rem 0; }',
+      '</style>',
+      '<button id="tsd-notif-btn" type="button" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">',
+      '  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a7 7 0 0 0-7 7v3.586l-1.707 1.707A1 1 0 0 0 4 16h16a1 1 0 0 0 .707-1.707L19 12.586V9a7 7 0 0 0-7-7zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg>',
+      '  <span id="tsd-notif-badge">0</span>',
+      '</button>',
+      '<div id="tsd-notif-popup" role="dialog" aria-label="Action items"></div>'
+    ].join('');
+    document.body.appendChild(root);
+
+    document.getElementById('tsd-notif-btn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      togglePopup();
+    });
+    document.addEventListener('click', function (e) {
+      if (!STATE.open) return;
+      if (e.target.closest && e.target.closest('#tsd-notif-root')) return;
+      togglePopup(false);
+    });
+    STATE.rendered = true;
+  }
+
+  function togglePopup(force) {
+    var willOpen = (typeof force === 'boolean') ? force : !STATE.open;
+    STATE.open = willOpen;
+    var popup = document.getElementById('tsd-notif-popup');
+    var btn = document.getElementById('tsd-notif-btn');
+    if (!popup || !btn) return;
+    popup.classList.toggle('open', willOpen);
+    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    if (willOpen) renderPopup();
+  }
+
+  function renderBadge() {
+    var badge = document.getElementById('tsd-notif-badge');
+    if (!badge) return;
+    var total = 0;
+    Object.keys(STATE.results).forEach(function (id) {
+      var r = STATE.results[id];
+      if (r && typeof r.count === 'number') total += r.count;
+    });
+    badge.textContent = total > 99 ? '99+' : String(total);
+    badge.classList.toggle('has-count', total > 0);
+  }
+
+  function renderPopup() {
+    var popup = document.getElementById('tsd-notif-popup');
+    if (!popup) return;
+    var entries = STATE.sources
+      .map(function (src) { return STATE.results[src.id]; })
+      .filter(function (r) { return r && typeof r.count === 'number' && r.count > 0; });
+
+    var html = ['<div class="tsd-notif-header">Action items</div>'];
+    if (entries.length === 0) {
+      html.push('<div class="tsd-notif-empty">No pending action items.</div>');
+    } else {
+      entries.forEach(function (r) {
+        var itemsHtml = '';
+        if (Array.isArray(r.items) && r.items.length) {
+          itemsHtml = '<ul class="tsd-notif-items">' +
+            r.items.slice(0, 4).map(function (it) {
+              return '<li>' + escapeHtml(it.title || '') +
+                (it.since ? ' · <em>' + escapeHtml(it.since) + '</em>' : '') +
+                '</li>';
+            }).join('') +
+            '</ul>';
+        }
+        html.push(
+          '<a class="tsd-notif-entry" href="' + escapeAttr(r.link || '#') + '">' +
+            '<div class="tsd-notif-entry-title"><span>' + escapeHtml(r.label || '') + '</span>' +
+              '<span class="tsd-notif-entry-count">' + r.count + '</span>' +
+            '</div>' +
+            (r.sublabel ? '<div class="tsd-notif-entry-sub">' + escapeHtml(r.sublabel) + '</div>' : '') +
+            itemsHtml +
+          '</a>'
+        );
+      });
+    }
+    popup.innerHTML = html.join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  // ----- Built-in sources ---------------------------------------------------
+
+  // Outbound Review (warmup, follow-up, prospect-replied drafts)
+  // Uses the same GAS endpoint warmup_review.html already calls — no new
+  // server-side work needed.
+  register({
+    id: 'warmup',
+    fetch: function () {
+      var routes = global.Routes;
+      if (!routes || !routes.gas || !routes.gas.storesHitList) return null;
+      var url = routes.gas.storesHitList + '?action=getWarmupReviewQueue';
+      return fetch(url, { method: 'GET' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (json) {
+          if (!json || json.status !== 'success' || !json.data) return null;
+          var counts = json.data.counts || {};
+          var warmup = Number(counts['AI/Warm-up'] || 0);
+          var followup = Number(counts['AI/Follow-up'] || 0);
+          var replied = Number(counts['AI/Prospect Replied'] || 0);
+          var total = warmup + followup + replied;
+          if (!total) return null;
+          var parts = [];
+          if (replied) parts.push(replied + ' prospect replied');
+          if (followup) parts.push(followup + ' follow-up');
+          if (warmup) parts.push(warmup + ' warm-up');
+          return {
+            count: total,
+            label: 'Outbound Review',
+            sublabel: parts.join(' · ') + ' (drafts to review)',
+            link: './warmup_review.html'
+          };
+        });
+    }
+  });
+
+  // Partner Check-in follow-ups due
+  // TODO: requires a new GAS action on tdg_shipping_planner.
+  // Proposed shape:
+  //   GET .../exec?action=get_partner_followups_due
+  //   → { status: 'success', data: { count: N, partners: [{name, last_check_in, since_days}] } }
+  // Cadence rule (initial proposal, refine after first week of data):
+  //   Partner-status store with no check-in in the last 30 days = due.
+  // Once the GAS action ships, replace the body below with a real fetch.
+  // Until then this source returns null and is silently hidden.
+  register({
+    id: 'partner_followups',
+    fetch: function () {
+      var routes = global.Routes;
+      if (!routes || !routes.gas || !routes.gas.shipping) return null;
+      var url = routes.gas.shipping + '?action=get_partner_followups_due';
+      return fetch(url, { method: 'GET' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (json) {
+          if (!json || json.status !== 'success' || !json.data) return null;
+          var data = json.data;
+          var count = Number(data.count || (data.partners ? data.partners.length : 0));
+          if (!count) return null;
+          var items = (data.partners || []).slice(0, 4).map(function (p) {
+            return {
+              title: p.name || p.partner || 'Partner',
+              since: (p.since_days != null) ? (p.since_days + 'd') : ''
+            };
+          });
+          return {
+            count: count,
+            label: 'Partner Check-in',
+            sublabel: count + ' follow-up' + (count === 1 ? '' : 's') + ' due',
+            link: './partner_check_in.html',
+            items: items
+          };
+        })
+        .catch(function () { return null; });  // GAS action may not exist yet
+    }
+  });
+
+  // ----- Boot ---------------------------------------------------------------
+
+  function boot() {
+    ensureChrome();
+    refresh();
+    setInterval(refresh, REFRESH_INTERVAL_MS);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  global.Notifications = {
+    register: register,
+    refresh: refresh
+  };
+})(typeof window !== 'undefined' ? window : this);
