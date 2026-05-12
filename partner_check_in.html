@@ -315,8 +315,18 @@
 
         <div id="contributorDetail" style="display:none;">
             <div class="form-row">
-                <label for="partnerSelect">Partner</label>
-                <select id="partnerSelect">
+                <label for="partnerSearch">Partner</label>
+                <div style="position: relative;">
+                    <input type="text" id="partnerSearch" placeholder="Pick contributor first…" autocomplete="off"
+                           disabled
+                           style="width: 100%; padding: 0.65rem; font-size: 1rem; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;">
+                    <div id="partnerAutocomplete"
+                         style="position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #ddd; border-top: none; border-radius: 0 0 6px 6px; max-height: 260px; overflow-y: auto; display: none; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.08);"></div>
+                </div>
+                <!-- Hidden select preserves the existing slug-bound API used by
+                     onPartnerSelected() / fetchHistory() / submit code paths.
+                     The text input above is the operator-facing combobox. -->
+                <select id="partnerSelect" style="display: none;">
                     <option value="">— Pick contributor first —</option>
                 </select>
                 <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;" id="partnerHint"></div>
@@ -662,7 +672,15 @@
                     onContributorSelected(deepContrib);
                     if (partnerSelect.value !== deepPid) {
                         partnerSelect.value = deepPid;
-                        if (partnerSelect.value === deepPid) onPartnerSelected(deepPid);
+                        if (partnerSelect.value === deepPid) {
+                            // Mirror into the visible partner-search input
+                            var partnerLabel = '';
+                            var sel = partnerSelect.options[partnerSelect.selectedIndex];
+                            if (sel) partnerLabel = sel.textContent || sel.innerText || '';
+                            var partnerSearch = document.getElementById('partnerSearch');
+                            if (partnerSearch && partnerLabel) partnerSearch.value = partnerLabel;
+                            onPartnerSelected(deepPid);
+                        }
                     }
                 }
             });
@@ -738,8 +756,11 @@
             }
             contributorDetail.style.display = 'block';
             var partners = (contributorToPartners && contributorToPartners[contributorName]) || [];
+            var partnerSearch = document.getElementById('partnerSearch');
             if (partners.length === 0) {
                 partnerSelect.innerHTML = '<option value="">— No partners mapped —</option>';
+                if (partnerSearch) { partnerSearch.value = ''; partnerSearch.placeholder = 'No partners mapped to this contributor.'; partnerSearch.disabled = true; }
+                attachPartnerTypeahead_([]);
                 if (partnerHint) partnerHint.textContent = '';
                 partnerDetail.style.display = 'none';
                 historySection.style.display = 'none';
@@ -748,6 +769,8 @@
             if (partners.length === 1) {
                 var only = partners[0];
                 partnerSelect.innerHTML = '<option value="' + escapeHtml(only.partner_id) + '" selected>' + escapeHtml(only.partner_name) + '</option>';
+                if (partnerSearch) { partnerSearch.value = only.partner_name; partnerSearch.disabled = false; partnerSearch.placeholder = 'Type to search partners…'; }
+                attachPartnerTypeahead_(partners);
                 if (partnerHint) partnerHint.textContent = '';
                 onPartnerSelected(only.partner_id);
             } else {
@@ -755,10 +778,75 @@
                 var opts = ['<option value="">— Select partner —</option>']
                     .concat(sorted.map(function(p) { return '<option value="' + escapeHtml(p.partner_id) + '">' + escapeHtml(p.partner_name) + '</option>'; }));
                 partnerSelect.innerHTML = opts.join('');
+                if (partnerSearch) { partnerSearch.value = ''; partnerSearch.disabled = false; partnerSearch.placeholder = 'Type to search partners…'; }
+                attachPartnerTypeahead_(sorted);
                 if (partnerHint) partnerHint.textContent = contributorName + ' is mapped to ' + partners.length + ' partners — pick which one this check-in is about.';
                 partnerDetail.style.display = 'none';
                 historySection.style.display = 'none';
             }
+        }
+
+        // Wires the same typeahead pattern as Contributor Name onto the
+        // Partner field. Re-binds on every onContributorSelected() call
+        // because the eligible partner list changes per contributor.
+        // Idempotent — replaces previous listeners by cloning the input node.
+        function attachPartnerTypeahead_(partners) {
+            var searchInput = document.getElementById('partnerSearch');
+            var listEl = document.getElementById('partnerAutocomplete');
+            if (!searchInput || !listEl) return;
+            // Drop prior listeners by cloning the node, then re-acquire reference.
+            var fresh = searchInput.cloneNode(true);
+            searchInput.parentNode.replaceChild(fresh, searchInput);
+            searchInput = fresh;
+
+            var items = (partners || []).map(function (p) {
+                return {
+                    value: p.partner_id,
+                    label: p.partner_name,
+                    needle: String(p.partner_name || '').toLowerCase()
+                };
+            });
+
+            function renderMatches(query) {
+                var q = String(query || '').trim().toLowerCase();
+                listEl.innerHTML = '';
+                var matches = q
+                    ? items.filter(function (it) { return it.needle.indexOf(q) !== -1; })
+                    : items.slice();
+                matches = matches.slice(0, 50);
+                if (!matches.length) {
+                    var empty = document.createElement('div');
+                    empty.style.cssText = 'padding: 0.6rem 0.8rem; color: #888; font-style: italic;';
+                    empty.textContent = items.length ? 'No matching partner.' : 'No partners mapped to this contributor.';
+                    listEl.appendChild(empty);
+                } else {
+                    matches.forEach(function (it) {
+                        var row = document.createElement('div');
+                        row.style.cssText = 'padding: 0.55rem 0.8rem; cursor: pointer; font-size: 0.95rem; border-bottom: 1px solid #f0f0f0;';
+                        row.textContent = it.label;
+                        row.addEventListener('mouseenter', function () { row.style.background = '#f5f7fa'; });
+                        row.addEventListener('mouseleave', function () { row.style.background = '#fff'; });
+                        row.addEventListener('mousedown', function (e) {
+                            e.preventDefault();
+                            searchInput.value = it.label;
+                            partnerSelect.value = it.value;
+                            listEl.style.display = 'none';
+                            try { onPartnerSelected(it.value); } catch (err) { console.warn('onPartnerSelected failed', err); }
+                        });
+                        listEl.appendChild(row);
+                    });
+                }
+                listEl.style.display = 'block';
+            }
+
+            searchInput.addEventListener('focus', function () { renderMatches(searchInput.value); });
+            searchInput.addEventListener('input', function () { renderMatches(searchInput.value); });
+            searchInput.addEventListener('blur', function () {
+                setTimeout(function () { listEl.style.display = 'none'; }, 180);
+            });
+            searchInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') { listEl.style.display = 'none'; searchInput.blur(); }
+            });
         }
 
         // ---- Attention bucketing -------------------------------------------
