@@ -219,42 +219,87 @@
   });
 
   // Partner Check-in follow-ups due
-  // TODO: requires a new GAS action on tdg_shipping_planner.
-  // Proposed shape:
-  //   GET .../exec?action=get_partner_followups_due
-  //   → { status: 'success', data: { count: N, partners: [{name, last_check_in, since_days}] } }
-  // Cadence rule (initial proposal, refine after first week of data):
-  //   Partner-status store with no check-in in the last 30 days = due.
-  // Once the GAS action ships, replace the body below with a real fetch.
-  // Until then this source returns null and is silently hidden.
+  // Uses the existing `list_partners_needing_attention` action on
+  // tdg_shipping_planner, which returns partners whose operator-specified
+  // Next Check-in Date is overdue or within 3 days (today + 3 cutoff). The
+  // cadence is operator-driven — Gary picks the next-check-in date when
+  // filing each check-in, so the badge surfaces exactly what the operator
+  // asked to be reminded about (avoids the "tracker tells you to act"
+  // anti-pattern documented in
+  // feedback_check_tracking_before_recommending_action.md).
+  //
+  // The GAS response carries partner_id (slug). We join against
+  // partners-velocity.json to surface partner_name in the popup.
+  var partnersVelocityCache = null;
+  function getPartnerNameMap() {
+    if (partnersVelocityCache) return Promise.resolve(partnersVelocityCache);
+    var url = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/partners-velocity.json';
+    return fetch(url, { method: 'GET', cache: 'no-cache' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (json) {
+        var map = {};
+        if (json && json.partners && typeof json.partners === 'object') {
+          Object.keys(json.partners).forEach(function (slug) {
+            var p = json.partners[slug];
+            if (p && p.partner_name) map[slug] = p.partner_name;
+          });
+        }
+        partnersVelocityCache = map;
+        return map;
+      })
+      .catch(function () { return {}; });
+  }
+
   register({
     id: 'partner_followups',
     fetch: function () {
       var routes = global.Routes;
       if (!routes || !routes.gas || !routes.gas.shipping) return null;
-      var url = routes.gas.shipping + '?action=get_partner_followups_due';
-      return fetch(url, { method: 'GET' })
+      var url = routes.gas.shipping + '?action=list_partners_needing_attention';
+      var apiPromise = fetch(url, { method: 'GET' })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (json) {
+        .catch(function () { return null; });
+      return Promise.all([apiPromise, getPartnerNameMap()])
+        .then(function (parts) {
+          var json = parts[0];
+          var nameMap = parts[1] || {};
           if (!json || json.status !== 'success' || !json.data) return null;
-          var data = json.data;
-          var count = Number(data.count || (data.partners ? data.partners.length : 0));
-          if (!count) return null;
-          var items = (data.partners || []).slice(0, 4).map(function (p) {
-            return {
-              title: p.name || p.partner || 'Partner',
-              since: (p.since_days != null) ? (p.since_days + 'd') : ''
-            };
+          var partners = json.data.partners || [];
+          if (!partners.length) return null;
+
+          // Sort: overdue first (largest days_overdue first), then upcoming
+          partners.sort(function (a, b) {
+            return (b.days_overdue || 0) - (a.days_overdue || 0);
           });
+
+          var items = partners.slice(0, 4).map(function (p) {
+            var pid = String(p.partner_id || '');
+            var name = nameMap[pid] || pid || 'Partner';
+            var days = Number(p.days_overdue);
+            var since;
+            if (isNaN(days)) since = '';
+            else if (days > 0) since = days + 'd overdue';
+            else if (days === 0) since = 'due today';
+            else since = 'due in ' + (-days) + 'd';
+            return { title: name, since: since };
+          });
+
+          var overdueCount = partners.filter(function (p) {
+            return Number(p.days_overdue) > 0;
+          }).length;
+          var sublabel = overdueCount
+            ? overdueCount + ' overdue · ' + (partners.length - overdueCount) + ' upcoming'
+            : partners.length + ' upcoming check-in' + (partners.length === 1 ? '' : 's');
+
           return {
-            count: count,
+            count: partners.length,
             label: 'Partner Check-in',
-            sublabel: count + ' follow-up' + (count === 1 ? '' : 's') + ' due',
+            sublabel: sublabel,
             link: './partner_check_in.html',
             items: items
           };
         })
-        .catch(function () { return null; });  // GAS action may not exist yet
+        .catch(function () { return null; });
     }
   });
 
