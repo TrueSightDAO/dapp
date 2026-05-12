@@ -295,8 +295,19 @@
             <div class="form-pane">
                 <div class="section-title">Log Check-in</div>
         <div class="form-row">
-            <label for="contributorName">Contributor Name</label>
-            <select id="contributorName" data-requires-signature="true">
+            <label for="contributorSearch">Contributor Name</label>
+            <div style="position: relative;">
+                <input type="text" id="contributorSearch" placeholder="Type to search contributors…" autocomplete="off"
+                       data-requires-signature="true"
+                       style="width: 100%; padding: 0.65rem; font-size: 1rem; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;">
+                <div id="contributorAutocomplete"
+                     style="position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #ddd; border-top: none; border-radius: 0 0 6px 6px; max-height: 260px; overflow-y: auto; display: none; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.08);"></div>
+            </div>
+            <!-- Hidden select preserves the existing value-bound API used by
+                 onContributorSelected() / signature-verification / submit code paths.
+                 The text input above is the operator-facing combobox; on selection
+                 we mirror the canonical contributor_contact_id into this select. -->
+            <select id="contributorName" data-requires-signature="true" style="display: none;">
                 <option value="">— Loading contributors… —</option>
             </select>
             <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Canonical name from <code>Agroverse Partners</code>!E. Sourced from active retail partners with a mapped <code>partner_id</code>; pop-up / operator-only rows are filtered out.</div>
@@ -628,6 +639,15 @@
                 contributorNameInput.innerHTML = options.join('');
                 setStatus('');
 
+                // Wire the typeahead combobox above the hidden select. The
+                // visible <input id="contributorSearch"> filters the same
+                // contributors list as the user types; clicking a match
+                // mirrors the value into the hidden select and fires the
+                // existing onContributorSelected pipeline so nothing else
+                // downstream changes. Pattern lifted from
+                // report_inventory_movement.html (qrSearchInput / managerSearchInput).
+                attachContributorTypeahead_(contributors, contributorToPartners);
+
                 // Attention list (still keyed by partner — same as before)
                 computeAttentionList(entries, velocity);
 
@@ -637,12 +657,73 @@
                 if (deepPid && contributorMap && contributorMap[deepPid]) {
                     var deepContrib = contributorMap[deepPid];
                     contributorNameInput.value = deepContrib;
+                    var contribSearch = document.getElementById('contributorSearch');
+                    if (contribSearch) contribSearch.value = deepContrib;
                     onContributorSelected(deepContrib);
                     if (partnerSelect.value !== deepPid) {
                         partnerSelect.value = deepPid;
                         if (partnerSelect.value === deepPid) onPartnerSelected(deepPid);
                     }
                 }
+            });
+        }
+
+        function attachContributorTypeahead_(contributors, contributorToPartners) {
+            var searchInput = document.getElementById('contributorSearch');
+            var listEl = document.getElementById('contributorAutocomplete');
+            if (!searchInput || !listEl) return;
+
+            // Build a stable items array once: { label (display), value (canonical) }
+            var items = (contributors || []).map(function (c) {
+                var count = (contributorToPartners[c] || []).length;
+                return {
+                    value: c,
+                    label: count > 1 ? (c + ' (' + count + ' partners)') : c,
+                    needle: c.toLowerCase()
+                };
+            });
+
+            function renderMatches(query) {
+                var q = String(query || '').trim().toLowerCase();
+                listEl.innerHTML = '';
+                var matches = q
+                    ? items.filter(function (it) { return it.needle.indexOf(q) !== -1; })
+                    : items.slice();  // empty query → show all
+                matches = matches.slice(0, 50);
+                if (!matches.length) {
+                    var empty = document.createElement('div');
+                    empty.style.cssText = 'padding: 0.6rem 0.8rem; color: #888; font-style: italic;';
+                    empty.textContent = 'No matching contributor.';
+                    listEl.appendChild(empty);
+                } else {
+                    matches.forEach(function (it) {
+                        var row = document.createElement('div');
+                        row.style.cssText = 'padding: 0.55rem 0.8rem; cursor: pointer; font-size: 0.95rem; border-bottom: 1px solid #f0f0f0;';
+                        row.textContent = it.label;
+                        row.addEventListener('mouseenter', function () { row.style.background = '#f5f7fa'; });
+                        row.addEventListener('mouseleave', function () { row.style.background = '#fff'; });
+                        // mousedown fires before blur — use it so the click registers
+                        row.addEventListener('mousedown', function (e) {
+                            e.preventDefault();
+                            searchInput.value = it.value;  // show canonical name
+                            contributorNameInput.value = it.value;
+                            listEl.style.display = 'none';
+                            try { onContributorSelected(it.value); } catch (err) { console.warn('onContributorSelected failed', err); }
+                        });
+                        listEl.appendChild(row);
+                    });
+                }
+                listEl.style.display = 'block';
+            }
+
+            searchInput.addEventListener('focus', function () { renderMatches(searchInput.value); });
+            searchInput.addEventListener('input', function () { renderMatches(searchInput.value); });
+            searchInput.addEventListener('blur', function () {
+                // Delay so click on a row registers before we hide the list
+                setTimeout(function () { listEl.style.display = 'none'; }, 180);
+            });
+            searchInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') { listEl.style.display = 'none'; searchInput.blur(); }
             });
         }
 
