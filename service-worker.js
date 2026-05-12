@@ -44,12 +44,12 @@ const URLS_TO_CACHE = [
   './governor_contributor_admin.html',
   './governor_permissions.html',
   // Scripts
-  './menu.js?v=20260512c',
+  './menu.js?v=20260512d',
   './routes.js',
   './service-worker.js',
   './js/treasury_cache.js',
   './js/dapp_footer_links.js?v=1',
-  './js/notifications.js?v=20260512c',
+  './js/notifications.js?v=20260512d',
   './scripts/dao_members_cache.js',
   './scripts/permissions.js',
   // External libraries

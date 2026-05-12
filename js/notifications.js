@@ -202,10 +202,12 @@
           var warmup = Number(counts['AI/Warm-up'] || 0);
           var followup = Number(counts['AI/Follow-up'] || 0);
           var replied = Number(counts['AI/Prospect Replied'] || 0);
-          var total = warmup + followup + replied;
+          var poke = Number(counts['AI/Partner Poke'] || 0);
+          var total = warmup + followup + replied + poke;
           if (!total) return null;
           var parts = [];
           if (replied) parts.push(replied + ' prospect replied');
+          if (poke) parts.push(poke + ' partner poke');
           if (followup) parts.push(followup + ' follow-up');
           if (warmup) parts.push(warmup + ' warm-up');
           return {
