@@ -223,6 +223,41 @@
             font-style: italic;
             padding: 1rem;
         }
+        .attention-tabs {
+            display: flex;
+            gap: 0.25rem;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 0.5rem;
+            overflow-x: auto;
+        }
+        .attention-tab {
+            background: none;
+            border: none;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .attention-tab:hover { color: #333; }
+        .attention-tab.active {
+            color: #0d6efd;
+            border-bottom-color: #0d6efd;
+            font-weight: 600;
+        }
+        .attention-tab-count {
+            display: inline-block;
+            margin-left: 0.25rem;
+            padding: 0 0.4rem;
+            border-radius: 999px;
+            background: #e7e9ec;
+            color: #555;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .attention-tab.active .attention-tab-count { background: #0d6efd; color: #fff; }
 
         @media (max-width: 600px) {
             .container { padding: 0.75rem; }
@@ -234,6 +269,9 @@
     <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
     <div id="tdgBalanceBadge"></div>
     <div class="container">
+        <div style="text-align: center;">
+            <img id="logo" height="160" src="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true" alt="TrueSight DAO Logo"/>
+        </div>
         <h1>Partner Check-in</h1>
         <p class="subtitle" id="description">Log periodic check-ins with Agroverse retail partners. Track stock status, restock needs, and see who needs a poke.</p>
 
@@ -630,79 +668,147 @@
             }
         }
 
-        // ---- Attention scoring ---------------------------------------------
+        // ---- Attention bucketing -------------------------------------------
+        // Three independent buckets, each shown on its own tab:
+        //   - low-stock: critical out-of-stock + warning running-low
+        //   - dormant:   no sale in 45+ days
+        //   - due:       latest next_check_in_date is overdue or within 3 days
         function computeAttentionList(entries, velocity) {
-            fetchInventory().then(function(inventory) {
-                var attention = [];
+            Promise.all([fetchInventory(), fetchFollowUpDue()]).then(function(results) {
+                var inventory = results[0];
+                var followUpDuePartners = results[1] || [];
+
+                var lowStock = [];
+                var dormant = [];
+                var followUpDue = [];
+
+                var entryBySlug = {};
+                entries.forEach(function(e) { entryBySlug[e.slug] = e; });
+
                 entries.forEach(function(e) {
                     var slug = e.slug;
                     var inv = inventory && inventory.partners && inventory.partners[slug];
                     var vel = velocity.partners[slug];
-                    var totalInv = 0;
-                    var reasons = [];
 
                     if (inv && inv.items) {
-                        inv.items.forEach(function(it) {
-                            totalInv += (it.venueInventory || 0);
-                        });
+                        var totalInv = 0;
+                        inv.items.forEach(function(it) { totalInv += (it.venueInventory || 0); });
                         if (totalInv === 0) {
-                            reasons.push('Out of stock');
+                            lowStock.push({ slug: slug, label: e.label, severity: 'critical', reasons: ['Out of stock'] });
                         } else if (totalInv <= 3) {
-                            reasons.push('Running low (' + totalInv + ' left)');
+                            lowStock.push({ slug: slug, label: e.label, severity: 'warning', reasons: ['Running low (' + totalInv + ' left)'] });
                         }
                     }
 
                     if (vel && vel.items) {
+                        var dormantReasons = [];
                         Object.keys(vel.items).forEach(function(sku) {
                             var it = vel.items[sku];
                             if (it.last_sale_date) {
                                 var ds = daysSince(it.last_sale_date);
                                 if (ds !== null && ds > 45) {
-                                    reasons.push('Last sale ' + relativeAge(it.last_sale_date));
+                                    dormantReasons.push('Last sale ' + relativeAge(it.last_sale_date));
                                 }
                             }
                         });
-                    }
-
-                    if (reasons.length > 0) {
-                        var severity = reasons.some(function(r) { return r.indexOf('Out of stock') === 0; }) ? 'critical' :
-                                       reasons.some(function(r) { return r.indexOf('Running low') === 0; }) ? 'warning' : 'info';
-                        attention.push({ slug: slug, label: e.label, severity: severity, reasons: reasons, totalInv: totalInv });
+                        if (dormantReasons.length > 0) {
+                            dormant.push({ slug: slug, label: e.label, severity: 'info', reasons: dormantReasons });
+                        }
                     }
                 });
 
-                attention.sort(function(a, b) {
+                followUpDuePartners.forEach(function(p) {
+                    var entry = entryBySlug[p.partner_id];
+                    var label = entry ? entry.label : (p.partner_id || 'Unknown partner');
+                    var days = Number(p.days_overdue || 0);
+                    var reason;
+                    var severity;
+                    if (days > 0) { reason = days + ' day' + (days === 1 ? '' : 's') + ' overdue'; severity = 'critical'; }
+                    else if (days === 0) { reason = 'Due today'; severity = 'warning'; }
+                    else { reason = 'Due in ' + Math.abs(days) + ' day' + (Math.abs(days) === 1 ? '' : 's'); severity = 'info'; }
+                    if (p.next_check_in_date) reason += ' (' + p.next_check_in_date + ')';
+                    followUpDue.push({ slug: p.partner_id, label: label, severity: severity, reasons: [reason] });
+                });
+
+                var sortBySev = function(a, b) {
                     var sevOrder = { critical: 0, warning: 1, info: 2 };
                     if (sevOrder[a.severity] !== sevOrder[b.severity]) return sevOrder[a.severity] - sevOrder[b.severity];
                     return a.label.localeCompare(b.label);
-                });
+                };
+                lowStock.sort(sortBySev);
+                dormant.sort(sortBySev);
+                followUpDue.sort(sortBySev);
 
-                renderAttentionList(attention);
+                renderAttentionTabs({ 'low-stock': lowStock, 'dormant': dormant, 'due': followUpDue });
             });
         }
 
-        function renderAttentionList(attention) {
-            if (!attention || attention.length === 0) {
-                attentionSection.style.display = 'block';
+        function fetchFollowUpDue() {
+            var url = API_BASE_URL + '?action=list_partners_needing_attention';
+            return fetch(url, { method: 'GET' })
+                .then(function(res) { return res.ok ? res.json() : null; })
+                .then(function(json) {
+                    return (json && json.status === 'success' && json.data && json.data.partners) ? json.data.partners : [];
+                })
+                .catch(function() { return []; });
+        }
+
+        function renderAttentionItemHtml(a) {
+            var cls = a.severity === 'critical' ? '' : (a.severity === 'warning' ? 'warning' : 'info');
+            var reasonsHtml = '<ul>' + a.reasons.map(function(r) { return '<li>' + escapeHtml(r) + '</li>'; }).join('') + '</ul>';
+            return '<div class="attention-card ' + cls + '">' +
+                '<div class="attention-card-header">' +
+                '<strong>' + escapeHtml(a.label) + '</strong>' +
+                '</div>' +
+                '<div class="attention-reasons">' + reasonsHtml + '</div>' +
+                '<div class="attention-actions">' +
+                '<button class="btn-log-checkin" data-slug="' + escapeHtml(a.slug) + '">Log check-in</button>' +
+                '</div>' +
+                '</div>';
+        }
+
+        function renderAttentionTabs(buckets) {
+            attentionSection.style.display = 'block';
+            var bucketOrder = ['low-stock', 'dormant', 'due'];
+            var labels = { 'low-stock': 'Low stock', 'dormant': 'Dormant', 'due': 'Follow up due' };
+            var totalCount = bucketOrder.reduce(function(s, k) { return s + buckets[k].length; }, 0);
+            if (totalCount === 0) {
                 attentionList.innerHTML = '<div class="attention-empty">All partners look healthy. No pokes needed right now.</div>';
                 return;
             }
-            attentionSection.style.display = 'block';
-            attentionList.innerHTML = attention.map(function(a) {
-                var cls = a.severity === 'critical' ? '' : (a.severity === 'warning' ? 'warning' : 'info');
-                var badge = a.severity === 'critical' ? 'Out of stock' : (a.severity === 'warning' ? 'Low stock' : 'Dormant');
-                var reasonsHtml = '<ul>' + a.reasons.map(function(r) { return '<li>' + r + '</li>'; }).join('') + '</ul>';
-                return '<div class="attention-card ' + cls + '">' +
-                    '<div class="attention-card-header">' +
-                    '<strong>' + escapeHtml(a.label) + '</strong>' +
-                    '<span class="attention-badge">' + escapeHtml(badge) + '</span>' +
-                    '</div>' +
-                    '<div class="attention-reasons">' + reasonsHtml + '</div>' +
-                    '<div class="attention-actions">' +
-                    '<button class="btn-log-checkin" data-slug="' + a.slug + '">Log check-in</button>' +
-                    '</div>' +
-                    '</div>';
+            // First non-empty tab becomes the default active one.
+            var defaultTab = bucketOrder.find(function(k) { return buckets[k].length > 0; }) || 'low-stock';
+
+            var tabsHtml = '<div class="attention-tabs" role="tablist">' +
+                bucketOrder.map(function(k) {
+                    var active = k === defaultTab ? ' active' : '';
+                    return '<button class="attention-tab' + active + '" data-bucket="' + k + '" role="tab">' +
+                        labels[k] +
+                        '<span class="attention-tab-count">' + buckets[k].length + '</span>' +
+                    '</button>';
+                }).join('') +
+            '</div>';
+
+            var panelsHtml = bucketOrder.map(function(k) {
+                var hidden = k === defaultTab ? '' : ' style="display:none"';
+                var body = buckets[k].length === 0
+                    ? '<div class="attention-empty">No partners in this bucket.</div>'
+                    : buckets[k].map(renderAttentionItemHtml).join('');
+                return '<div class="attention-panel" data-panel="' + k + '"' + hidden + '>' + body + '</div>';
             }).join('');
+
+            attentionList.innerHTML = tabsHtml + panelsHtml;
+
+            attentionList.querySelectorAll('.attention-tab').forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    var b = this.getAttribute('data-bucket');
+                    attentionList.querySelectorAll('.attention-tab').forEach(function(t) { t.classList.remove('active'); });
+                    this.classList.add('active');
+                    attentionList.querySelectorAll('.attention-panel').forEach(function(panel) {
+                        panel.style.display = (panel.getAttribute('data-panel') === b) ? 'block' : 'none';
+                    });
+                });
+            });
 
             attentionList.querySelectorAll('.btn-log-checkin').forEach(function(btn) {
                 btn.addEventListener('click', function() {
