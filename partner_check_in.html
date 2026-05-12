@@ -302,10 +302,7 @@
                 <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Units of the selected SKU.</div>
             </div>
 
-            <div class="form-row">
-                <label for="nextCheckInDate">Next Check-in Date</label>
-                <input type="date" id="nextCheckInDate" />
-            </div>
+            <div id="nextCheckInHint" style="margin:0.5rem 0 1rem; padding:0.6rem 0.75rem; background:#f0f7ff; border-left:3px solid #0d6efd; border-radius:4px; font-size:0.88rem; color:#333; display:none;"></div>
 
             <div class="form-row">
                 <label for="notesInput">Notes</label>
@@ -344,7 +341,8 @@
         const restockSkuSelect = document.getElementById('restockSku');
         const restockQtyRow = document.getElementById('restockQtyRow');
         const restockQuantityInput = document.getElementById('restockQuantity');
-        const nextCheckInDateInput = document.getElementById('nextCheckInDate');
+        const nextCheckInHint = document.getElementById('nextCheckInHint');
+        let computedNextCheckInDate = ''; // auto-set in onPartnerSelected; embedded in event text at submit
         const notesInput = document.getElementById('notesInput');
         const submitBtn = document.getElementById('submitBtn');
         const submitMessage = document.getElementById('submitMessage');
@@ -651,6 +649,82 @@
             });
         }
 
+        // ---- Auto next check-in -------------------------------------------
+        // Formula: days_until_empty = stock_units / monthly_sell_through_units * 30
+        // Use partner-specific 12m monthly average per SKU; fall back to category_medians
+        // (per-SKU median across all stores) when this partner has no sales history.
+        // Subtract a 7-day buffer so the operator pokes BEFORE stock-out.
+        // Clamp [7, 60] days. Pop-up / no-data partners get a 30-day default.
+        function computeNextCheckInDate(slug, velocity, inventory) {
+            var today = new Date();
+            function addDays(n) {
+                var d = new Date(today);
+                d.setDate(d.getDate() + n);
+                return d.toISOString().slice(0, 10);
+            }
+
+            var partnerVel = velocity && velocity.partners && velocity.partners[slug];
+            var partnerInv = inventory && inventory.partners && inventory.partners[slug];
+
+            // Pop-up / no-inventory partners: 30-day default.
+            if (!partnerInv || !partnerInv.items || partnerInv.items.length === 0) {
+                return { date: addDays(30), reason: 'default 30 days (no inventory data)', stock: 0, monthlyRate: 0 };
+            }
+
+            var totalStock = 0;
+            var weightedMonthlyRate = 0;
+            var usedFallback = false;
+
+            partnerInv.items.forEach(function(it) {
+                var stock = Number(it.venueInventory || 0);
+                if (stock <= 0) return;
+                totalStock += stock;
+                var sku = it.productId || '';
+                var rate = 0;
+                if (partnerVel && partnerVel.items && partnerVel.items[sku]) {
+                    rate = Number(partnerVel.items[sku].sales_12m_monthly_avg || 0);
+                }
+                if (rate === 0 && velocity && velocity.category_medians && velocity.category_medians[sku]) {
+                    rate = Number(velocity.category_medians[sku].monthly || 0);
+                    if (rate > 0) usedFallback = true;
+                }
+                if (rate > 0) {
+                    weightedMonthlyRate += rate;
+                }
+            });
+
+            if (totalStock === 0) {
+                return { date: addDays(7), reason: 'restock soon (no stock at partner)', stock: 0, monthlyRate: weightedMonthlyRate };
+            }
+            if (weightedMonthlyRate === 0) {
+                return { date: addDays(60), reason: 'default 60 days (no sell-through history)', stock: totalStock, monthlyRate: 0 };
+            }
+
+            var daysUntilEmpty = (totalStock / weightedMonthlyRate) * 30;
+            var bufferDays = 7;
+            var suggested = Math.max(7, Math.min(60, Math.round(daysUntilEmpty - bufferDays)));
+            return {
+                date: addDays(suggested),
+                reason: usedFallback ? 'based on stock + category-median sell-through' : 'based on stock + partner sell-through',
+                stock: totalStock,
+                monthlyRate: weightedMonthlyRate
+            };
+        }
+
+        function applyAutoNextCheckIn(slug) {
+            Promise.all([fetchVelocity(), fetchInventory()]).then(function(results) {
+                var velocity = results[0];
+                var inventory = results[1];
+                var result = computeNextCheckInDate(slug, velocity, inventory);
+                computedNextCheckInDate = result.date;
+                var stockTxt = result.stock > 0 ? (' · ' + result.stock + ' units in stock') : '';
+                var rateTxt = result.monthlyRate > 0 ? (' · ~' + result.monthlyRate.toFixed(1) + ' units/month') : '';
+                nextCheckInHint.innerHTML = '<strong>Next check-in auto-scheduled:</strong> ' + result.date +
+                    ' <span style="color:#666;">(' + result.reason + stockTxt + rateTxt + ')</span>';
+                nextCheckInHint.style.display = 'block';
+            });
+        }
+
         // ---- Restock SKU options -------------------------------------------
         function populateRestockSkuOptions(partner) {
             var options = ['<option value="">— Select SKU —</option>'];
@@ -680,6 +754,9 @@
                 var p = velocity && velocity.partners && velocity.partners[slug];
                 populateRestockSkuOptions(p);
             });
+
+            // Auto-compute Next Check-in Date from stock + sell-through (or category median).
+            applyAutoNextCheckIn(slug);
 
             fetchPartnerCheckIns(slug).then(function(rows) {
                 renderHistory(slug, rows);
@@ -775,7 +852,7 @@
             var restockNeeded = (restockNeededSelect.value || '').trim();
             var restockSku = (restockSkuSelect.value || '').trim();
             var restockQuantity = (restockQuantityInput.value || '').trim();
-            var nextCheckInDate = (nextCheckInDateInput.value || '').trim();
+            var nextCheckInDate = (computedNextCheckInDate || '').trim();
             var notes = (notesInput.value || '').trim();
 
             if (!method || !stockStatus || !restockNeeded) {
@@ -850,7 +927,6 @@
                 notesInput.value = '';
                 restockSkuSelect.value = '';
                 restockQuantityInput.value = '';
-                nextCheckInDateInput.value = '';
             } catch (err) {
                 submitBtn.disabled = false;
                 submitMessage.textContent = 'Error: ' + (err.message || err);
