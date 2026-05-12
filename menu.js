@@ -85,4 +85,17 @@
     });
     container.appendChild(select);
   });
+
+  // Inject the notifications widget (red-badge action-item indicator)
+  // on every page that loads menu.js. Loaded async so it never blocks
+  // the menu render. The widget self-mounts a fixed-position badge in
+  // the top-right corner; see js/notifications.js for the source contract.
+  document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('tsd-notif-script')) return;
+    var s = document.createElement('script');
+    s.id = 'tsd-notif-script';
+    s.src = './js/notifications.js?v=20260512a';
+    s.async = true;
+    document.head.appendChild(s);
+  });
 })();

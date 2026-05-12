@@ -16,7 +16,7 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
     <script src="./routes.js"></script>
-    <script src="./menu.js?v=20260510"></script>
+    <script src="./menu.js?v=20260512a"></script>
     <script src="./tdg_balance.js"></script>
     <script src="./js/treasury_cache.js"></script>
 
@@ -103,10 +103,46 @@
             cursor: not-allowed;
         }
         textarea { resize: none; min-height: 80px; }
+        /* Stack the currency picker on its own row above the amount so long
+           SKU / packaging names (e.g. "8 Ounce Package Kraft Pouch
+           CP340993268BR - Switzerland") fit without ellipsis. Same one-column
+           shape as the inventory-movement page's pickers. */
         .currency-pair {
             display: grid;
-            grid-template-columns: 1fr 1.5fr;
+            grid-template-columns: 1fr;
             gap: 0.5rem;
+        }
+        /* Currency combobox — replaces native <datalist> for a usable
+           type-or-pick experience. Shows full list on focus, filters as you
+           type, supports keyboard nav (↑/↓/Enter/Esc), and still allows
+           free-text entries that aren't in the list. */
+        .combobox { position: relative; }
+        .combobox input { padding-right: 2.2rem; }
+        .combobox-toggle {
+            position: absolute; right: 0.4rem; top: 50%;
+            transform: translateY(-50%);
+            background: none; border: none; color: #666; cursor: pointer;
+            font-size: 0.85rem; padding: 0.3rem;
+            line-height: 1;
+        }
+        .combobox-toggle:hover { color: #000; }
+        .combobox-list {
+            position: absolute; top: calc(100% + 2px); left: 0; right: 0;
+            background: white; border: 1px solid #bbb; border-radius: 4px;
+            max-height: 280px; overflow-y: auto;
+            z-index: 1000; margin: 0; padding: 0; list-style: none;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+        }
+        .combobox-list[hidden] { display: none; }
+        .combobox-list li {
+            padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.92rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .combobox-list li:last-child { border-bottom: none; }
+        .combobox-list li.active, .combobox-list li:hover { background: #eef5ff; }
+        .combobox-list li.empty {
+            color: #999; cursor: default; font-style: italic;
+            background: none;
         }
         .rate-display {
             background: #eef5ff;
@@ -131,6 +167,7 @@
             width: 100%;
             max-width: 300px;
         }
+        #submitButton { display: block; }
         button:hover { background-color: #0056b3; transform: scale(1.02); }
         button:active { transform: scale(0.98); }
         button:disabled { background-color: #cccccc; cursor: not-allowed; transform: none; }
@@ -176,7 +213,7 @@
             }
             button { padding: 0.8rem 1.5rem; font-size: 0.95rem; }
             .paste-area { padding: 1.5rem; }
-            .currency-pair { grid-template-columns: 1fr; }
+            /* (already single-column desktop & mobile) */
         }
     </style>
 </head>
@@ -196,23 +233,6 @@
         <p id="status" class="fade-in">Verifying your digital signature…</p>
 
         <div id="info" style="display: none;">
-            <div class="form-row">
-                <label for="inputMethod">Conversion Receipt:</label>
-                <select id="inputMethod">
-                    <option value="upload" selected>Upload File or Image</option>
-                    <option value="camera">Use Camera</option>
-                </select>
-            </div>
-            <div class="form-row" id="upload-section" style="display: none;">
-                <label>Upload Receipt (Wise / Rendimento / bank statement):</label>
-                <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image</div>
-            </div>
-            <div id="video-holder">
-                <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
-                <button id="capture-btn" style="display: none;">Capture Photo</button>
-            </div>
-            <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
-
             <div class="form-row">
                 <label for="ledgerSelect">Managed Ledger:</label>
                 <select id="ledgerSelect" disabled>
@@ -237,7 +257,11 @@
             <div class="form-row">
                 <label>Source (currency you're spending):</label>
                 <div class="currency-pair">
-                    <input type="text" id="sourceCurrencyInput" list="commonCurrencies" placeholder="USD" maxlength="12" disabled autocapitalize="characters">
+                    <div class="combobox">
+                        <input type="text" id="sourceCurrencyInput" placeholder="Type or pick — e.g. USD" autocomplete="off" disabled>
+                        <button type="button" class="combobox-toggle" tabindex="-1" aria-label="Show options">▾</button>
+                        <ul class="combobox-list" role="listbox" hidden></ul>
+                    </div>
                     <input type="number" id="sourceAmountInput" min="0.00000001" step="any" placeholder="Amount out (e.g. 1000.00)" disabled>
                 </div>
                 <div class="help-text">The amount that LEFT this currency's account, as shown on the receipt (includes any provider fee).</div>
@@ -246,11 +270,14 @@
             <div class="form-row">
                 <label>Target (currency you received):</label>
                 <div class="currency-pair">
-                    <input type="text" id="targetCurrencyInput" list="commonCurrencies" placeholder="BRL" maxlength="12" disabled autocapitalize="characters">
+                    <div class="combobox">
+                        <input type="text" id="targetCurrencyInput" placeholder="Type or pick — e.g. BRL" autocomplete="off" disabled>
+                        <button type="button" class="combobox-toggle" tabindex="-1" aria-label="Show options">▾</button>
+                        <ul class="combobox-list" role="listbox" hidden></ul>
+                    </div>
                     <input type="number" id="targetAmountInput" min="0.00000001" step="any" placeholder="Amount received (e.g. 4985.00)" disabled>
                 </div>
                 <div class="help-text">The amount that ARRIVED in this currency's account, as shown on the receipt.</div>
-                <datalist id="commonCurrencies"></datalist>
             </div>
 
             <div class="form-row">
@@ -265,9 +292,26 @@
 
             <div class="form-row">
                 <label for="descriptionInput">Description:</label>
-                <textarea id="descriptionInput" maxlength="500" placeholder="e.g. Wise transfer USD→BRL to Rendimento, in preparation for Bico Duro May payout" disabled></textarea>
+                <textarea id="descriptionInput" maxlength="500" placeholder="e.g. Wise transfer USD→BRL to Rendimento. Paste a receipt image here and it will auto-attach below." disabled></textarea>
                 <div class="char-count"><span id="charCount">0</span>/500 characters</div>
             </div>
+
+            <div class="form-row">
+                <label for="inputMethod">Conversion Receipt:</label>
+                <select id="inputMethod">
+                    <option value="upload" selected>Upload File or Image</option>
+                    <option value="camera">Use Camera</option>
+                </select>
+            </div>
+            <div class="form-row" id="upload-section" style="display: none;">
+                <label>Upload Receipt (Wise / Rendimento / bank statement):</label>
+                <div id="paste-area" class="paste-area">Click to select or paste (Ctrl+V) a file or image — or paste an image into the Description above</div>
+            </div>
+            <div id="video-holder">
+                <video id="video" width="400" height="300" style="margin-bottom: 20px;" autoplay playsinline muted></video>
+                <button id="capture-btn" style="display: none;">Capture Photo</button>
+            </div>
+            <img id="uploaded-file-preview" style="display: none;" alt="Uploaded File Preview">
 
             <div class="form-row">
                 <div class="info-box">
@@ -389,21 +433,108 @@
         // input means a missing currency can still be typed by hand.
         const CURRENCIES_JSON_URL = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/currencies.json';
 
+        // In-memory option list used by both currency comboboxes.
+        let CURRENCY_OPTIONS = [];
+
         async function loadCurrencies() {
-            const datalist = document.getElementById('commonCurrencies');
             try {
                 const res = await fetch(CURRENCIES_JSON_URL, { cache: 'no-cache' });
                 const data = await res.json();
-                const names = (Array.isArray(data) ? data : (data.currencies || []))
+                CURRENCY_OPTIONS = (Array.isArray(data) ? data : (data.currencies || []))
                     .map(s => String(s).trim())
                     .filter(Boolean)
                     .sort((a, b) => a.localeCompare(b));
-                datalist.innerHTML = names.map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
-                console.log(`[currencies] loaded ${names.length} from agroverse-inventory/currencies.json`);
+                console.log(`[currencies] loaded ${CURRENCY_OPTIONS.length} from agroverse-inventory/currencies.json`);
             } catch (err) {
-                console.error('Error loading currencies.json — falling back to no datalist (free-text still works):', err);
-                datalist.innerHTML = '';
+                console.error('Error loading currencies.json — combobox will show empty list (free-text still works):', err);
+                CURRENCY_OPTIONS = [];
             }
+        }
+
+        // Wire a single combobox: shows full option list on focus, filters as
+        // you type, supports ↑/↓/Enter/Esc, and still accepts free-text values
+        // that aren't in the list (so a missing fiat / SKU can be typed by hand).
+        function wireCurrencyCombobox(inputId) {
+            const input = document.getElementById(inputId);
+            const wrap = input.closest('.combobox');
+            const list = wrap.querySelector('.combobox-list');
+            const toggle = wrap.querySelector('.combobox-toggle');
+            let activeIdx = -1;
+
+            function escapeHtml(s) {
+                return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+            }
+            function render(filter) {
+                const q = (filter || '').trim().toLowerCase();
+                const all = CURRENCY_OPTIONS || [];
+                const filtered = q ? all.filter(c => c.toLowerCase().includes(q)) : all.slice();
+                if (filtered.length === 0) {
+                    list.innerHTML = '<li class="empty">No match — your typed value will be used as-is</li>';
+                } else {
+                    list.innerHTML = filtered.map(c =>
+                        `<li role="option" data-val="${escapeHtml(c)}">${escapeHtml(c)}</li>`
+                    ).join('');
+                }
+                activeIdx = -1;
+            }
+            function open() {
+                if (input.disabled) return;
+                render(input.value);
+                list.hidden = false;
+            }
+            function close() {
+                list.hidden = true;
+                activeIdx = -1;
+            }
+            function setActive(i) {
+                const items = list.querySelectorAll('li[data-val]');
+                if (!items.length) return;
+                activeIdx = Math.max(0, Math.min(i, items.length - 1));
+                items.forEach((el, idx) => el.classList.toggle('active', idx === activeIdx));
+                items[activeIdx].scrollIntoView({ block: 'nearest' });
+            }
+            function commit(val) {
+                input.value = val;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                close();
+            }
+
+            input.addEventListener('focus', open);
+            input.addEventListener('input', () => { render(input.value); list.hidden = false; });
+            input.addEventListener('keydown', (e) => {
+                const items = list.querySelectorAll('li[data-val]');
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (list.hidden) open();
+                    else setActive(activeIdx + 1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setActive(activeIdx - 1);
+                } else if (e.key === 'Enter') {
+                    if (!list.hidden && activeIdx >= 0 && items[activeIdx]) {
+                        e.preventDefault();
+                        commit(items[activeIdx].dataset.val);
+                    }
+                } else if (e.key === 'Escape') {
+                    close();
+                }
+            });
+            // mousedown (not click) so we beat input blur, which would close the list first.
+            list.addEventListener('mousedown', (e) => {
+                const li = e.target.closest('li[data-val]');
+                if (!li) return;
+                e.preventDefault();
+                commit(li.dataset.val);
+                input.focus();
+            });
+            toggle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                if (list.hidden) { input.focus(); open(); } else close();
+            });
+            document.addEventListener('mousedown', (e) => {
+                if (!wrap.contains(e.target)) close();
+            });
         }
 
         async function loadManagers() {
@@ -515,6 +646,12 @@
 
         function updateSubmitButtonState() {
             const submitBtn = document.getElementById('submitButton');
+            // In post-submission mode the button is the reset CTA — leave it
+            // enabled regardless of form-field validity.
+            if (isPostSubmission) {
+                submitBtn.disabled = false;
+                return;
+            }
             const ledgerOk = !!document.getElementById('ledgerSelect').value;
             const managerOk = !!document.getElementById('managerSelect').value;
             const sourceCurrency = getCurrencyCode('sourceCurrencyInput');
@@ -631,6 +768,57 @@
             updateSubmitButtonState();
         }
 
+        // After a successful submission the button label flips to "Submit a
+        // New Report" and clicking it resets the form for the next entry.
+        // Keeps the user on the same page (which already verified their
+        // digital signature) without forcing a refresh.
+        function resetFormForNewReport() {
+            document.getElementById('sourceCurrencyInput').value = '';
+            document.getElementById('sourceAmountInput').value = '';
+            document.getElementById('targetCurrencyInput').value = '';
+            document.getElementById('targetAmountInput').value = '';
+            document.getElementById('descriptionInput').value = '';
+            document.getElementById('charCount').textContent = '0';
+            document.getElementById('conversionDateInput').value = todayYyyymmdd();
+
+            // Receipt attachment state
+            file = null;
+            fileName = '';
+            cachedConversionFileName = null;
+            document.getElementById('originalFileName').textContent = 'No file selected';
+            document.getElementById('contributionFileName').textContent = 'Waiting for file selection…';
+            document.getElementById('contributionLocation').textContent = 'Waiting for file selection…';
+            const preview = document.getElementById('uploaded-file-preview');
+            preview.style.display = 'none';
+            preview.src = '';
+
+            // Output area
+            const output = document.getElementById('outputMessage');
+            output.className = 'hidden';
+            output.innerHTML = '';
+
+            // Rate display
+            const rateEl = document.getElementById('rateDisplay');
+            if (rateEl) {
+                rateEl.textContent = 'Implied FX rate will appear here once both amounts are entered.';
+                rateEl.className = 'rate-display empty';
+            }
+
+            // Reset state + button label
+            isPostSubmission = false;
+            const submitBtn = document.getElementById('submitButton');
+            submitBtn.textContent = 'Submit Currency Conversion Report';
+            updateSubmitButtonState();
+        }
+
+        function handleSubmitButtonClick() {
+            if (isPostSubmission) {
+                resetFormForNewReport();
+            } else {
+                submitReport();
+            }
+        }
+
         async function submitReport() {
             const ledgerSelect = document.getElementById('ledgerSelect');
             const sourceCurrency = getCurrencyCode('sourceCurrencyInput');
@@ -719,6 +907,11 @@
                     output.innerHTML = `Currency conversion report sent to Edgar successfully.<br>View: <a id="telegramLink" href="https://truesight.me/submissions/raw-telegram-chatlogs" target="_blank">https://truesight.me/submissions/raw-telegram-chatlogs</a>`;
                     output.className = 'status';
                     isPostSubmission = true;
+                    // Flip the CTA into reset mode — click now clears the form
+                    // for a fresh entry instead of resubmitting the same data.
+                    submitBtn.textContent = 'Submit a New Report';
+                    submitBtn.disabled = false;
+                    return;
                 } else {
                     if (isMobileDevice() && navigator.share) {
                         const shareData = { text: shareText };
@@ -762,6 +955,11 @@
             statusElement.className = 'loading fade-in';
             await Promise.all([loadLedgers(), loadManagers(), loadCurrencies()]);
 
+            // Comboboxes wire up after the option list has loaded so the
+            // first focus already has results to show.
+            wireCurrencyCombobox('sourceCurrencyInput');
+            wireCurrencyCombobox('targetCurrencyInput');
+
             statusElement.textContent = '';
             statusElement.className = '';
             document.getElementById('info').style.display = 'block';
@@ -782,6 +980,23 @@
             });
             document.addEventListener('paste', (e) => {
                 if (e.clipboardData && e.clipboardData.files.length > 0) handleFile(e.clipboardData.files[0]);
+            });
+            // Pasting an image or file directly into the description textarea
+            // shouldn't dump binary into the text — intercept it and route to
+            // the receipt attachment slot instead. Plain-text pastes fall
+            // through to default behavior.
+            document.getElementById('descriptionInput').addEventListener('paste', (e) => {
+                if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+                    e.preventDefault();
+                    handleFile(e.clipboardData.files[0]);
+                    // Flip the input-method back to upload so the user sees
+                    // the preview land in the receipt slot below.
+                    const sel = document.getElementById('inputMethod');
+                    if (sel.value !== 'upload') {
+                        sel.value = 'upload';
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
             });
 
             ['sourceCurrencyInput', 'targetCurrencyInput'].forEach(id => {
@@ -807,7 +1022,7 @@
                 updateSubmitButtonState();
             });
             document.getElementById('managerSelect').addEventListener('change', updateSubmitButtonState);
-            document.getElementById('submitButton').addEventListener('click', submitReport);
+            document.getElementById('submitButton').addEventListener('click', handleSubmitButtonClick);
 
             toggleInputMethod();
         });
