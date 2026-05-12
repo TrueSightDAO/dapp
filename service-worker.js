@@ -34,6 +34,7 @@ const URLS_TO_CACHE = [
   './currency_conversion.html',
   './view_inventory_holdings.html',
   './repackaging_planner.html',
+  './partner_check_in.html',
   './report_sales.html',
   './report_tree_planting.html',
   './scanner.html',
@@ -43,7 +44,7 @@ const URLS_TO_CACHE = [
   './governor_contributor_admin.html',
   './governor_permissions.html',
   // Scripts
-  './menu.js?v=20260510',
+  './menu.js?v=20260512',
   './routes.js',
   './service-worker.js',
   './js/treasury_cache.js',
