@@ -233,6 +233,9 @@
         <button class="tab-btn" type="button" data-label="AI/Prospect Replied" role="tab" aria-selected="false">
           Prospects <span class="badge" data-count="prospect">&mdash;</span>
         </button>
+        <button class="tab-btn" type="button" data-label="AI/Partner Poke" role="tab" aria-selected="false">
+          Partner Pokes <span class="badge" data-count="partnerpoke">&mdash;</span>
+        </button>
       </div>
       <div class="toolbar">
         <button id="btnRefresh" class="btn-refresh" type="button">Refresh</button>
@@ -469,6 +472,8 @@
           ? 'https://mail.google.com/mail/u/0/#label/AI%2FFollow-up'
           : activeLabel === 'AI/Prospect Replied'
           ? 'https://mail.google.com/mail/u/0/#label/AI%2FProspect%2BReplied'
+          : activeLabel === 'AI/Partner Poke'
+          ? 'https://mail.google.com/mail/u/0/#label/AI%2FPartner+Poke'
           : 'https://mail.google.com/mail/u/0/#label/AI%2FWarm-up';
       const gmailLink = d.gmail_message_id
           ? 'https://mail.google.com/mail/u/0/#drafts/' + encodeURIComponent(d.gmail_message_id)
@@ -524,12 +529,13 @@
     let focusedDraftId = null;      // draft_id encoded in URL (#tab/d-{id}); deep-link target
 
     // Initial label + optional draft id from URL hash.
-    // Hash forms: #warmup | #followup | #prospect | #followup/d-{gmail_draft_id}
+    // Hash forms: #warmup | #followup | #prospect | #partnerpoke | #followup/d-{gmail_draft_id}
     (function initLabelFromHash() {
       const parts = (window.location.hash || '').replace(/^#/, '').toLowerCase().split('/');
       const tab = parts[0];
       if (tab === 'followup' || tab === 'follow-up') activeLabel = 'AI/Follow-up';
       else if (tab === 'prospect' || tab === 'prospects') activeLabel = 'AI/Prospect Replied';
+      else if (tab === 'partnerpoke' || tab === 'partner-poke' || tab === 'pokes') activeLabel = 'AI/Partner Poke';
       // Preserve case for the draft id (gmail draft ids are case-sensitive)
       const rawParts = (window.location.hash || '').replace(/^#/, '').split('/');
       if (rawParts.length > 1 && rawParts[1].indexOf('d-') === 0) {
@@ -540,6 +546,7 @@
     function tabSlug(label) {
       return label === 'AI/Follow-up' ? 'followup'
            : label === 'AI/Prospect Replied' ? 'prospect'
+           : label === 'AI/Partner Poke' ? 'partnerpoke'
            : 'warmup';
     }
 
@@ -570,6 +577,7 @@
       const drafts = (allDraftsByLabel && allDraftsByLabel[activeLabel]) || [];
       const activeKey = activeLabel === 'AI/Follow-up' ? 'followup'
           : activeLabel === 'AI/Prospect Replied' ? 'prospect'
+          : activeLabel === 'AI/Partner Poke' ? 'partnerpoke'
           : 'warmup';
       const activeBadge = document.querySelector('[data-count="' + activeKey + '"]');
       if (activeBadge) activeBadge.textContent = String(drafts.length);
@@ -596,6 +604,8 @@
         document.querySelector('[data-count="warmup"]').textContent = String(counts['AI/Warm-up'] || 0);
         document.querySelector('[data-count="followup"]').textContent = String(counts['AI/Follow-up'] || 0);
         document.querySelector('[data-count="prospect"]').textContent = String(counts['AI/Prospect Replied'] || 0);
+        var pokeBadge = document.querySelector('[data-count="partnerpoke"]');
+        if (pokeBadge) pokeBadge.textContent = String(counts['AI/Partner Poke'] || 0);
 
         renderActiveTab();
         setStatus('');
