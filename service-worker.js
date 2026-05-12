@@ -1,6 +1,6 @@
 importScripts('./routes.js');
 
-const CACHE_NAME = 'qr-scanner-cache-v12';
+const CACHE_NAME = 'qr-scanner-cache-v13';
 
 /**
  * Apps Script web apps + Edgar GAS proxy — must not use the Cache API or HTTP cache
