@@ -96,6 +96,11 @@
       '  .tsd-notif-entry-sub { font-size: 0.8125rem; color: #6f6859; margin-top: 0.15rem; }',
       '  .tsd-notif-items { margin: 0.4rem 0 0 0; padding: 0; list-style: none; font-size: 0.8125rem; color: #6f6859; }',
       '  .tsd-notif-items li { padding: 0.15rem 0; }',
+      '  .tsd-notif-entry-header { background: #faf7f1; }',
+      '  .tsd-notif-entry-item { display: flex; justify-content: space-between; align-items: baseline; padding: 0.45rem 1.1rem; font-size: 0.875rem; color: #2a2a2a; gap: 0.5rem; }',
+      '  .tsd-notif-entry-item:hover { background: #faf7f1; }',
+      '  .tsd-notif-item-title { font-weight: 500; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+      '  .tsd-notif-item-since { font-size: 0.75rem; color: #8a8275; flex: 0 0 auto; }',
       '</style>',
       '<button id="tsd-notif-btn" type="button" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">',
       '  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a7 7 0 0 0-7 7v3.586l-1.707 1.707A1 1 0 0 0 4 16h16a1 1 0 0 0 .707-1.707L19 12.586V9a7 7 0 0 0-7-7zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg>',
@@ -152,25 +157,28 @@
       html.push('<div class="tsd-notif-empty">No pending action items.</div>');
     } else {
       entries.forEach(function (r) {
-        var itemsHtml = '';
-        if (Array.isArray(r.items) && r.items.length) {
-          itemsHtml = '<ul class="tsd-notif-items">' +
-            r.items.slice(0, 4).map(function (it) {
-              return '<li>' + escapeHtml(it.title || '') +
-                (it.since ? ' · <em>' + escapeHtml(it.since) + '</em>' : '') +
-                '</li>';
-            }).join('') +
-            '</ul>';
-        }
+        // Module header — clickable, leads to the module's index/landing.
         html.push(
-          '<a class="tsd-notif-entry" href="' + escapeAttr(r.link || '#') + '">' +
+          '<a class="tsd-notif-entry tsd-notif-entry-header" href="' + escapeAttr(r.link || '#') + '">' +
             '<div class="tsd-notif-entry-title"><span>' + escapeHtml(r.label || '') + '</span>' +
               '<span class="tsd-notif-entry-count">' + r.count + '</span>' +
             '</div>' +
             (r.sublabel ? '<div class="tsd-notif-entry-sub">' + escapeHtml(r.sublabel) + '</div>' : '') +
-            itemsHtml +
           '</a>'
         );
+        // Per-item rows — each its own clickable <a> with optional deep-link.
+        // Items with no item-level link fall back to the module's link.
+        if (Array.isArray(r.items) && r.items.length) {
+          r.items.slice(0, 4).forEach(function (it) {
+            var itemLink = it.link || r.link || '#';
+            html.push(
+              '<a class="tsd-notif-entry tsd-notif-entry-item" href="' + escapeAttr(itemLink) + '">' +
+                '<span class="tsd-notif-item-title">' + escapeHtml(it.title || '') + '</span>' +
+                (it.since ? '<span class="tsd-notif-item-since">' + escapeHtml(it.since) + '</span>' : '') +
+              '</a>'
+            );
+          });
+        }
       });
     }
     popup.innerHTML = html.join('');
@@ -325,7 +333,11 @@
             else if (days > 0) since = days + 'd overdue';
             else if (days === 0) since = 'due today';
             else since = 'due in ' + (-days) + 'd';
-            return { title: name, since: since };
+            return {
+              title: name,
+              since: since,
+              link: pid ? './partner_check_in.html?partner_id=' + encodeURIComponent(pid) : './partner_check_in.html'
+            };
           });
 
           var overdueCount = partners.filter(function (p) {
@@ -444,7 +456,11 @@
             sublabel: subParts.join(' · '),
             link: './partner_check_in.html',
             items: attention.slice(0, 4).map(function (a) {
-              return { title: a.name, since: a.reasons[0] };
+              return {
+                title: a.name,
+                since: a.reasons[0],
+                link: a.slug ? './partner_check_in.html?partner_id=' + encodeURIComponent(a.slug) : './partner_check_in.html'
+              };
             })
           };
         })
