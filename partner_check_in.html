@@ -302,7 +302,12 @@
                 <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Units of the selected SKU.</div>
             </div>
 
-            <div id="nextCheckInHint" style="margin:0.5rem 0 1rem; padding:0.6rem 0.75rem; background:#f0f7ff; border-left:3px solid #0d6efd; border-radius:4px; font-size:0.88rem; color:#333; display:none;"></div>
+            <div class="form-row">
+                <label for="nextCheckInDate">Next Check-in Date</label>
+                <input type="date" id="nextCheckInDate" />
+                <div id="nextCheckInHint" style="margin-top:0.35rem; padding:0.5rem 0.65rem; background:#f0f7ff; border-left:3px solid #0d6efd; border-radius:4px; font-size:0.82rem; color:#333; display:none;"></div>
+                <div style="font-size:0.78rem;color:#666;margin-top:0.25rem;">Default is auto-computed from stock + sell-through. Override if needed (e.g., partner hasn't paid yet, so check in sooner).</div>
+            </div>
 
             <div class="form-row">
                 <label for="notesInput">Notes</label>
@@ -341,8 +346,9 @@
         const restockSkuSelect = document.getElementById('restockSku');
         const restockQtyRow = document.getElementById('restockQtyRow');
         const restockQuantityInput = document.getElementById('restockQuantity');
+        const nextCheckInDateInput = document.getElementById('nextCheckInDate');
         const nextCheckInHint = document.getElementById('nextCheckInHint');
-        let computedNextCheckInDate = ''; // auto-set in onPartnerSelected; embedded in event text at submit
+        let computedNextCheckInDate = ''; // auto-set in onPartnerSelected; embedded in event text at submit if operator doesn't override
         const notesInput = document.getElementById('notesInput');
         const submitBtn = document.getElementById('submitBtn');
         const submitMessage = document.getElementById('submitMessage');
@@ -385,6 +391,7 @@
             checkInDateInput.value = todayIso();
             nextCheckInHint.style.display = 'none';
             nextCheckInHint.innerHTML = '';
+            nextCheckInDateInput.value = '';
             computedNextCheckInDate = '';
             submitMessage.textContent = '';
             submitMessage.className = '';
@@ -752,9 +759,11 @@
                 var inventory = results[1];
                 var result = computeNextCheckInDate(slug, velocity, inventory);
                 computedNextCheckInDate = result.date;
+                // Pre-fill the input with the auto-computed date (operator can override).
+                nextCheckInDateInput.value = result.date;
                 var stockTxt = result.stock > 0 ? (' · ' + result.stock + ' units in stock') : '';
                 var rateTxt = result.monthlyRate > 0 ? (' · ~' + result.monthlyRate.toFixed(1) + ' units/month') : '';
-                nextCheckInHint.innerHTML = '<strong>Next check-in auto-scheduled:</strong> ' + result.date +
+                nextCheckInHint.innerHTML = '<strong>Auto-default:</strong> ' + result.date +
                     ' <span style="color:#666;">(' + result.reason + stockTxt + rateTxt + ')</span>';
                 nextCheckInHint.style.display = 'block';
             });
@@ -895,7 +904,9 @@
             var restockNeeded = (restockNeededSelect.value || '').trim();
             var restockSku = (restockSkuSelect.value || '').trim();
             var restockQuantity = (restockQuantityInput.value || '').trim();
-            var nextCheckInDate = (computedNextCheckInDate || '').trim();
+            // Use operator's value if present (may be the auto-default or a manual override);
+            // fall back to the computed default if the input is somehow empty.
+            var nextCheckInDate = (nextCheckInDateInput.value || computedNextCheckInDate || '').trim();
             var notes = (notesInput.value || '').trim();
 
             if (!method || !stockStatus || !restockNeeded) {
