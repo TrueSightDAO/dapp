@@ -232,21 +232,24 @@
 
         <div class="section-title">Log Check-in</div>
         <div class="form-row">
-            <label for="partnerSelect">Partner</label>
-            <select id="partnerSelect">
-                <option value="">— Loading partners… —</option>
+            <label for="contributorName">Contributor Name</label>
+            <select id="contributorName" data-requires-signature="true">
+                <option value="">— Loading contributors… —</option>
             </select>
+            <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Canonical name from <code>Agroverse Partners</code>!E. Sourced from active retail partners with a mapped <code>partner_id</code>; pop-up / operator-only rows are filtered out.</div>
+        </div>
+
+        <div id="contributorDetail" style="display:none;">
+            <div class="form-row">
+                <label for="partnerSelect">Partner</label>
+                <select id="partnerSelect">
+                    <option value="">— Pick contributor first —</option>
+                </select>
+                <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;" id="partnerHint"></div>
+            </div>
         </div>
 
         <div id="partnerDetail" style="display:none;">
-            <div class="form-row">
-                <label for="contributorName">Contributor Name</label>
-                <select id="contributorName" data-requires-signature="true">
-                    <option value="">— Pick partner first —</option>
-                </select>
-                <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Canonical name from <code>Agroverse Partners</code>!E (<code>contributor_contact_id</code>). Editing the partner ↔ contributor mapping must happen there, not here.</div>
-            </div>
-
             <div class="form-row">
                 <label for="checkInDate">Check-in Date</label>
                 <input type="date" id="checkInDate" />
@@ -330,6 +333,8 @@
         const INVENTORY_URL = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/partners-inventory.json';
 
         const partnerSelect = document.getElementById('partnerSelect');
+        const partnerHint = document.getElementById('partnerHint');
+        const contributorDetail = document.getElementById('contributorDetail');
         const contributorNameInput = document.getElementById('contributorName');
         const checkInDateInput = document.getElementById('checkInDate');
         const methodSelect = document.getElementById('methodSelect');
@@ -355,6 +360,7 @@
         let inventoryCache = null;
         let checkInCache = {};
         let contributorMap = null; // partner_id → contributor name from Agroverse Partners!E
+        let contributorToPartners = null; // contributor name → [{partner_id, partner_name}]
         let contributorMapPromise = null;
         let interactionMode = 'view-only';
 
@@ -437,14 +443,19 @@
                 .then(function(res) { return res.ok ? res.json() : null; })
                 .then(function(json) {
                     var map = {};
+                    var inverse = {};
                     var rows = (json && json.status === 'success' && json.data && json.data.partners) ? json.data.partners : [];
                     rows.forEach(function(p) {
-                        if (p.partner_id) map[p.partner_id] = p.contributor || '';
+                        if (!p.partner_id || !p.contributor) return;
+                        map[p.partner_id] = p.contributor;
+                        if (!inverse[p.contributor]) inverse[p.contributor] = [];
+                        inverse[p.contributor].push({ partner_id: p.partner_id, partner_name: p.partner_name || p.partner_id });
                     });
                     contributorMap = map;
+                    contributorToPartners = inverse;
                     return map;
                 })
-                .catch(function() { contributorMap = {}; return contributorMap; });
+                .catch(function() { contributorMap = {}; contributorToPartners = {}; return contributorMap; });
             return contributorMapPromise;
         }
 
@@ -463,10 +474,12 @@
             return loc ? (name + ' · ' + loc) : name;
         }
 
-        function populatePartnerSelect() {
-            fetchVelocity().then(function(velocity) {
+        function populateInitialState() {
+            setStatus('Loading…');
+            Promise.all([fetchVelocity(), fetchContributorMap()]).then(function(results) {
+                var velocity = results[0];
                 if (!velocity || !velocity.partners) {
-                    partnerSelect.innerHTML = '<option value="">— Could not load partners —</option>';
+                    contributorNameInput.innerHTML = '<option value="">— Could not load contributors —</option>';
                     setStatus('Could not load partners.', 'error');
                     return;
                 }
@@ -483,26 +496,68 @@
                     })
                     .sort(function(a, b) { return a.label.toLowerCase().localeCompare(b.label.toLowerCase()); });
 
-                var options = ['<option value="">— Select partner —</option>']
-                    .concat(entries.map(function(e) {
-                        return '<option value="' + e.slug + '">' + e.label + '</option>';
+                // Populate the leading Contributor select from contributorToPartners.
+                var contributors = Object.keys(contributorToPartners || {});
+                contributors.sort(function(a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+                var options = ['<option value="">— Select contributor —</option>']
+                    .concat(contributors.map(function(c) {
+                        var count = contributorToPartners[c].length;
+                        var label = count > 1 ? (c + ' (' + count + ' partners)') : c;
+                        return '<option value="' + escapeHtml(c) + '">' + escapeHtml(label) + '</option>';
                     }));
-                partnerSelect.innerHTML = options.join('');
+                contributorNameInput.innerHTML = options.join('');
                 setStatus('');
 
-                // After populating, compute attention list
+                // Attention list (still keyed by partner — same as before)
                 computeAttentionList(entries, velocity);
 
-                // Deep link support
+                // Deep-link support: ?partner_id=X resolves to a contributor first.
                 var params = new URLSearchParams(window.location.search);
                 var deepPid = (params.get('partner_id') || '').trim();
-                if (deepPid) {
-                    partnerSelect.value = deepPid;
-                    if (partnerSelect.value === deepPid) {
-                        onPartnerSelected(deepPid);
+                if (deepPid && contributorMap && contributorMap[deepPid]) {
+                    var deepContrib = contributorMap[deepPid];
+                    contributorNameInput.value = deepContrib;
+                    onContributorSelected(deepContrib);
+                    if (partnerSelect.value !== deepPid) {
+                        partnerSelect.value = deepPid;
+                        if (partnerSelect.value === deepPid) onPartnerSelected(deepPid);
                     }
                 }
             });
+        }
+
+        function onContributorSelected(contributorName) {
+            if (!contributorName) {
+                contributorDetail.style.display = 'none';
+                partnerSelect.innerHTML = '<option value="">— Pick contributor first —</option>';
+                if (partnerHint) partnerHint.textContent = '';
+                partnerDetail.style.display = 'none';
+                historySection.style.display = 'none';
+                return;
+            }
+            contributorDetail.style.display = 'block';
+            var partners = (contributorToPartners && contributorToPartners[contributorName]) || [];
+            if (partners.length === 0) {
+                partnerSelect.innerHTML = '<option value="">— No partners mapped —</option>';
+                if (partnerHint) partnerHint.textContent = '';
+                partnerDetail.style.display = 'none';
+                historySection.style.display = 'none';
+                return;
+            }
+            if (partners.length === 1) {
+                var only = partners[0];
+                partnerSelect.innerHTML = '<option value="' + escapeHtml(only.partner_id) + '" selected>' + escapeHtml(only.partner_name) + '</option>';
+                if (partnerHint) partnerHint.textContent = '';
+                onPartnerSelected(only.partner_id);
+            } else {
+                var sorted = partners.slice().sort(function(a, b) { return a.partner_name.toLowerCase().localeCompare(b.partner_name.toLowerCase()); });
+                var opts = ['<option value="">— Select partner —</option>']
+                    .concat(sorted.map(function(p) { return '<option value="' + escapeHtml(p.partner_id) + '">' + escapeHtml(p.partner_name) + '</option>'; }));
+                partnerSelect.innerHTML = opts.join('');
+                if (partnerHint) partnerHint.textContent = contributorName + ' is mapped to ' + partners.length + ' partners — pick which one this check-in is about.';
+                partnerDetail.style.display = 'none';
+                historySection.style.display = 'none';
+            }
         }
 
         // ---- Attention scoring ---------------------------------------------
@@ -582,8 +637,15 @@
             attentionList.querySelectorAll('.btn-log-checkin').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     var slug = this.getAttribute('data-slug');
-                    partnerSelect.value = slug;
-                    onPartnerSelected(slug);
+                    var contributor = (contributorMap && contributorMap[slug]) ? contributorMap[slug] : '';
+                    if (contributor) {
+                        contributorNameInput.value = contributor;
+                        onContributorSelected(contributor);
+                    }
+                    if (partnerSelect.value !== slug) {
+                        partnerSelect.value = slug;
+                        if (partnerSelect.value === slug) onPartnerSelected(slug);
+                    }
                     window.scrollTo({ top: partnerDetail.offsetTop - 20, behavior: 'smooth' });
                 });
             });
@@ -606,27 +668,12 @@
             if (!slug) {
                 partnerDetail.style.display = 'none';
                 historySection.style.display = 'none';
-                contributorNameInput.innerHTML = '<option value="">— Pick partner first —</option>';
                 return;
             }
             partnerDetail.style.display = 'block';
             historySection.style.display = 'block';
             historyBlock.className = 'history-block loading';
             historyBlock.textContent = 'Loading history…';
-
-            // Populate the Contributor Name select from Agroverse Partners!E (canonical).
-            // Operator picks; can't type. Avoids the short-name auto-rename incident
-            // (The Way Home Shop 2026-04-28 / feedback_contributor_naming_for_retail_partners).
-            fetchContributorMap().then(function(map) {
-                var canonical = (map && map[slug]) ? map[slug] : '';
-                var options = ['<option value="">— Select contributor —</option>'];
-                if (canonical) {
-                    options.push('<option value="' + escapeHtml(canonical) + '" selected>' + escapeHtml(canonical) + '</option>');
-                } else {
-                    options.push('<option value="" disabled>(no contributor mapped — set Agroverse Partners!E first)</option>');
-                }
-                contributorNameInput.innerHTML = options.join('');
-            });
 
             // Populate the Restock SKU select with this partner's known SKUs.
             fetchVelocity().then(function(velocity) {
@@ -822,6 +869,10 @@
         }
 
         // ---- Event wiring --------------------------------------------------
+        contributorNameInput.addEventListener('change', function() {
+            onContributorSelected(contributorNameInput.value);
+        });
+
         partnerSelect.addEventListener('change', function() {
             onPartnerSelected(partnerSelect.value);
         });
@@ -837,7 +888,7 @@
         // ---- Init ----------------------------------------------------------
         checkInDateInput.value = todayIso();
         setInteractionMode(hasSignature() ? 'interactive' : 'view-only');
-        populatePartnerSelect();
+        populateInitialState();
     })();
     </script>
 <script src="./js/dapp_footer_links.js?v=1"></script>
