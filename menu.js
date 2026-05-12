@@ -94,7 +94,7 @@
     if (document.getElementById('tsd-notif-script')) return;
     var s = document.createElement('script');
     s.id = 'tsd-notif-script';
-    s.src = './js/notifications.js?v=20260512b';
+    s.src = './js/notifications.js?v=20260512c';
     s.async = true;
     document.head.appendChild(s);
   });

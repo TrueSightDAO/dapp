@@ -230,24 +230,66 @@
   //
   // The GAS response carries partner_id (slug). We join against
   // partners-velocity.json to surface partner_name in the popup.
-  var partnersVelocityCache = null;
-  function getPartnerNameMap() {
-    if (partnersVelocityCache) return Promise.resolve(partnersVelocityCache);
-    var url = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/partners-velocity.json';
-    return fetch(url, { method: 'GET', cache: 'no-cache' })
+  // The same velocity blob also feeds the Partner Stock source below,
+  // so we cache the entire JSON, not just a name map.
+  var velocityCache = null;
+  var inventoryCache = null;
+  var VELOCITY_URL  = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/partners-velocity.json';
+  var INVENTORY_URL = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/partners-inventory.json';
+
+  function fetchVelocityJson() {
+    if (velocityCache) return Promise.resolve(velocityCache);
+    return fetch(VELOCITY_URL, { method: 'GET', cache: 'no-cache' })
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (json) {
-        var map = {};
-        if (json && json.partners && typeof json.partners === 'object') {
-          Object.keys(json.partners).forEach(function (slug) {
-            var p = json.partners[slug];
-            if (p && p.partner_name) map[slug] = p.partner_name;
-          });
-        }
-        partnersVelocityCache = map;
-        return map;
-      })
-      .catch(function () { return {}; });
+      .then(function (json) { velocityCache = json; return json; })
+      .catch(function () { return null; });
+  }
+  function fetchInventoryJson() {
+    if (inventoryCache) return Promise.resolve(inventoryCache);
+    return fetch(INVENTORY_URL, { method: 'GET', cache: 'no-cache' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (json) { inventoryCache = json; return json; })
+      .catch(function () { return null; });
+  }
+  function getPartnerNameMap() {
+    return fetchVelocityJson().then(function (json) {
+      var map = {};
+      if (json && json.partners && typeof json.partners === 'object') {
+        Object.keys(json.partners).forEach(function (slug) {
+          var p = json.partners[slug];
+          if (p && p.partner_name) map[slug] = p.partner_name;
+        });
+      }
+      return map;
+    });
+  }
+
+  // Date helpers (lifted verbatim from partner_check_in.html so the
+  // bell's stock-attention scoring matches what the page itself shows).
+  function daysSince(isoDate) {
+    if (!isoDate) return null;
+    var d = new Date(isoDate + 'T00:00:00Z');
+    if (isNaN(d.getTime())) return null;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  }
+  function relativeAge(isoDate) {
+    var days = daysSince(isoDate);
+    if (days === null) return 'unknown';
+    if (days < 0) return 'in the future';
+    if (days === 0) return 'today';
+    if (days === 1) return 'yesterday';
+    if (days < 14) return days + ' days ago';
+    if (days < 60) return Math.round(days / 7) + ' weeks ago';
+    if (days < 365) return Math.round(days / 30) + ' months ago';
+    return Math.round(days / 365 * 10) / 10 + ' years ago';
+  }
+  function slugDisplayName(slug) {
+    var s = String(slug || '').split('/').pop();
+    return s.split('-').map(function (w) {
+      if (!w) return '';
+      if (w.length <= 2) return w.toUpperCase();
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(' ').trim();
   }
 
   register({
@@ -297,6 +339,111 @@
             sublabel: sublabel,
             link: './partner_check_in.html',
             items: items
+          };
+        })
+        .catch(function () { return null; });
+    }
+  });
+
+  // Partner Stock attention
+  // Mirrors the "Needs Attention" scoring on partner_check_in.html so the
+  // bell surfaces the same business-signal urgency the page does. Reads two
+  // static GitHub-hosted JSONs (partners-velocity.json + partners-inventory.json),
+  // both cached for the lifetime of the page.
+  //
+  // Severity rules (lifted verbatim from partner_check_in.html computeAttentionList):
+  //   - critical: totalInv === 0          (out of stock)
+  //   - warning : totalInv <= 3           (running low — N left)
+  //   - info    : any SKU last_sale > 45d (dormant)
+  //
+  // Distinct from the partner_followups source above: this source surfaces
+  // partners the business signals are flagging RIGHT NOW (data-driven),
+  // not partners on the operator's planned check-in calendar (operator-driven).
+  // Both can fire simultaneously on the same partner — that's by design;
+  // they represent independent reasons to look at the partner.
+  register({
+    id: 'partner_stock',
+    fetch: function () {
+      return Promise.all([fetchVelocityJson(), fetchInventoryJson()])
+        .then(function (parts) {
+          var velocity = parts[0];
+          var inventory = parts[1];
+          if (!velocity || !velocity.partners) return null;
+
+          var RETAIL_TYPES = { 'Consignment': true, 'Wholesale': true };
+          var attention = [];
+
+          Object.keys(velocity.partners).forEach(function (slug) {
+            if (slug.indexOf('/') !== -1) return;  // skip cooperative slugs
+            var vel = velocity.partners[slug];
+            var ptype = (vel && vel.partner_type) || 'Consignment';
+            if (RETAIL_TYPES[ptype] !== true) return;
+
+            var inv = inventory && inventory.partners && inventory.partners[slug];
+            var totalInv = 0;
+            var reasons = [];
+            var severity = null;
+
+            if (inv && inv.items) {
+              inv.items.forEach(function (it) { totalInv += (it.venueInventory || 0); });
+              if (totalInv === 0) {
+                reasons.push('out of stock');
+                severity = 'critical';
+              } else if (totalInv <= 3) {
+                reasons.push('running low (' + totalInv + ' left)');
+                severity = 'warning';
+              }
+            }
+
+            if (vel && vel.items) {
+              Object.keys(vel.items).forEach(function (sku) {
+                var it = vel.items[sku];
+                if (it.last_sale_date) {
+                  var ds = daysSince(it.last_sale_date);
+                  if (ds !== null && ds > 45) {
+                    reasons.push('last sale ' + relativeAge(it.last_sale_date));
+                    if (!severity) severity = 'info';
+                  }
+                }
+              });
+            }
+
+            if (!reasons.length) return;
+            attention.push({
+              slug: slug,
+              name: (vel && vel.partner_name) || slugDisplayName(slug),
+              severity: severity,
+              reasons: reasons
+            });
+          });
+
+          if (!attention.length) return null;
+
+          // Sort: critical → warning → info, then alphabetical
+          var sevOrder = { critical: 0, warning: 1, info: 2 };
+          attention.sort(function (a, b) {
+            if (sevOrder[a.severity] !== sevOrder[b.severity]) {
+              return sevOrder[a.severity] - sevOrder[b.severity];
+            }
+            return a.name.localeCompare(b.name);
+          });
+
+          var critical = attention.filter(function (a) { return a.severity === 'critical'; }).length;
+          var warning  = attention.filter(function (a) { return a.severity === 'warning';  }).length;
+          var dormant  = attention.filter(function (a) { return a.severity === 'info';     }).length;
+          var subParts = [];
+          if (critical) subParts.push(critical + ' out of stock');
+          if (warning)  subParts.push(warning  + ' low stock');
+          if (dormant)  subParts.push(dormant  + ' dormant');
+
+          return {
+            count: attention.length,
+            label: 'Partner Stock',
+            sublabel: subParts.join(' · '),
+            link: './partner_check_in.html',
+            items: attention.slice(0, 4).map(function (a) {
+              return { title: a.name, since: a.reasons[0] };
+            })
           };
         })
         .catch(function () { return null; });
