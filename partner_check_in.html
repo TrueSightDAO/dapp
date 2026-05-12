@@ -591,7 +591,13 @@
                     setStatus('Could not load partners.', 'error');
                     return;
                 }
-                var RETAIL_TYPES = { 'Consignment': true, 'Wholesale': true };
+                // Partner Check-in surface tracks retail-style relationships AND
+                // operational touchpoints (warehouse managers like Matheus in
+                // Ilhéus, freight providers like Omega Services — partner_type=Operator).
+                // Stock/restock fields are awkward but valid for Operator-type rows;
+                // their follow-up cadence is the load-bearing capability. See
+                // agentic_ai_context/PARTNER_CHECK_IN_IMPLEMENTATION.md §"Dual-use".
+                var RETAIL_TYPES = { 'Consignment': true, 'Wholesale': true, 'Operator': true };
                 var entries = Object.keys(velocity.partners)
                     .filter(function(slug) {
                         if (slug.indexOf('/') !== -1) return false;
