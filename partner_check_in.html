@@ -241,8 +241,10 @@
         <div id="partnerDetail" style="display:none;">
             <div class="form-row">
                 <label for="contributorName">Contributor Name</label>
-                <input type="text" id="contributorName" placeholder="First Name - Store Name (must match Contributors contact information!A)" data-requires-signature="true" />
-                <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Canonical retail-partner format: <code>First Name - Store Name</code> (e.g. <code>Gergana - The Way Home Shop</code>). Short names will be auto-renamed by Edgar and clear col T.</div>
+                <select id="contributorName" data-requires-signature="true">
+                    <option value="">— Pick partner first —</option>
+                </select>
+                <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Canonical name from <code>Agroverse Partners</code>!E (<code>contributor_contact_id</code>). Editing the partner ↔ contributor mapping must happen there, not here.</div>
             </div>
 
             <div class="form-row">
@@ -352,6 +354,8 @@
         let velocityCache = null;
         let inventoryCache = null;
         let checkInCache = {};
+        let contributorMap = null; // partner_id → contributor name from Agroverse Partners!E
+        let contributorMapPromise = null;
         let interactionMode = 'view-only';
 
         // ---- Date helpers --------------------------------------------------
@@ -423,6 +427,25 @@
                     checkInCache[partnerId] = rows;
                     return rows;
                 }).catch(function() { return []; });
+        }
+
+        function fetchContributorMap() {
+            if (contributorMap) return Promise.resolve(contributorMap);
+            if (contributorMapPromise) return contributorMapPromise;
+            var url = API_BASE_URL + '?action=list_partner_contributors';
+            contributorMapPromise = fetch(url, { method: 'GET' })
+                .then(function(res) { return res.ok ? res.json() : null; })
+                .then(function(json) {
+                    var map = {};
+                    var rows = (json && json.status === 'success' && json.data && json.data.partners) ? json.data.partners : [];
+                    rows.forEach(function(p) {
+                        if (p.partner_id) map[p.partner_id] = p.contributor || '';
+                    });
+                    contributorMap = map;
+                    return map;
+                })
+                .catch(function() { contributorMap = {}; return contributorMap; });
+            return contributorMapPromise;
         }
 
         // ---- Partner list --------------------------------------------------
@@ -583,7 +606,7 @@
             if (!slug) {
                 partnerDetail.style.display = 'none';
                 historySection.style.display = 'none';
-                contributorNameInput.value = '';
+                contributorNameInput.innerHTML = '<option value="">— Pick partner first —</option>';
                 return;
             }
             partnerDetail.style.display = 'block';
@@ -591,19 +614,23 @@
             historyBlock.className = 'history-block loading';
             historyBlock.textContent = 'Loading history…';
 
-            // Auto-fill contributor name ONLY from contributor_contact_id (canonical).
-            // partners-velocity.json does not yet carry this field; until it does, leave the
-            // field blank so operators must type the canonical "First Name - Store Name"
-            // format themselves. Falling back to partner_name pre-fills a short name that
-            // Edgar will auto-rename and clear col T (see The Way Home Shop incident
-            // 2026-04-28 / feedback_contributor_naming_for_retail_partners memory).
+            // Populate the Contributor Name select from Agroverse Partners!E (canonical).
+            // Operator picks; can't type. Avoids the short-name auto-rename incident
+            // (The Way Home Shop 2026-04-28 / feedback_contributor_naming_for_retail_partners).
+            fetchContributorMap().then(function(map) {
+                var canonical = (map && map[slug]) ? map[slug] : '';
+                var options = ['<option value="">— Select contributor —</option>'];
+                if (canonical) {
+                    options.push('<option value="' + escapeHtml(canonical) + '" selected>' + escapeHtml(canonical) + '</option>');
+                } else {
+                    options.push('<option value="" disabled>(no contributor mapped — set Agroverse Partners!E first)</option>');
+                }
+                contributorNameInput.innerHTML = options.join('');
+            });
+
+            // Populate the Restock SKU select with this partner's known SKUs.
             fetchVelocity().then(function(velocity) {
                 var p = velocity && velocity.partners && velocity.partners[slug];
-                var contrib = p && p.contributor_contact_id ? String(p.contributor_contact_id).trim() : '';
-                if (contrib && !contributorNameInput.value) {
-                    contributorNameInput.value = contrib;
-                }
-                // Also populate the Restock SKU select with this partner's known SKUs.
                 populateRestockSkuOptions(p);
             });
 
