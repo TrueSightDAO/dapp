@@ -42,6 +42,28 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-areas: "attention" "form";
+            gap: 1.5rem;
+        }
+        .form-pane { grid-area: form; min-width: 0; }
+        .attention-pane { grid-area: attention; min-width: 0; }
+        @media (min-width: 980px) {
+            .container { max-width: 1100px; }
+            .main-layout {
+                grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+                grid-template-areas: "form attention";
+            }
+            .attention-pane {
+                position: sticky;
+                top: 1rem;
+                align-self: start;
+                max-height: calc(100vh - 2rem);
+                overflow-y: auto;
+            }
+        }
         h1 {
             font-size: 1.8rem;
             color: #333;
@@ -225,12 +247,15 @@
 
         <p id="status" class="signature-verify-status" role="status" aria-live="polite">Loading partners…</p>
 
-        <div id="attentionSection" class="attention-section" style="display:none;">
-            <div class="section-title">Needs Attention</div>
-            <div id="attentionList"></div>
-        </div>
-
-        <div class="section-title">Log Check-in</div>
+        <div class="main-layout">
+            <aside class="attention-pane">
+                <div id="attentionSection" class="attention-section" style="display:none;">
+                    <div class="section-title">Needs Attention</div>
+                    <div id="attentionList"></div>
+                </div>
+            </aside>
+            <div class="form-pane">
+                <div class="section-title">Log Check-in</div>
         <div class="form-row">
             <label for="contributorName">Contributor Name</label>
             <select id="contributorName" data-requires-signature="true">
@@ -321,10 +346,12 @@
             <div id="submitMessage" style="margin-top:0.5rem;font-size:0.9rem;text-align:center;"></div>
         </div>
 
-        <div id="historySection" style="display:none;">
-            <div class="section-title">Check-in History</div>
-            <div id="historyBlock" class="history-block empty">Select a partner to load history.</div>
-        </div>
+                <div id="historySection" style="display:none;">
+                    <div class="section-title">Check-in History</div>
+                    <div id="historyBlock" class="history-block empty">Select a partner to load history.</div>
+                </div>
+            </div><!-- /.form-pane -->
+        </div><!-- /.main-layout -->
     </div>
 
     <script>
