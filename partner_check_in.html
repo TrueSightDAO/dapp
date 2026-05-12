@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Partner Check-in — Log periodic check-ins with Agroverse retail partners, track stock status, and surface partners who need a poke.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partner Check-in - TrueSight DAO</title>
+
+    <meta property="og:title" content="Partner Check-in - TrueSight DAO">
+    <meta property="og:description" content="Log periodic check-ins with Agroverse retail partners, track stock status, and surface partners who need a poke.">
+    <meta property="og:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <meta property="og:url" content="https://dapp.truesight.me/partner_check_in.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TrueSight DAO">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Partner Check-in - TrueSight DAO">
+    <meta name="twitter:description" content="Log periodic check-ins with Agroverse retail partners, track stock status, and surface partners who need a poke.">
+    <meta name="twitter:image" content="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+
+    <link rel="icon" type="image/png" href="https://github.com/TrueSightDAO/.github/blob/main/assets/20240612_truesight_dao_logo_square.png?raw=true">
+    <script src="./routes.js"></script>
+    <script src="./menu.js?v=20260512"></script>
+    <script src="./tdg_balance.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 720px;
+            width: 100%;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin: 0.5rem 0 1rem;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 1rem;
+            color: #555;
+            text-align: center;
+            margin-bottom: 1.25rem;
+            line-height: 1.5;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 1.5rem 0 0.75rem;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.35rem;
+        }
+        .form-row { margin-bottom: 1rem; }
+        .form-row label { display: block; font-weight: 600; margin-bottom: 0.35rem; font-size: 0.95rem; color: #333; }
+        .form-row select, .form-row input, .form-row textarea {
+            width: 100%;
+            padding: 0.65rem;
+            font-size: 1rem;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        .form-row textarea { min-height: 80px; resize: vertical; }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+        .btn:hover { background-color: #0056b3; }
+        .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        #status {
+            min-height: 1.5rem;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+        .error { color: #c62828; }
+        .success { color: #1b5e20; }
+        .info { color: #555; }
+
+        .attention-card {
+            margin: 0.65rem 0;
+            padding: 0.85rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            border-left: 5px solid #dc3545;
+            background: #fff5f5;
+        }
+        .attention-card.warning { border-left-color: #fd7e14; background: #fff8f2; }
+        .attention-card.info { border-left-color: #0d6efd; background: #f7f9ff; }
+        .attention-card-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+        }
+        .attention-card-header strong { font-size: 1rem; color: #333; flex: 1 1 auto; }
+        .attention-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #fff;
+            background: #dc3545;
+        }
+        .attention-card.warning .attention-badge { background: #fd7e14; }
+        .attention-card.info .attention-badge { background: #0d6efd; }
+        .attention-reasons {
+            font-size: 0.88rem;
+            color: #555;
+            margin: 0.25rem 0 0.5rem;
+            line-height: 1.4;
+        }
+        .attention-reasons ul { margin: 0.2rem 0; padding-left: 1.2rem; }
+        .attention-reasons li { margin: 0.15rem 0; }
+        .attention-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .attention-actions button {
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-log-checkin { background: #28a745; color: #fff; }
+        .btn-log-checkin:hover { background: #218838; }
+
+        .history-block {
+            padding: 0.75rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fafafa;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            margin: 0.5rem 0;
+        }
+        .history-block.empty { color: #888; font-style: italic; }
+        .history-block.loading { color: #888; font-style: italic; }
+        .history-entry {
+            margin: 0.5rem 0;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        .history-entry:last-child { border-bottom: none; }
+        .history-date { font-weight: 600; color: #333; }
+        .history-meta { font-size: 0.82rem; color: #666; margin: 0.15rem 0; }
+        .history-notes { color: #444; margin-top: 0.25rem; word-break: break-word; }
+        .history-stock-low { color: #c62828; font-weight: 600; }
+        .history-stock-out { color: #c62828; font-weight: 600; }
+        .history-stock-ok { color: #1b5e20; }
+
+        .signature-verify-status {
+            margin: 1rem 0;
+            min-height: 1.5rem;
+            font-size: 1rem;
+            text-align: center;
+            font-weight: bold;
+        }
+        .config-warn {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        .requires-signature-soft-disabled { opacity: 0.65; }
+
+        .attention-section { margin: 1rem 0; }
+        .attention-empty {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 0.75rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="navDropdown" style="margin:1rem 0; text-align:center;"></div>
+    <div id="tdgBalanceBadge"></div>
+    <div class="container">
+        <h1>Partner Check-in</h1>
+        <p class="subtitle" id="description">Log periodic check-ins with Agroverse retail partners. Track stock status, restock needs, and see who needs a poke.</p>
+
+        <div id="signaturePromptBanner" class="config-warn" style="display:none;">
+            You are viewing in <strong>read-only</strong> mode. <a href="./create_signature.html">Generate your digital signature</a> to log check-ins.
+        </div>
+
+        <div id="configWarn" class="config-warn" style="display:none;">
+            Set <strong>API_BASE_URL</strong> in this page to your deployed Apps Script web app URL.
+        </div>
+
+        <p id="status" class="signature-verify-status" role="status" aria-live="polite">Loading partners…</p>
+
+        <div id="attentionSection" class="attention-section" style="display:none;">
+            <div class="section-title">Needs Attention</div>
+            <div id="attentionList"></div>
+        </div>
+
+        <div class="section-title">Log Check-in</div>
+        <div class="form-row">
+            <label for="partnerSelect">Partner</label>
+            <select id="partnerSelect">
+                <option value="">— Loading partners… —</option>
+            </select>
+        </div>
+
+        <div id="partnerDetail" style="display:none;">
+            <div class="form-row">
+                <label for="contributorName">Contributor Name</label>
+                <input type="text" id="contributorName" placeholder="First Name - Store Name (must match Contributors contact information!A)" data-requires-signature="true" />
+                <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Canonical retail-partner format: <code>First Name - Store Name</code> (e.g. <code>Gergana - The Way Home Shop</code>). Short names will be auto-renamed by Edgar and clear col T.</div>
+            </div>
+
+            <div class="form-row">
+                <label for="checkInDate">Check-in Date</label>
+                <input type="date" id="checkInDate" />
+            </div>
+
+            <div class="form-row">
+                <label for="methodSelect">Method</label>
+                <select id="methodSelect">
+                    <option value="">— Select —</option>
+                    <option value="Text">Text</option>
+                    <option value="Phone">Phone</option>
+                    <option value="In Person">In Person</option>
+                    <option value="Email">Email</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label for="stockStatusSelect">Stock Status</label>
+                <select id="stockStatusSelect">
+                    <option value="">— Select —</option>
+                    <option value="Low">Low</option>
+                    <option value="Out">Out</option>
+                    <option value="OK">OK</option>
+                    <option value="Unknown">Unknown</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label for="restockNeededSelect">Restock Needed</label>
+                <select id="restockNeededSelect">
+                    <option value="">— Select —</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                    <option value="Maybe">Maybe</option>
+                </select>
+            </div>
+
+            <div class="form-row" id="restockSkuRow" style="display:none;">
+                <label for="restockSku">Restock SKU</label>
+                <select id="restockSku">
+                    <option value="">— Select SKU —</option>
+                </select>
+                <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Pulled from this partner's tracked SKUs in <code>partners-velocity.json</code>. Pick <em>Other</em> if the partner asked for a SKU they don't currently carry.</div>
+            </div>
+
+            <div class="form-row" id="restockQtyRow" style="display:none;">
+                <label for="restockQuantity">Restock Quantity</label>
+                <input type="number" id="restockQuantity" min="1" placeholder="e.g. 12" />
+                <div style="font-size:0.8rem;color:#666;margin-top:0.25rem;">Units of the selected SKU.</div>
+            </div>
+
+            <div class="form-row">
+                <label for="nextCheckInDate">Next Check-in Date</label>
+                <input type="date" id="nextCheckInDate" />
+            </div>
+
+            <div class="form-row">
+                <label for="notesInput">Notes</label>
+                <textarea id="notesInput" placeholder="What did the partner say? Any context?" data-requires-signature="true"></textarea>
+            </div>
+
+            <button type="button" class="btn" id="submitBtn" data-requires-signature="true">Submit Check-in</button>
+            <div id="submitMessage" style="margin-top:0.5rem;font-size:0.9rem;text-align:center;"></div>
+        </div>
+
+        <div id="historySection" style="display:none;">
+            <div class="section-title">Check-in History</div>
+            <div id="historyBlock" class="history-block empty">Select a partner to load history.</div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        const API_BASE_URL = (window.Routes && window.Routes.gas && window.Routes.gas.shipping)
+            || 'https://script.google.com/macros/s/AKfycbz5Tt_vz1X26i82yqlGUSI_OtCUEO31jImZH2tXfNaxMbfmJ01dkwUIEZDjsnd10xMbcg/exec';
+        const EDGAR_SUBMIT = (window.Routes && window.Routes.edgar && window.Routes.edgar.submit)
+            || 'https://edgar.truesight.me/dao/submit_contribution';
+
+        const VELOCITY_URL = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/partners-velocity.json';
+        const INVENTORY_URL = 'https://raw.githubusercontent.com/TrueSightDAO/agroverse-inventory/main/partners-inventory.json';
+
+        const partnerSelect = document.getElementById('partnerSelect');
+        const contributorNameInput = document.getElementById('contributorName');
+        const checkInDateInput = document.getElementById('checkInDate');
+        const methodSelect = document.getElementById('methodSelect');
+        const stockStatusSelect = document.getElementById('stockStatusSelect');
+        const restockNeededSelect = document.getElementById('restockNeededSelect');
+        const restockSkuRow = document.getElementById('restockSkuRow');
+        const restockSkuSelect = document.getElementById('restockSku');
+        const restockQtyRow = document.getElementById('restockQtyRow');
+        const restockQuantityInput = document.getElementById('restockQuantity');
+        const nextCheckInDateInput = document.getElementById('nextCheckInDate');
+        const notesInput = document.getElementById('notesInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitMessage = document.getElementById('submitMessage');
+        const statusEl = document.getElementById('status');
+        const signatureBanner = document.getElementById('signaturePromptBanner');
+        const partnerDetail = document.getElementById('partnerDetail');
+        const historySection = document.getElementById('historySection');
+        const historyBlock = document.getElementById('historyBlock');
+        const attentionSection = document.getElementById('attentionSection');
+        const attentionList = document.getElementById('attentionList');
+
+        let velocityCache = null;
+        let inventoryCache = null;
+        let checkInCache = {};
+        let interactionMode = 'view-only';
+
+        // ---- Date helpers --------------------------------------------------
+        function todayIso() {
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+        function daysSince(isoDate) {
+            if (!isoDate) return null;
+            const d = new Date(isoDate + 'T00:00:00Z');
+            if (isNaN(d.getTime())) return null;
+            return Math.floor((Date.now() - d.getTime()) / 86400000);
+        }
+        function relativeAge(isoDate) {
+            const days = daysSince(isoDate);
+            if (days === null) return 'unknown';
+            if (days < 0) return 'in the future';
+            if (days === 0) return 'today';
+            if (days === 1) return 'yesterday';
+            if (days < 14) return days + ' days ago';
+            if (days < 60) return Math.round(days / 7) + ' weeks ago';
+            if (days < 365) return Math.round(days / 30) + ' months ago';
+            return Math.round(days / 365 * 10) / 10 + ' years ago';
+        }
+
+        // ---- Signature verification ----------------------------------------
+        function hasSignature() {
+            return !!(localStorage.getItem('publicKey') && localStorage.getItem('privateKey'));
+        }
+        function setInteractionMode(mode) {
+            interactionMode = mode;
+            signatureBanner.style.display = mode === 'interactive' ? 'none' : 'block';
+            const enabled = mode === 'interactive';
+            document.querySelectorAll('[data-requires-signature="true"]').forEach(function(el) {
+                var tag = el.tagName;
+                if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].indexOf(tag) !== -1) {
+                    el.disabled = !enabled;
+                }
+                el.classList.toggle('requires-signature-soft-disabled', !enabled);
+            });
+        }
+        function setStatus(msg, cls) {
+            statusEl.textContent = msg || '';
+            statusEl.className = 'signature-verify-status' + (cls ? ' ' + cls : '');
+        }
+
+        // ---- JSON fetch helpers --------------------------------------------
+        function fetchJson(url) {
+            return fetch(url, { method: 'GET', cache: 'no-cache' }).then(function(res) {
+                return res.ok ? res.json() : null;
+            }).catch(function() { return null; });
+        }
+
+        function fetchVelocity() {
+            if (velocityCache) return Promise.resolve(velocityCache);
+            return fetchJson(VELOCITY_URL).then(function(json) { velocityCache = json; return json; });
+        }
+        function fetchInventory() {
+            if (inventoryCache) return Promise.resolve(inventoryCache);
+            return fetchJson(INVENTORY_URL).then(function(json) { inventoryCache = json; return json; });
+        }
+
+        function fetchPartnerCheckIns(partnerId) {
+            if (checkInCache[partnerId]) return Promise.resolve(checkInCache[partnerId]);
+            var url = API_BASE_URL + '?action=get_partner_check_ins&partner_id=' + encodeURIComponent(partnerId);
+            return fetch(url, { method: 'GET' }).then(function(res) { return res.ok ? res.json() : null; })
+                .then(function(json) {
+                    var rows = (json && json.status === 'success' && json.data && json.data.check_ins) ? json.data.check_ins : [];
+                    checkInCache[partnerId] = rows;
+                    return rows;
+                }).catch(function() { return []; });
+        }
+
+        // ---- Partner list --------------------------------------------------
+        function slugToDisplayName(slug) {
+            var s = String(slug || '').split('/').pop();
+            return s.split('-').map(function(w) {
+                if (!w) return '';
+                if (w.length <= 2) return w.toUpperCase();
+                return w.charAt(0).toUpperCase() + w.slice(1);
+            }).join(' ').trim();
+        }
+        function buildPartnerLabel(slug, p) {
+            var name = (p && p.partner_name && p.partner_name.trim()) || slugToDisplayName(slug);
+            var loc = (p && p.location && p.location.trim()) || '';
+            return loc ? (name + ' · ' + loc) : name;
+        }
+
+        function populatePartnerSelect() {
+            fetchVelocity().then(function(velocity) {
+                if (!velocity || !velocity.partners) {
+                    partnerSelect.innerHTML = '<option value="">— Could not load partners —</option>';
+                    setStatus('Could not load partners.', 'error');
+                    return;
+                }
+                var RETAIL_TYPES = { 'Consignment': true, 'Wholesale': true };
+                var entries = Object.keys(velocity.partners)
+                    .filter(function(slug) {
+                        if (slug.indexOf('/') !== -1) return false;
+                        var p = velocity.partners[slug] || {};
+                        var ptype = p.partner_type || 'Consignment';
+                        return RETAIL_TYPES[ptype] === true;
+                    })
+                    .map(function(slug) {
+                        return { slug: slug, label: buildPartnerLabel(slug, velocity.partners[slug]), partner: velocity.partners[slug] };
+                    })
+                    .sort(function(a, b) { return a.label.toLowerCase().localeCompare(b.label.toLowerCase()); });
+
+                var options = ['<option value="">— Select partner —</option>']
+                    .concat(entries.map(function(e) {
+                        return '<option value="' + e.slug + '">' + e.label + '</option>';
+                    }));
+                partnerSelect.innerHTML = options.join('');
+                setStatus('');
+
+                // After populating, compute attention list
+                computeAttentionList(entries, velocity);
+
+                // Deep link support
+                var params = new URLSearchParams(window.location.search);
+                var deepPid = (params.get('partner_id') || '').trim();
+                if (deepPid) {
+                    partnerSelect.value = deepPid;
+                    if (partnerSelect.value === deepPid) {
+                        onPartnerSelected(deepPid);
+                    }
+                }
+            });
+        }
+
+        // ---- Attention scoring ---------------------------------------------
+        function computeAttentionList(entries, velocity) {
+            fetchInventory().then(function(inventory) {
+                var attention = [];
+                entries.forEach(function(e) {
+                    var slug = e.slug;
+                    var inv = inventory && inventory.partners && inventory.partners[slug];
+                    var vel = velocity.partners[slug];
+                    var totalInv = 0;
+                    var reasons = [];
+
+                    if (inv && inv.items) {
+                        inv.items.forEach(function(it) {
+                            totalInv += (it.venueInventory || 0);
+                        });
+                        if (totalInv === 0) {
+                            reasons.push('Out of stock');
+                        } else if (totalInv <= 3) {
+                            reasons.push('Running low (' + totalInv + ' left)');
+                        }
+                    }
+
+                    if (vel && vel.items) {
+                        Object.keys(vel.items).forEach(function(sku) {
+                            var it = vel.items[sku];
+                            if (it.last_sale_date) {
+                                var ds = daysSince(it.last_sale_date);
+                                if (ds !== null && ds > 45) {
+                                    reasons.push('Last sale ' + relativeAge(it.last_sale_date));
+                                }
+                            }
+                        });
+                    }
+
+                    if (reasons.length > 0) {
+                        var severity = reasons.some(function(r) { return r.indexOf('Out of stock') === 0; }) ? 'critical' :
+                                       reasons.some(function(r) { return r.indexOf('Running low') === 0; }) ? 'warning' : 'info';
+                        attention.push({ slug: slug, label: e.label, severity: severity, reasons: reasons, totalInv: totalInv });
+                    }
+                });
+
+                attention.sort(function(a, b) {
+                    var sevOrder = { critical: 0, warning: 1, info: 2 };
+                    if (sevOrder[a.severity] !== sevOrder[b.severity]) return sevOrder[a.severity] - sevOrder[b.severity];
+                    return a.label.localeCompare(b.label);
+                });
+
+                renderAttentionList(attention);
+            });
+        }
+
+        function renderAttentionList(attention) {
+            if (!attention || attention.length === 0) {
+                attentionSection.style.display = 'block';
+                attentionList.innerHTML = '<div class="attention-empty">All partners look healthy. No pokes needed right now.</div>';
+                return;
+            }
+            attentionSection.style.display = 'block';
+            attentionList.innerHTML = attention.map(function(a) {
+                var cls = a.severity === 'critical' ? '' : (a.severity === 'warning' ? 'warning' : 'info');
+                var badge = a.severity === 'critical' ? 'Out of stock' : (a.severity === 'warning' ? 'Low stock' : 'Dormant');
+                var reasonsHtml = '<ul>' + a.reasons.map(function(r) { return '<li>' + r + '</li>'; }).join('') + '</ul>';
+                return '<div class="attention-card ' + cls + '">' +
+                    '<div class="attention-card-header">' +
+                    '<strong>' + escapeHtml(a.label) + '</strong>' +
+                    '<span class="attention-badge">' + escapeHtml(badge) + '</span>' +
+                    '</div>' +
+                    '<div class="attention-reasons">' + reasonsHtml + '</div>' +
+                    '<div class="attention-actions">' +
+                    '<button class="btn-log-checkin" data-slug="' + a.slug + '">Log check-in</button>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+
+            attentionList.querySelectorAll('.btn-log-checkin').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var slug = this.getAttribute('data-slug');
+                    partnerSelect.value = slug;
+                    onPartnerSelected(slug);
+                    window.scrollTo({ top: partnerDetail.offsetTop - 20, behavior: 'smooth' });
+                });
+            });
+        }
+
+        // ---- Restock SKU options -------------------------------------------
+        function populateRestockSkuOptions(partner) {
+            var options = ['<option value="">— Select SKU —</option>'];
+            if (partner && partner.items && typeof partner.items === 'object') {
+                Object.keys(partner.items).sort().forEach(function(sku) {
+                    options.push('<option value="' + escapeHtml(sku) + '">' + escapeHtml(sku) + '</option>');
+                });
+            }
+            options.push('<option value="Other">Other (specify in Notes)</option>');
+            restockSkuSelect.innerHTML = options.join('');
+        }
+
+        // ---- Partner selection ---------------------------------------------
+        function onPartnerSelected(slug) {
+            if (!slug) {
+                partnerDetail.style.display = 'none';
+                historySection.style.display = 'none';
+                contributorNameInput.value = '';
+                return;
+            }
+            partnerDetail.style.display = 'block';
+            historySection.style.display = 'block';
+            historyBlock.className = 'history-block loading';
+            historyBlock.textContent = 'Loading history…';
+
+            // Auto-fill contributor name ONLY from contributor_contact_id (canonical).
+            // partners-velocity.json does not yet carry this field; until it does, leave the
+            // field blank so operators must type the canonical "First Name - Store Name"
+            // format themselves. Falling back to partner_name pre-fills a short name that
+            // Edgar will auto-rename and clear col T (see The Way Home Shop incident
+            // 2026-04-28 / feedback_contributor_naming_for_retail_partners memory).
+            fetchVelocity().then(function(velocity) {
+                var p = velocity && velocity.partners && velocity.partners[slug];
+                var contrib = p && p.contributor_contact_id ? String(p.contributor_contact_id).trim() : '';
+                if (contrib && !contributorNameInput.value) {
+                    contributorNameInput.value = contrib;
+                }
+                // Also populate the Restock SKU select with this partner's known SKUs.
+                populateRestockSkuOptions(p);
+            });
+
+            fetchPartnerCheckIns(slug).then(function(rows) {
+                renderHistory(slug, rows);
+            });
+
+            // Update URL
+            try {
+                var url = new URL(window.location.href);
+                url.searchParams.set('partner_id', slug);
+                history.replaceState(null, '', url.pathname + url.search + url.hash);
+            } catch (e) {}
+        }
+
+        function renderHistory(slug, rows) {
+            if (!rows || rows.length === 0) {
+                historyBlock.className = 'history-block empty';
+                historyBlock.innerHTML = 'No check-ins on file for this partner yet.';
+                return;
+            }
+            historyBlock.className = 'history-block';
+            historyBlock.innerHTML = rows.map(function(r) {
+                var stockClass = '';
+                if (r.stock_status === 'Low') stockClass = 'history-stock-low';
+                else if (r.stock_status === 'Out') stockClass = 'history-stock-out';
+                else if (r.stock_status === 'OK') stockClass = 'history-stock-ok';
+                var metaParts = [];
+                if (r.method) metaParts.push(r.method);
+                if (r.stock_status) metaParts.push('<span class="' + stockClass + '">' + r.stock_status + '</span>');
+                if (r.restock_needed) metaParts.push('Restock: ' + r.restock_needed);
+                if (r.restock_sku) metaParts.push('SKU: ' + escapeHtml(r.restock_sku));
+                if (r.restock_quantity) metaParts.push('Qty: ' + r.restock_quantity);
+                var meta = metaParts.join(' · ');
+                var next = r.next_check_in_date ? ('Next: ' + r.next_check_in_date) : '';
+                return '<div class="history-entry">' +
+                    '<div class="history-date">' + escapeHtml(r.check_in_date || r.submitted_at || '—') + '</div>' +
+                    '<div class="history-meta">' + meta + (next ? ' · ' + next : '') + '</div>' +
+                    (r.notes ? '<div class="history-notes">' + escapeHtml(r.notes) + '</div>' : '') +
+                    '</div>';
+            }).join('');
+        }
+
+        // ---- Event submission ----------------------------------------------
+        function arrayBufferToBase64(buffer) {
+            return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
+        }
+        function base64ToArrayBuffer(base64) {
+            var binary = atob(base64);
+            var bytes = new Uint8Array(binary.length);
+            for (var bi = 0; bi < binary.length; bi++) bytes[bi] = binary.charCodeAt(bi);
+            return bytes.buffer;
+        }
+
+        function buildPartnerCheckInText(fields) {
+            return '[PARTNER CHECK-IN EVENT]\n' +
+                'Partner ID: ' + fields.partner_id + '\n' +
+                'Contributor Name: ' + fields.contributor_name + '\n' +
+                'Check-in Date: ' + fields.check_in_date + '\n' +
+                'Method: ' + fields.method + '\n' +
+                'Stock Status: ' + fields.stock_status + '\n' +
+                'Restock Needed: ' + fields.restock_needed + '\n' +
+                (fields.restock_sku ? 'Restock SKU: ' + fields.restock_sku + '\n' : '') +
+                (fields.restock_quantity ? 'Restock Quantity: ' + fields.restock_quantity + '\n' : '') +
+                (fields.next_check_in_date ? 'Next Check-in Date: ' + fields.next_check_in_date + '\n' : '') +
+                (fields.notes ? 'Notes: ' + fields.notes + '\n' : '') +
+                'Update ID: ' + fields.update_id + '\n' +
+                '--------';
+        }
+
+        async function submitCheckIn() {
+            var publicKey = localStorage.getItem('publicKey');
+            var privateKey = localStorage.getItem('privateKey');
+            if (!publicKey || !privateKey) {
+                setStatus('No digital signature. Generate one first.', 'error');
+                return;
+            }
+
+            var partnerId = (partnerSelect.value || '').trim();
+            if (!partnerId) {
+                submitMessage.textContent = 'Select a partner.';
+                submitMessage.className = 'error';
+                return;
+            }
+            var contributorName = (contributorNameInput.value || '').trim();
+            if (!contributorName) {
+                submitMessage.textContent = 'Contributor Name is missing. The partner may not have a contributor_contact_id mapping.';
+                submitMessage.className = 'error';
+                return;
+            }
+            var checkInDate = (checkInDateInput.value || '').trim();
+            if (!checkInDate) checkInDate = todayIso();
+            var method = (methodSelect.value || '').trim();
+            var stockStatus = (stockStatusSelect.value || '').trim();
+            var restockNeeded = (restockNeededSelect.value || '').trim();
+            var restockSku = (restockSkuSelect.value || '').trim();
+            var restockQuantity = (restockQuantityInput.value || '').trim();
+            var nextCheckInDate = (nextCheckInDateInput.value || '').trim();
+            var notes = (notesInput.value || '').trim();
+
+            if (!method || !stockStatus || !restockNeeded) {
+                submitMessage.textContent = 'Method, Stock Status, and Restock Needed are required.';
+                submitMessage.className = 'error';
+                return;
+            }
+
+            var ts = new Date().toISOString().replace(/[^\d]/g, '').slice(0, 14);
+            var rand = new Uint8Array(3);
+            window.crypto.getRandomValues(rand);
+            var suffix = Array.from(rand).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+            var updateId = 'PCI_' + ts + '_' + suffix;
+
+            var fields = {
+                partner_id: partnerId,
+                contributor_name: contributorName,
+                check_in_date: checkInDate,
+                method: method,
+                stock_status: stockStatus,
+                restock_needed: restockNeeded,
+                restock_sku: restockSku,
+                restock_quantity: restockQuantity,
+                next_check_in_date: nextCheckInDate,
+                notes: notes,
+                update_id: updateId
+            };
+
+            var requestText = buildPartnerCheckInText(fields);
+
+            try {
+                var privateKeyObj = await window.crypto.subtle.importKey(
+                    'pkcs8',
+                    base64ToArrayBuffer(privateKey),
+                    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+                    false,
+                    ['sign']
+                );
+                var encoder = new TextEncoder();
+                var signature = await window.crypto.subtle.sign(
+                    'RSASSA-PKCS1-v1_5',
+                    privateKeyObj,
+                    encoder.encode(requestText)
+                );
+                var requestHash = arrayBufferToBase64(signature);
+                var shareText = requestText + '\n\nMy Digital Signature: ' + publicKey +
+                    '\n\nRequest Transaction ID: ' + requestHash +
+                    '\n\nThis submission was generated using ' + window.location.href +
+                    '\n\nVerify submission here: https://dapp.truesight.me/verify_request.html';
+
+                submitBtn.disabled = true;
+                submitMessage.textContent = 'Submitting…';
+                submitMessage.className = 'info';
+
+                var formData = new FormData();
+                formData.append('text', shareText);
+                var resp = await fetch(EDGAR_SUBMIT, { method: 'POST', body: formData });
+                if (!resp.ok) throw new Error(await resp.text());
+                var jsonResult = await resp.json();
+
+                submitBtn.disabled = false;
+                submitMessage.textContent = 'Check-in logged. Update ID: ' + updateId;
+                submitMessage.className = 'success';
+
+                // Clear cache and reload history
+                delete checkInCache[partnerId];
+                fetchPartnerCheckIns(partnerId).then(function(rows) {
+                    renderHistory(partnerId, rows);
+                });
+
+                // Reset form
+                notesInput.value = '';
+                restockSkuSelect.value = '';
+                restockQuantityInput.value = '';
+                nextCheckInDateInput.value = '';
+            } catch (err) {
+                submitBtn.disabled = false;
+                submitMessage.textContent = 'Error: ' + (err.message || err);
+                submitMessage.className = 'error';
+            }
+        }
+
+        // ---- Escape helper -------------------------------------------------
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ---- Event wiring --------------------------------------------------
+        partnerSelect.addEventListener('change', function() {
+            onPartnerSelected(partnerSelect.value);
+        });
+
+        restockNeededSelect.addEventListener('change', function() {
+            var show = (this.value === 'Yes') ? 'block' : 'none';
+            restockSkuRow.style.display = show;
+            restockQtyRow.style.display = show;
+        });
+
+        submitBtn.addEventListener('click', submitCheckIn);
+
+        // ---- Init ----------------------------------------------------------
+        checkInDateInput.value = todayIso();
+        setInteractionMode(hasSignature() ? 'interactive' : 'view-only');
+        populatePartnerSelect();
+    })();
+    </script>
+<script src="./js/dapp_footer_links.js?v=1"></script>
+</body>
+</html>
