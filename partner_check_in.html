@@ -361,6 +361,41 @@
         let contributorToPartners = null; // contributor name → [{partner_id, partner_name}]
         let contributorMapPromise = null;
         let interactionMode = 'view-only';
+        let isPostSubmission = false; // true between successful submit and Log Another click
+
+        function updateSubmitButtonText() {
+            submitBtn.textContent = isPostSubmission ? 'Log Another Check-in' : 'Submit Check-in';
+        }
+
+        function resetForm() {
+            contributorNameInput.value = '';
+            contributorDetail.style.display = 'none';
+            partnerDetail.style.display = 'none';
+            historySection.style.display = 'none';
+            partnerSelect.innerHTML = '<option value="">— Pick contributor first —</option>';
+            if (partnerHint) partnerHint.textContent = '';
+            methodSelect.value = '';
+            stockStatusSelect.value = '';
+            restockNeededSelect.value = '';
+            restockSkuSelect.value = '';
+            restockSkuRow.style.display = 'none';
+            restockQuantityInput.value = '';
+            restockQtyRow.style.display = 'none';
+            notesInput.value = '';
+            checkInDateInput.value = todayIso();
+            nextCheckInHint.style.display = 'none';
+            nextCheckInHint.innerHTML = '';
+            computedNextCheckInDate = '';
+            submitMessage.textContent = '';
+            submitMessage.className = '';
+            try {
+                var url = new URL(window.location.href);
+                url.searchParams.delete('partner_id');
+                history.replaceState(null, '', url.pathname + url.search + url.hash);
+            } catch (e) {}
+            // Scroll back to the top of the form
+            try { contributorNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+        }
 
         // ---- Date helpers --------------------------------------------------
         function todayIso() {
@@ -826,6 +861,14 @@
         }
 
         async function submitCheckIn() {
+            // Post-submission "Log Another" mode — reset and bail out before validating.
+            if (isPostSubmission) {
+                isPostSubmission = false;
+                resetForm();
+                updateSubmitButtonText();
+                return;
+            }
+
             var publicKey = localStorage.getItem('publicKey');
             var privateKey = localStorage.getItem('privateKey');
             if (!publicKey || !privateKey) {
@@ -914,7 +957,7 @@
                 var jsonResult = await resp.json();
 
                 submitBtn.disabled = false;
-                submitMessage.textContent = 'Check-in logged. Update ID: ' + updateId;
+                submitMessage.innerHTML = '✓ Check-in logged. <span style="color:#666;">Update ID: ' + escapeHtml(updateId) + '</span>';
                 submitMessage.className = 'success';
 
                 // Clear cache and reload history
@@ -923,10 +966,10 @@
                     renderHistory(partnerId, rows);
                 });
 
-                // Reset form
-                notesInput.value = '';
-                restockSkuSelect.value = '';
-                restockQuantityInput.value = '';
+                // Flip into post-submission state — next click of the button resets the form
+                // so the operator can log another check-in without page-reloading.
+                isPostSubmission = true;
+                updateSubmitButtonText();
             } catch (err) {
                 submitBtn.disabled = false;
                 submitMessage.textContent = 'Error: ' + (err.message || err);
@@ -946,6 +989,13 @@
 
         // ---- Event wiring --------------------------------------------------
         contributorNameInput.addEventListener('change', function() {
+            // If operator changes contributor after a successful submit, treat it as a new entry.
+            if (isPostSubmission) {
+                isPostSubmission = false;
+                updateSubmitButtonText();
+                submitMessage.textContent = '';
+                submitMessage.className = '';
+            }
             onContributorSelected(contributorNameInput.value);
         });
 
