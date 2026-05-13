@@ -15,28 +15,38 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const DAO_CLIENT_ENV = '/Users/garyjob/Applications/dao_client/.env';
+// Local-only smoke test. The operator's RSA keys live in dao_client/.env on
+// their workstation; CI runners don't have access to those keys (they're not
+// available as repo secrets either, intentionally — they're per-operator).
+// When the env file is absent, the test gracefully skips rather than crashing
+// the spec at module load with a hardcoded-path ENOENT.
+const DAO_CLIENT_ENV =
+  process.env.DAO_CLIENT_ENV || '/Users/garyjob/Applications/dao_client/.env';
 
 type EnvKeys = { email: string; publicKey: string; privateKey: string };
 
-function loadEnvKeys(): EnvKeys {
-  const raw = fs.readFileSync(DAO_CLIENT_ENV, 'utf8');
-  const parsed: Record<string, string> = {};
-  for (const line of raw.split(/\r?\n/)) {
-    const m = line.match(/^([A-Z_]+)=(.*)$/);
-    if (m) parsed[m[1]] = m[2];
+function loadEnvKeysOrNull(): EnvKeys | null {
+  try {
+    const raw = fs.readFileSync(DAO_CLIENT_ENV, 'utf8');
+    const parsed: Record<string, string> = {};
+    for (const line of raw.split(/\r?\n/)) {
+      const m = line.match(/^([A-Z_]+)=(.*)$/);
+      if (m) parsed[m[1]] = m[2];
+    }
+    if (!parsed.PUBLIC_KEY || !parsed.PRIVATE_KEY) {
+      return null;
+    }
+    return {
+      email: parsed.EMAIL || 'garyjob@gmail.com',
+      publicKey: parsed.PUBLIC_KEY,
+      privateKey: parsed.PRIVATE_KEY,
+    };
+  } catch (_) {
+    return null;
   }
-  if (!parsed.PUBLIC_KEY || !parsed.PRIVATE_KEY) {
-    throw new Error(`Missing PUBLIC_KEY / PRIVATE_KEY in ${DAO_CLIENT_ENV}`);
-  }
-  return {
-    email: parsed.EMAIL || 'garyjob@gmail.com',
-    publicKey: parsed.PUBLIC_KEY,
-    privateKey: parsed.PRIVATE_KEY,
-  };
 }
 
-const KEYS = loadEnvKeys();
+const KEYS = loadEnvKeysOrNull();
 
 // Inject WebCrypto keys + a routes.mode override into localStorage before every
 // page script runs. The route override persists so the probe-and-flip logic
@@ -57,7 +67,7 @@ async function primeSession(
         /* jsdom / sandboxed contexts — ignore */
       }
     },
-    { publicKey: KEYS.publicKey, privateKey: KEYS.privateKey, mode }
+    { publicKey: KEYS!.publicKey, privateKey: KEYS!.privateKey, mode }
   );
 }
 
@@ -141,6 +151,7 @@ for (const mode of ['direct', 'proxy'] as const) {
   test.describe(`routes.js (${mode} mode)`, () => {
     for (const spec of PAGE_SPECS) {
       test(`${spec.module} → ${spec.path}`, async ({ page }) => {
+        test.skip(!KEYS, `Operator-only smoke: ${DAO_CLIENT_ENV} not present on this runner.`);
         await primeSession(page, mode);
         await page.goto(spec.path);
 
@@ -205,13 +216,14 @@ for (const mode of ['direct', 'proxy'] as const) {
 test('Probe-and-flip: explicit ?route=proxy URL override persists to localStorage', async ({
   page,
 }) => {
+  test.skip(!KEYS, `Operator-only smoke: ${DAO_CLIENT_ENV} not present on this runner.`);
   // Start in direct mode, then load with ?route=proxy and confirm the flip persists.
   await page.addInitScript(({ publicKey, privateKey }) => {
     localStorage.setItem('publicKey', publicKey);
     localStorage.setItem('privateKey', privateKey);
     localStorage.removeItem('routesMode');
     sessionStorage.setItem('routesProbed', 'true');
-  }, KEYS);
+  }, KEYS!);
 
   await page.goto('/submit_feedback.html?route=proxy');
   await page.waitForFunction(() => (window as any).Routes !== undefined);
